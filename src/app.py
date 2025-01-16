@@ -5,6 +5,8 @@ from pathlib import Path
 from utils import resize_with_aspect_ratio
 from horizontal_spinner import HorizontalSpinner
 from image_cache import ImageCache
+from image_annotation import ImageAnnotation
+from annotatable_image import AnnotatableImage
 
 
 class ImagePairList(list):
@@ -38,114 +40,154 @@ class PairViewerApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Side by Side Images")
-        self.pair_viewer = PairViewer(self)
+        
+        # Create image pairs and annotation manager
+        self.image_pairs = ImagePairList()
+        self.annotation_manager = ImageAnnotation(self.image_pairs.src)
+        
+        # Create the pair viewer with required arguments
+        self.pair_viewer = ImagePairViewer(self, self.image_pairs, self.annotation_manager)
         self.pair_viewer.pack(fill="both", expand=True)
 
-        self.bind("<Escape>", lambda _: app.quit())
-        self.bind("<Right>", lambda _: app.pair_viewer.right())
-        self.bind("<Left>", lambda _: app.pair_viewer.left())
+        self.bind("<Escape>", lambda _: self.quit())
+        # self.bind("<Right>", lambda _: self.pair_viewer.right())
+        self.bind("<f>", lambda _: self.pair_viewer.right())
+        # self.bind("<Left>", lambda _: self.pair_viewer.left())
+        self.bind("<s>", lambda _: self.pair_viewer.left())
+        self.bind("<a>", lambda _: self.pair_viewer.annotate_btn.invoke())
+        self.bind("<n>", lambda _: self.pair_viewer.nothing_btn.invoke())
 
-class PairViewer(ttk.Frame):
-    def __init__(self, container):
+
+class ImagePairViewer(ttk.Frame):
+    def __init__(self, container, image_pairs, annotations_manager):
         super().__init__(container)
-        self.image_sets = ImagePairList()
-        self.image_cache = ImageCache()
+        self.image_pairs = image_pairs
+        self.annotations = annotations_manager
         
-        # Create persistent label widgets
-        self.label1 = ttk.Label(self)
-        self.label1.grid(row=0, column=0, sticky="EW")
-        self.label2 = ttk.Label(self)
-        self.label2.grid(row=0, column=1, sticky="EW")
-        self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=1)
-
-        set1 = self.image_sets[0]
-        img1, img2 = set1
-        self.photoimage1 = open_image(img1)
-        self.photoimage2 = open_image(img2)
-        self.reload_images()
-
-        self.spinbox = HorizontalSpinner(self, self.image_sets.ids(), self.set_images)
-        self.spinbox.grid(row=1, column=0, columnspan=2)
-
-        # buttons
-        self.nothing = ttk.Button(self, text="nothing", command=self.classify_nothing)
-        self.nothing.grid(row=2, column=0, sticky="EW")
-
-        self.reorder = ttk.Button(self, text="reorder", command=self.classify_reorder)
-        self.reorder.grid(row=2, column=1, sticky="EW")
-
-        self.new_product = ttk.Button(self, text="new product", command=self.classify_reorder)
-        self.new_product.grid(row=2, column=2, sticky="EW")
-
-    def classify_nothing(self):
-        print("classified as nothing")
-
-    def classify_reorder(self):
-        print("classified as nothing")
-
-    def classify_new_product(self):
-        print("classified as nothing")
-
-    def set_images(self, idx):
-        set1 = self.image_sets[idx]
-        img1, img2 = set1
+        # Initialize state
+        self.current_index = 0
+        self.in_annotation_mode = False
         
-        # Try cache first
-        self.photoimage1 = self.image_cache.get(img1)
-        self.photoimage2 = self.image_cache.get(img2)
+        # Create image viewers
+        self.image1 = AnnotatableImage(self)
+        self.image1.frame.grid(row=0, column=0, sticky="nsew")
+        self.image2 = AnnotatableImage(self)
+        self.image2.frame.grid(row=0, column=1, sticky="nsew")
         
-        # Load if not in cache
-        if self.photoimage1 is None:
-            self.photoimage1 = open_image(img1)
-            self.image_cache.add(img1, self.photoimage1)
-        if self.photoimage2 is None:
-            self.photoimage2 = open_image(img2)
-            self.image_cache.add(img2, self.photoimage2)
+        # Create controls
+        self.setup_controls()
         
-        # Preload next and previous pairs
-        next_idx = idx + 1
-        prev_idx = idx - 1
-        preload_paths = []
-        if next_idx < len(self.image_sets):
-            preload_paths.extend(self.image_sets[next_idx])
-        if prev_idx >= 0:
-            preload_paths.extend(self.image_sets[prev_idx])
+        # Add horizontal spinner
+        self.spinbox = HorizontalSpinner(self, self.image_pairs.ids(), self.set_images)
+        self.spinbox.grid(row=2, column=0, columnspan=2)
         
-        # Just call preload_images directly - it handles the image processing internally
-        self.image_cache.preload_images(preload_paths)
+        # Load first pair
+        self.load_pair(0)
+    
+    def setup_controls(self):
+        """Set up classification and navigation controls"""
+        controls = ttk.Frame(self)
+        controls.grid(row=1, column=0, columnspan=2, sticky="ew")
         
-        self.reload_images()
+        # Classification buttons
+        self.nothing_btn = ttk.Button(controls, text="Nothing Changed",
+                                    command=lambda: self.classify("nothing"))
+        self.nothing_btn.pack(side="left", fill="x", expand=True)
+        
+        self.reorder_btn = ttk.Button(controls, text="Reorder",
+                                    command=lambda: self.classify("reorder"))
+        self.reorder_btn.pack(side="left", fill="x", expand=True)
+        
+        self.annotate_btn = ttk.Button(controls, text="Annotate",
+                                     command=self.toggle_annotation)
+        self.annotate_btn.pack(side="left", fill="x", expand=True)
+    
+    def toggle_annotation(self):
+        print("toggle annotation mode")
+        """Toggle annotation mode on/off"""
+        self.in_annotation_mode = not self.in_annotation_mode
+        self.image1.set_drawing_mode(self.in_annotation_mode)
+        self.image2.set_drawing_mode(self.in_annotation_mode)
+        
+        # Save current boxes if we're turning off annotation mode
+        if not self.in_annotation_mode:
+            self.save_current_boxes()
+            
+        
+        # Update button state
+        self.annotate_btn.state(['pressed'] if self.in_annotation_mode else ['!pressed'])
+    
+    def annotation_off(self):
+        self.in_annotation_mode = False
+        self.annotate_btn.state(['!pressed'])
+        self.image1.set_drawing_mode(False)
+        self.image2.set_drawing_mode(False)
+        self.save_current_boxes()
+        self.image1.clear_boxes()
+        self.image2.clear_boxes()
 
-    def reload_images(self):
-        self.label1.configure(image=self.photoimage1)
-        self.label2.configure(image=self.photoimage2)
+    def save_current_boxes(self):
+        """Save current boxes if any exist"""
+        boxes = self.image1.get_boxes() + self.image2.get_boxes()
+        if boxes:
+            self.annotations.save_pair_annotation(self.current_index, "annotate", boxes)
+    
+    def load_pair(self, index):
+        """Load an image pair and its annotations"""
+        if self.in_annotation_mode:
+            print("Was in annotation mode, toggling off")
+            self.annotation_off()  # This will also save boxes
 
+        if 0 <= index < len(self.image_pairs):
+            # Save any current boxes before switching
+            if self.in_annotation_mode:
+                self.save_current_boxes()
+            
+            self.current_index = index
+            img1, img2 = self.image_pairs[index]
+            
+            # Load images
+            self.image1.load_image(img1)
+            self.image2.load_image(img2)
+            
+            # Load any existing annotations
+            annotation = self.annotations.get_pair_annotation(index)
+            if annotation["type"] == "annotate":
+                self.image1.display_boxes(annotation["boxes"])
+                self.image2.display_boxes(annotation["boxes"])
+            
+            self.update_ui_state(annotation["type"])
+    
+    def update_ui_state(self, annotation_type):
+        """Update UI to reflect current annotation state"""
+        # Reset all buttons
+        for btn in [self.nothing_btn, self.reorder_btn, self.annotate_btn]:
+            btn.state(['!pressed'])
+        
+        # Update button state
+        if annotation_type == "nothing":
+            self.nothing_btn.state(['pressed'])
+        elif annotation_type == "reorder":
+            self.reorder_btn.state(['pressed'])
+        elif annotation_type == "annotate":
+            self.annotate_btn.state(['pressed'])
+            # Re-enable drawing if we were in annotation mode
+            self.image1.set_drawing_mode(self.in_annotation_mode)
+            self.image2.set_drawing_mode(self.in_annotation_mode)
+    
+    def classify(self, classification_type):
+        """Save a simple classification and move to next pair"""
+        self.annotations.save_pair_annotation(self.current_index, classification_type)
+        self.load_pair(self.current_index + 1)
+    
     def left(self):
         self.spinbox.animate_scroll(-1)
 
     def right(self):
         self.spinbox.animate_scroll(+1)
 
-    def increment_spinbox(self, event):
-        """Increment the Spinbox value."""
-        current_value = self.spinbox.get()
-        if current_value.isdigit():
-            index = self.image_sets.index(int(current_value))
-            if index < len(self.image_sets) - 1:
-                self.spinbox.set(self.image_sets[index + 1])
-
-    def decrement_spinbox(self, event):
-        """Decrement the Spinbox value."""
-        current_value = self.spinbox.get()
-        if current_value.isdigit():
-            index = self.image_sets.index(int(current_value))
-            if index > 0:
-                self.spinbox.set(self.image_sets[index - 1])
-
-    def switch_image(self):
-        value = self.spinbox.get()
-        print(f"Selected value: {value}")
+    def set_images(self, idx):
+        self.load_pair(idx)
 
 
 app = PairViewerApp()
