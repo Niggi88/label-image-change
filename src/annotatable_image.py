@@ -5,11 +5,11 @@ from utils import resize_with_aspect_ratio
 from PIL import Image, ImageTk
 
 
-class AnnotatableImage:
+class AnnotatableImage(ttk.Frame):
     """A widget that can display an image and its annotations"""
     def __init__(self, container):
-        self.frame = ttk.Frame(container)
-        self.canvas = tk.Canvas(self.frame)
+        super().__init__(container)
+        self.canvas = tk.Canvas(self)
         self.canvas.pack(fill="both", expand=True)
         
         # Drawing state

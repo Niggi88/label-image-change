@@ -10,7 +10,7 @@ from annotatable_image import AnnotatableImage
 
 
 class ImagePairList(list):
-    def __init__(self, src="/home/niklas/datasets/bildunterschied/8k-test/session_0cacfd77-09c9-42a4-839e-29e33981287d"):
+    def __init__(self, src="/home/niklas/datasets/bildunterschied/8k-test/session_1c74c241-8e90-40b8-aded-3ee24b929d71"):
         self.src = Path(src)
         self.images = sorted(self.src.glob("*.jpeg"), key=lambda file: int(file.name.split("-")[0]))
         self.image_pairs = list(zip(self.images[:-1], self.images[1:]))
@@ -70,9 +70,9 @@ class ImagePairViewer(ttk.Frame):
         
         # Create image viewers
         self.image1 = AnnotatableImage(self)
-        self.image1.frame.grid(row=0, column=0, sticky="nsew")
+        self.image1.grid(row=0, column=0, sticky="nsew")
         self.image2 = AnnotatableImage(self)
-        self.image2.frame.grid(row=0, column=1, sticky="nsew")
+        self.image2.grid(row=0, column=1, sticky="nsew")
         
         # Create controls
         self.setup_controls()
@@ -178,7 +178,8 @@ class ImagePairViewer(ttk.Frame):
     def classify(self, classification_type):
         """Save a simple classification and move to next pair"""
         self.annotations.save_pair_annotation(self.current_index, classification_type)
-        self.load_pair(self.current_index + 1)
+        self.right()
+        # self.load_pair(self.current_index + 1)
     
     def left(self):
         self.spinbox.animate_scroll(-1)
