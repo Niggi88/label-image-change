@@ -29,6 +29,7 @@ class AnnotatableImage(ttk.Frame):
     
     def load_image(self, image_path, max_size=(1000, 1000)):
         """Load and display an image using existing resize method"""
+        print("loaded image", image_path)
         pil_image = Image.open(image_path)
         
         # Store original size for scaling factor calculation
@@ -65,7 +66,7 @@ class AnnotatableImage(ttk.Frame):
         self.current_box = self.canvas.create_rectangle(
             self.start_x, self.start_y,
             event.x, event.y,
-            outline='red'
+            outline='blue'
         )
     
     def end_box(self, event):
@@ -73,16 +74,16 @@ class AnnotatableImage(ttk.Frame):
             return
         # Store in original image coordinates
         box = {
-            'x1': min(self.start_x, event.x) / self._scale_factor,
-            'y1': min(self.start_y, event.y) / self._scale_factor,
-            'x2': max(self.start_x, event.x) / self._scale_factor,
-            'y2': max(self.start_y, event.y) / self._scale_factor
+            'x1': int(min(self.start_x, event.x) / self._scale_factor),
+            'y1': int(min(self.start_y, event.y) / self._scale_factor),
+            'x2': int(max(self.start_x, event.x) / self._scale_factor),
+            'y2': int(max(self.start_y, event.y) / self._scale_factor),
         }
         self.boxes.append(box)
         self.start_x = None
         self.start_y = None
     
-    def display_boxes(self, boxes):
+    def display_boxes(self, boxes, color="green"):
         """Display a list of boxes (in original image coordinates)"""
         self.clear_boxes()
         for box in boxes:
@@ -95,7 +96,7 @@ class AnnotatableImage(ttk.Frame):
             self.canvas.create_rectangle(
                 scaled_box['x1'], scaled_box['y1'],
                 scaled_box['x2'], scaled_box['y2'],
-                outline='red'
+                outline=color
             )
     
     def clear_boxes(self):

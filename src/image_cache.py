@@ -12,6 +12,7 @@ class ImageCache:
 
     def get(self, image_path):
         """Get image from cache or load it if not present"""
+        print("getting", str_path)
         str_path = str(image_path)
         with self.lock:
             if str_path in self.cache:

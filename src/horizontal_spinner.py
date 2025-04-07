@@ -3,6 +3,12 @@ from tkinter import ttk
 import math
 
 class HorizontalSpinner(tk.Frame):
+    class ReturnCode:
+        NORMAL = 0
+        ANIMATION_IN_PROGRESS = -1
+        END_RIGHT = -2
+        END_LEFT = -3
+
     def __init__(self, master, items, on_change=None, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
         self.items = items
@@ -77,12 +83,15 @@ class HorizontalSpinner(tk.Frame):
             )
 
     def animate_scroll(self, direction):
+        print("in animate scroll", direction)
         if self.animation_in_progress:
-            return
-            
+            return self.ReturnCode.ANIMATION_IN_PROGRESS
+        
         next_index = self.current_index + direction
         if not (0 <= next_index < len(self.items)):
-            return
+            print(next_index)
+            if next_index < 0: return self.ReturnCode.END_LEFT
+            if len(self.items) <= next_index: return self.ReturnCode.END_RIGHT
             
         self.animation_in_progress = True
         steps = 5
@@ -104,6 +113,7 @@ class HorizontalSpinner(tk.Frame):
         
         # Start animation in background
         self.after(0, lambda: animate_step(steps, 0))
+        return self.ReturnCode.NORMAL
 
     def scroll_left(self, event=None):
         if self.current_index > 0 and not self.animation_in_progress:

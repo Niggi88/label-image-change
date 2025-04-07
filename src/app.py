@@ -4,15 +4,18 @@ from PIL import Image, ImageTk
 from pathlib import Path
 from utils import resize_with_aspect_ratio
 from horizontal_spinner import HorizontalSpinner
-from image_cache import ImageCache
+# from image_cache import ImageCache
 from image_annotation import ImageAnnotation
 from annotatable_image import AnnotatableImage
 
 
+
 class ImagePairList(list):
-    def __init__(self, src="/home/niklas/datasets/bildunterschied/8k-test/session_1c74c241-8e90-40b8-aded-3ee24b929d71"):
+    def __init__(self, src):
+        #                   /home/niklas/dataset/bildunterschied
         self.src = Path(src)
         self.images = sorted(self.src.glob("*.jpeg"), key=lambda file: int(file.name.split("-")[0]))
+        assert len(self.images) > 0, f"no images found at {src}"
         self.image_pairs = list(zip(self.images[:-1], self.images[1:]))
 
     def __getitem__(self, index):
@@ -41,12 +44,9 @@ class PairViewerApp(tk.Tk):
         super().__init__()
         self.title("Side by Side Images")
         
-        # Create image pairs and annotation manager
-        self.image_pairs = ImagePairList()
-        self.annotation_manager = ImageAnnotation(self.image_pairs.src)
         
         # Create the pair viewer with required arguments
-        self.pair_viewer = ImagePairViewer(self, self.image_pairs, self.annotation_manager)
+        self.pair_viewer = ImagePairViewer(self, "/home/niklas/dataset/bildunterschied/test_mini/complex")
         self.pair_viewer.pack(fill="both", expand=True)
 
         self.bind("<Escape>", lambda _: self.quit())
@@ -59,10 +59,16 @@ class PairViewerApp(tk.Tk):
 
 
 class ImagePairViewer(ttk.Frame):
-    def __init__(self, container, image_pairs, annotations_manager):
+    def __init__(self, container, base_src):
+        print("init")
         super().__init__(container)
-        self.image_pairs = image_pairs
-        self.annotations = annotations_manager
+        src = "/home/niklas/dataset/bildunterschied/test_mini/clinical2"
+        self.reset(src)
+
+    def reset(self, src):
+        # Create image pairs and annotation manager
+        self.image_pairs = ImagePairList(src=src)
+        self.annotations = ImageAnnotation(self.image_pairs.src)
         
         # Initialize state
         self.current_index = 0
@@ -83,6 +89,7 @@ class ImagePairViewer(ttk.Frame):
         
         # Load first pair
         self.load_pair(0)
+        print("loaded pair")
     
     def setup_controls(self):
         """Set up classification and navigation controls"""
@@ -112,7 +119,6 @@ class ImagePairViewer(ttk.Frame):
         # Save current boxes if we're turning off annotation mode
         if not self.in_annotation_mode:
             self.save_current_boxes()
-            
         
         # Update button state
         self.annotate_btn.state(['pressed'] if self.in_annotation_mode else ['!pressed'])
@@ -126,14 +132,23 @@ class ImagePairViewer(ttk.Frame):
         self.image1.clear_boxes()
         self.image2.clear_boxes()
 
+    @property
+    def current_id(self):
+        im1_path, im2_path = self.image_pairs[self.current_index]
+        return (im1_path, im2_path)# f"{im1_path.stem}_{im2_path.stem}"
+
     def save_current_boxes(self):
         """Save current boxes if any exist"""
-        boxes = self.image1.get_boxes() + self.image2.get_boxes()
+        # boxes = self.image1.get_boxes() + self.image2.get_boxes()
+        
+        boxes = self.image2.get_boxes()
         if boxes:
-            self.annotations.save_pair_annotation(self.current_index, "annotate", boxes)
+            # add full id (img1_img2)
+            self.annotations.save_pair_annotation(self.current_index, self.current_id, "annotate", boxes)
     
     def load_pair(self, index):
         """Load an image pair and its annotations"""
+        print("load pair called")
         if self.in_annotation_mode:
             print("Was in annotation mode, toggling off")
             self.annotation_off()  # This will also save boxes
@@ -153,11 +168,19 @@ class ImagePairViewer(ttk.Frame):
             # Load any existing annotations
             annotation = self.annotations.get_pair_annotation(index)
             if annotation["type"] == "annotate":
-                self.image1.display_boxes(annotation["boxes"])
+                self.image1.display_boxes(annotation["boxes"], "red")
                 self.image2.display_boxes(annotation["boxes"])
             
             self.update_ui_state(annotation["type"])
+            
+            
+        if self.end_of_set:
+            print("end of line")
     
+    @property
+    def end_of_set(self):
+        return self.current_index == len(self.image_pairs) - 1
+
     def update_ui_state(self, annotation_type):
         """Update UI to reflect current annotation state"""
         # Reset all buttons
@@ -177,15 +200,17 @@ class ImagePairViewer(ttk.Frame):
     
     def classify(self, classification_type):
         """Save a simple classification and move to next pair"""
-        self.annotations.save_pair_annotation(self.current_index, classification_type)
+        self.annotations.save_pair_annotation(self.current_index, self.current_id, classification_type)
         self.right()
         # self.load_pair(self.current_index + 1)
     
     def left(self):
-        self.spinbox.animate_scroll(-1)
+        ret = self.spinbox.animate_scroll(-1)
 
     def right(self):
-        self.spinbox.animate_scroll(+1)
+        ret = self.spinbox.animate_scroll(+1)
+        if ret == HorizontalSpinner.ReturnCode.END_RIGHT: 
+            print("END_RIGHT")
 
     def set_images(self, idx):
         self.load_pair(idx)
