@@ -3,6 +3,12 @@ import json
 
 
 class ImageAnnotation:
+    class Classes:
+        ANNOTATION = "annotation"
+        NOTHING = "nothing"
+        REORDER = "reorder"
+        OTHER = "other"
+
     """Handles loading, saving, and managing annotations for image pairs"""
     def __init__(self, base_path):
         self.reset(base_path)
@@ -33,6 +39,7 @@ class ImageAnnotation:
     def save_pair_annotation(self, pair_id, images, annotation_type, boxes=None):
         if boxes is None:
             boxes = []
+        if len(boxes) == 0: annotation_type = ImageAnnotation.Classes.NOTHING
         im1, im2 = images
         self.annotations[f"{pair_id}"] = {
             "type": annotation_type,

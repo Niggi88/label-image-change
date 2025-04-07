@@ -50,12 +50,12 @@ class PairViewerApp(tk.Tk):
         self.pair_viewer.pack(fill="both", expand=True)
 
         self.bind("<Escape>", lambda _: self.quit())
-        # self.bind("<Right>", lambda _: self.pair_viewer.right())
         self.bind("<f>", lambda _: self.pair_viewer.right())
-        # self.bind("<Left>", lambda _: self.pair_viewer.left())
         self.bind("<s>", lambda _: self.pair_viewer.left())
+
         self.bind("<a>", lambda _: self.pair_viewer.annotate_btn.invoke())
         self.bind("<n>", lambda _: self.pair_viewer.nothing_btn.invoke())
+        self.bind("<r>", lambda _: self.pair_viewer.reorder_btn.invoke())
 
 
 
@@ -110,11 +110,11 @@ class ImagePairViewer(ttk.Frame):
         
         # Classification buttons
         self.nothing_btn = ttk.Button(controls, text="Nothing Changed",
-                                    command=lambda: self.classify("nothing"))
+                                    command=lambda: self.classify(ImageAnnotation.Classes.NOTHING))
         self.nothing_btn.pack(side="left", fill="x", expand=True)
         
         self.reorder_btn = ttk.Button(controls, text="Reorder",
-                                    command=lambda: self.classify("reorder"))
+                                    command=lambda: self.classify(ImageAnnotation.Classes.REORDER))
         self.reorder_btn.pack(side="left", fill="x", expand=True)
         
         self.annotate_btn = ttk.Button(controls, text="Annotate",
@@ -156,7 +156,10 @@ class ImagePairViewer(ttk.Frame):
         boxes = self.image2.get_boxes()
         if boxes:
             # add full id (img1_img2)
-            self.annotations.save_pair_annotation(self.current_index, self.current_id, "annotate", boxes)
+            self.annotations.save_pair_annotation(self.current_index, self.current_id, ImageAnnotation.Classes.ANNOTATION, boxes)
+        # else:
+        #     # save with nothing
+        #     self.annotations.save_pair_annotation(self.current_index, self.current_id, ImageAnnotation.Classes.NOTHING, [])
     
     def load_pair(self, index):
         """Load an image pair and its annotations"""
@@ -179,12 +182,11 @@ class ImagePairViewer(ttk.Frame):
             
             # Load any existing annotations
             annotation = self.annotations.get_pair_annotation(index)
-            if annotation["type"] == "annotate":
+            if annotation["type"] == ImageAnnotation.Classes.ANNOTATION:
                 self.image1.display_boxes(annotation["boxes"], "red")
                 self.image2.display_boxes(annotation["boxes"])
             
             self.update_ui_state(annotation["type"])
-            
             
         if self.end_of_set:
             print("end of line")
@@ -200,11 +202,11 @@ class ImagePairViewer(ttk.Frame):
             btn.state(['!pressed'])
         
         # Update button state
-        if annotation_type == "nothing":
+        if annotation_type == ImageAnnotation.Classes.NOTHING:
             self.nothing_btn.state(['pressed'])
-        elif annotation_type == "reorder":
+        elif annotation_type == ImageAnnotation.Classes.REORDER:
             self.reorder_btn.state(['pressed'])
-        elif annotation_type == "annotate":
+        elif annotation_type == ImageAnnotation.Classes.ANNOTATION:
             self.annotate_btn.state(['pressed'])
             # Re-enable drawing if we were in annotation mode
             self.image1.set_drawing_mode(self.in_annotation_mode)
@@ -220,6 +222,8 @@ class ImagePairViewer(ttk.Frame):
         ret = self.spinbox.animate_scroll(-1)
 
     def right(self):
+        if len(self.image2.get_boxes()) == 0: print("empty")
+        else: print("full")
         ret = self.spinbox.animate_scroll(+1)
         if ret == HorizontalSpinner.ReturnCode.END_RIGHT: 
             self.reset(next(self.sessions))
