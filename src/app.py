@@ -7,7 +7,7 @@ from horizontal_spinner import HorizontalSpinner
 # from image_cache import ImageCache
 from image_annotation import ImageAnnotation
 from annotatable_image import AnnotatableImage
-
+import tkinter.messagebox as messagebox
 
 
 class ImagePairList(list):
@@ -58,14 +58,18 @@ class PairViewerApp(tk.Tk):
         self.bind("<n>", lambda _: self.pair_viewer.nothing_btn.invoke())
 
 
+
 class ImagePairViewer(ttk.Frame):
     def __init__(self, container, base_src):
         print("init")
         super().__init__(container)
-        src = "/home/niklas/dataset/bildunterschied/test_mini/clinical2"
-        self.reset(src)
+        self.sessions = Path(base_src).glob("*")
+        # src = "/home/niklas/dataset/bildunterschied/test_mini/clinical2"
+        # self.reset(src)
+        self.reset(next(self.sessions))
 
     def reset(self, src):
+        self.after(100, self.show_reset_message)
         # Create image pairs and annotation manager
         self.image_pairs = ImagePairList(src=src)
         self.annotations = ImageAnnotation(self.image_pairs.src)
@@ -90,7 +94,15 @@ class ImagePairViewer(ttk.Frame):
         # Load first pair
         self.load_pair(0)
         print("loaded pair")
-    
+
+    def show_reset_message(self):
+        dialog = tk.Toplevel(self)
+        dialog.title("Reset Complete")
+        label = tk.Label(dialog, text="Application has been reset successfully", padx=20, pady=20)
+        label.pack()
+        dialog.bind("<KeyPress>", lambda e: dialog.destroy())
+        dialog.focus_set()  # This is critical - gives keyboard focus to the dialog
+
     def setup_controls(self):
         """Set up classification and navigation controls"""
         controls = ttk.Frame(self)
@@ -210,7 +222,7 @@ class ImagePairViewer(ttk.Frame):
     def right(self):
         ret = self.spinbox.animate_scroll(+1)
         if ret == HorizontalSpinner.ReturnCode.END_RIGHT: 
-            print("END_RIGHT")
+            self.reset(next(self.sessions))
 
     def set_images(self, idx):
         self.load_pair(idx)
