@@ -1,23 +1,26 @@
 from pathlib import Path
 import json
+from config import *
 
 
 class ImageAnnotation:
     class Classes:
         ANNOTATION = "annotation"
         NOTHING = "nothing"
-        REORDER = "reorder"
+        CHAOS = "reorder"
         OTHER = "other"
 
     """Handles loading, saving, and managing annotations for image pairs"""
     def __init__(self, base_path):
+
         self.reset(base_path)
     
     def reset(self, base_path):
         self.base_path = Path(base_path)
         self.annotations_file = self.base_path / "annotations.json"
+        
         print("Annotations saved at", self.annotations_file)
-        self.annotations = self._load_annotations()
+        self.annotations = self._load_annotations() if CACHE else {}
 
     def _load_annotations(self):
         if self.annotations_file.exists():
@@ -39,7 +42,9 @@ class ImageAnnotation:
     def save_pair_annotation(self, pair_id, images, annotation_type, boxes=None):
         if boxes is None:
             boxes = []
-        if len(boxes) == 0: annotation_type = ImageAnnotation.Classes.NOTHING
+            
+        if len(boxes) == 0 and annotation_type == ImageAnnotation.Classes.NOTHING: 
+            annotation_type = ImageAnnotation.Classes.NOTHING
         im1, im2 = images
         self.annotations[f"{pair_id}"] = {
             "type": annotation_type,

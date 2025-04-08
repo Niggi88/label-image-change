@@ -10,3 +10,6 @@ elif HOSTNAME == "KPKP":
     DATASET_DIR = "/home/niklas/dataset/bildunterschied/test_mini/complex"
 else:
     raise Exception("Unknown host", HOSTNAME)
+
+
+CACHE = False

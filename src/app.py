@@ -10,6 +10,10 @@ from annotatable_image import AnnotatableImage
 import tkinter.messagebox as messagebox
 from config import *
 
+# TODO: paint multiple
+# TODO: removed
+# TODO: new class / no class
+
 
 class ImagePairList(list):
     def __init__(self, src):
@@ -51,13 +55,14 @@ class PairViewerApp(tk.Tk):
         self.pair_viewer.pack(fill="both", expand=True)
 
         self.bind("<Escape>", lambda _: self.quit())
-        self.bind("<f>", lambda _: self.pair_viewer.right())
+        # self.bind("<f>", lambda _: self.pair_viewer.right())
+        self.bind("<f>", lambda _: self.pair_viewer.nothing_btn.invoke())
+        # self.bind("<s>", lambda _: self.pair_viewer.left())
         self.bind("<s>", lambda _: self.pair_viewer.left())
 
         self.bind("<a>", lambda _: self.pair_viewer.annotate_btn.invoke())
         self.bind("<n>", lambda _: self.pair_viewer.nothing_btn.invoke())
-        self.bind("<r>", lambda _: self.pair_viewer.reorder_btn.invoke())
-
+        self.bind("<c>", lambda _: self.pair_viewer.chaos_btn.invoke())
 
 
 class ImagePairViewer(ttk.Frame):
@@ -110,17 +115,39 @@ class ImagePairViewer(ttk.Frame):
         controls.grid(row=1, column=0, columnspan=2, sticky="ew")
         
         # Classification buttons
-        self.nothing_btn = ttk.Button(controls, text="Nothing Changed",
-                                    command=lambda: self.classify(ImageAnnotation.Classes.NOTHING))
+        self.nothing_btn = ttk.Button(controls, text="Nothing Changed", 
+                                      command=lambda: self.before_action(ImageAnnotation.Classes.NOTHING))
+        self.chaos_btn = ttk.Button(controls, text="Chaos", 
+                                      command=lambda: self.before_action(ImageAnnotation.Classes.CHAOS))
+        self.annotate_btn = ttk.Button(controls, text="Annotate", 
+                                      command=lambda: self.before_action(ImageAnnotation.Classes.ANNOTATION))
+        
+        
         self.nothing_btn.pack(side="left", fill="x", expand=True)
-        
-        self.reorder_btn = ttk.Button(controls, text="Reorder",
-                                    command=lambda: self.classify(ImageAnnotation.Classes.REORDER))
-        self.reorder_btn.pack(side="left", fill="x", expand=True)
-        
-        self.annotate_btn = ttk.Button(controls, text="Annotate",
-                                     command=self.toggle_annotation)
+        self.chaos_btn.pack(side="left", fill="x", expand=True)
         self.annotate_btn.pack(side="left", fill="x", expand=True)
+
+    
+    def before_action(self, button_id):
+        self.state = button_id
+        if self.state == ImageAnnotation.Classes.ANNOTATION:
+            self.toggle_annotation()
+        # elif self.state in [ImageAnnotation.Classes.REORDER, ImageAnnotation.Classes.NOTHING]:
+        self.process_action()
+        self.annotations.save_pair_annotation(self.current_index, self.current_id, self.state)
+        
+        if not self.state == ImageAnnotation.Classes.ANNOTATION:
+            self.right()
+        
+
+    def process_action(self):
+        print("State was set to:", self.state)
+    
+    def classify(self, classification_type):
+        """Save a simple classification and move to next pair"""
+        self.annotations.save_pair_annotation(self.current_index, self.current_id, classification_type)
+        self.right()
+        # self.load_pair(self.current_index + 1)
     
     def toggle_annotation(self):
         print("toggle annotation mode")
@@ -156,11 +183,8 @@ class ImagePairViewer(ttk.Frame):
         
         boxes = self.image2.get_boxes()
         if boxes:
-            # add full id (img1_img2)
             self.annotations.save_pair_annotation(self.current_index, self.current_id, ImageAnnotation.Classes.ANNOTATION, boxes)
-        # else:
-        #     # save with nothing
-        #     self.annotations.save_pair_annotation(self.current_index, self.current_id, ImageAnnotation.Classes.NOTHING, [])
+   
     
     def load_pair(self, index):
         """Load an image pair and its annotations"""
@@ -199,25 +223,19 @@ class ImagePairViewer(ttk.Frame):
     def update_ui_state(self, annotation_type):
         """Update UI to reflect current annotation state"""
         # Reset all buttons
-        for btn in [self.nothing_btn, self.reorder_btn, self.annotate_btn]:
+        for btn in [self.nothing_btn, self.chaos_btn, self.annotate_btn]:
             btn.state(['!pressed'])
         
         # Update button state
         if annotation_type == ImageAnnotation.Classes.NOTHING:
             self.nothing_btn.state(['pressed'])
-        elif annotation_type == ImageAnnotation.Classes.REORDER:
-            self.reorder_btn.state(['pressed'])
+        elif annotation_type == ImageAnnotation.Classes.CHAOS:
+            self.chaos_btn.state(['pressed'])
         elif annotation_type == ImageAnnotation.Classes.ANNOTATION:
             self.annotate_btn.state(['pressed'])
             # Re-enable drawing if we were in annotation mode
             self.image1.set_drawing_mode(self.in_annotation_mode)
             self.image2.set_drawing_mode(self.in_annotation_mode)
-    
-    def classify(self, classification_type):
-        """Save a simple classification and move to next pair"""
-        self.annotations.save_pair_annotation(self.current_index, self.current_id, classification_type)
-        self.right()
-        # self.load_pair(self.current_index + 1)
     
     def left(self):
         ret = self.spinbox.animate_scroll(-1)
@@ -227,7 +245,13 @@ class ImagePairViewer(ttk.Frame):
         else: print("full")
         ret = self.spinbox.animate_scroll(+1)
         if ret == HorizontalSpinner.ReturnCode.END_RIGHT: 
-            self.reset(next(self.sessions))
+            try:
+                next_session = next(self.sessions)
+                print(next_session)
+                self.reset(next_session)
+            except:
+                print("done")
+                self.quit()
 
     def set_images(self, idx):
         self.load_pair(idx)
