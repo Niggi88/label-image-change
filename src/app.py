@@ -8,6 +8,7 @@ from horizontal_spinner import HorizontalSpinner
 from image_annotation import ImageAnnotation
 from annotatable_image import AnnotatableImage
 import tkinter.messagebox as messagebox
+from config import *
 
 
 class ImagePairList(list):
@@ -46,7 +47,7 @@ class PairViewerApp(tk.Tk):
         
         
         # Create the pair viewer with required arguments
-        self.pair_viewer = ImagePairViewer(self, "/home/niklas/dataset/bildunterschied/test_mini/complex")
+        self.pair_viewer = ImagePairViewer(self, DATASET_DIR)
         self.pair_viewer.pack(fill="both", expand=True)
 
         self.bind("<Escape>", lambda _: self.quit())
