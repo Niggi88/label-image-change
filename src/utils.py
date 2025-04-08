@@ -1,5 +1,10 @@
 from PIL import Image
 
+try:
+    resample_filter = Image.Resampling.LANCZOS
+except AttributeError:
+    resample_filter = Image.ANTIALIAS
+
 def resize_with_aspect_ratio(pil_img, base_width=None, base_height=None):
     """
     Resize an image while maintaining its aspect ratio.
@@ -25,4 +30,4 @@ def resize_with_aspect_ratio(pil_img, base_width=None, base_height=None):
     else:
         raise ValueError("You must specify either base_width or base_height.")
 
-    return pil_img.resize((new_width, new_height), Image.ANTIALIAS)
+    return pil_img.resize((new_width, new_height), resample_filter)
