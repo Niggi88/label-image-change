@@ -7,18 +7,30 @@ A simple tool for annotating changes between consecutive images. Created to labe
 - View consecutive image pairs side by side
 - Navigate through image sequence using arrow keys or on-screen controls
 - Classify changes between images:
-- Nothing changed
-- Reorder (too much change to annotate)
-- Annotate specific changes with bounding boxes
+- Nothing changed 'n'
+- Chaos 'c' / Reorder / (too much change to annotate)
+- Annotate specific changes with bounding boxes 'a'
 
 ## Usage
 
 1. Place images in a directory (numbered sequentially)
 2. Start tool with directory path
-3. Navigate through images with arrow keys or spinner
-4. Press 'a' to enter annotation mode
+3. Navigate through images with 's' -> left, 'f' -> right or spinner
+4. Press 'a' to enter annotation mode and to leave annotation mode
 5. Draw boxes around changes
-6. Use arrow keys to move to next/previous image pair
+    - for added product on right image
+    - for removed product on left images 
+    - so always on the image where the product actually is
+    - multiple boxes are possible
+6. chaos short cut 'c'
+    - if there is a hand blocking view to any relevant part of the image
+    - if there is too much movement in the cart
+    - if the customer moves items in around in the cart
+7. nothing happened 'n'
+    - if nothing happened
+    - no products added or removed
+    - no products moved around
+
 
 ## Current Issues
 
