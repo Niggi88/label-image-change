@@ -6,6 +6,7 @@ from config import *
 class ImageAnnotation:
     class Classes:
         ANNOTATION = "annotation"
+        ANNOTATION_X = "annotation_xy"
         NOTHING = "nothing"
         CHAOS = "reorder"
         OTHER = "other"

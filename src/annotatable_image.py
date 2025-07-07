@@ -3,6 +3,11 @@ from tkinter import ttk
 
 from utils import resize_with_aspect_ratio
 from PIL import Image, ImageTk
+from config import *
+
+class AnnotationTypeState():
+    POSITIVE = "green"
+    NEGATIVE = "red"
 
 
 class AnnotatableImage(ttk.Frame):
@@ -11,13 +16,15 @@ class AnnotatableImage(ttk.Frame):
         super().__init__(container)
         self.canvas = tk.Canvas(self)
         self.canvas.pack(fill="both", expand=True)
-        
+        _id = 1 if str(self).endswith("e") else 2
+         
         # Drawing state
         self.drawing = False
         self.start_x = None
         self.start_y = None
         self.current_box = None
         self.boxes = []
+        self.annotation_type_state = AnnotationTypeState.NEGATIVE if _id == 1 else AnnotationTypeState.POSITIVE
         
         # Bind mouse events for drawing
         self.canvas.bind('<Button-1>', self.start_box)
@@ -27,7 +34,7 @@ class AnnotatableImage(ttk.Frame):
         self._image = None  # Keep reference to avoid garbage collection
         self._scale_factor = 1.0
     
-    def load_image(self, image_path, max_size=(1000, 1000)):
+    def load_image(self, image_path, max_size=(IMAGE_SIZE, IMAGE_SIZE)):
         """Load and display an image using existing resize method"""
         print("loaded image", image_path)
         pil_image = Image.open(image_path)
@@ -36,7 +43,7 @@ class AnnotatableImage(ttk.Frame):
         original_size = pil_image.size
         
         # Use existing resize method
-        pil_image = resize_with_aspect_ratio(pil_image, 1000, 1000)
+        pil_image = resize_with_aspect_ratio(pil_image, *max_size)
         self._image = ImageTk.PhotoImage(pil_image)
         
         # Calculate scale factor based on the resize results
@@ -45,7 +52,6 @@ class AnnotatableImage(ttk.Frame):
         # Update canvas size and display image
         self.canvas.config(width=pil_image.size[0], height=pil_image.size[1])
         self.canvas.create_image(0, 0, anchor="nw", image=self._image)
-
 
     def _calculate_scaled_size(self, size, max_size):
         """Calculate new size maintaining aspect ratio"""
@@ -66,14 +72,17 @@ class AnnotatableImage(ttk.Frame):
         self.current_box = self.canvas.create_rectangle(
             self.start_x, self.start_y,
             event.x, event.y,
-            outline='blue'
+            outline='blue',
+            width=10,
         )
     
     def end_box(self, event):
         if not self.drawing or not self.start_x:
             return
         # Store in original image coordinates
+        print(event)
         box = {
+            'annotation_type': self.annotation_type_state,
             'x1': int(min(self.start_x, event.x) / self._scale_factor),
             'y1': int(min(self.start_y, event.y) / self._scale_factor),
             'x2': int(max(self.start_x, event.x) / self._scale_factor),

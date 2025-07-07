@@ -13,6 +13,7 @@ from config import *
 # TODO: paint multiple
 # TODO: removed
 # TODO: new class / no class
+# TODO: add x als gelöscht
 
 
 class ImagePairList(list):
@@ -37,11 +38,13 @@ class ImagePairList(list):
         return list(range(len(self)))
 
 
-def open_image(image_dir):
-    pil_img = Image.open(image_dir)
-    pil_img = resize_with_aspect_ratio(pil_img, 1000, 1000)
-    tk_image = ImageTk.PhotoImage(pil_img)
-    return tk_image
+# def open_image(image_dir):
+#     pil_img = Image.open(image_dir)
+#     print("pil_img", pil_img)
+#     pil_img = resize_with_aspect_ratio(pil_img, 50, 50)
+#     print("pil_img", pil_img)
+#     tk_image = ImageTk.PhotoImage(pil_img)
+#     return tk_image
 
 
 class PairViewerApp(tk.Tk):
@@ -126,10 +129,10 @@ class ImagePairViewer(ttk.Frame):
         self.nothing_btn.pack(side="left", fill="x", expand=True)
         self.chaos_btn.pack(side="left", fill="x", expand=True)
         self.annotate_btn.pack(side="left", fill="x", expand=True)
-
     
     def before_action(self, button_id):
         self.state = button_id
+        print("button id", button_id)
         if self.state == ImageAnnotation.Classes.ANNOTATION:
             self.toggle_annotation()
         # elif self.state in [ImageAnnotation.Classes.REORDER, ImageAnnotation.Classes.NOTHING]:
@@ -138,7 +141,6 @@ class ImagePairViewer(ttk.Frame):
         
         if not self.state == ImageAnnotation.Classes.ANNOTATION:
             self.right()
-        
 
     def process_action(self):
         print("State was set to:", self.state)
@@ -183,7 +185,13 @@ class ImagePairViewer(ttk.Frame):
         
         boxes = self.image2.get_boxes()
         if boxes:
+            print("saving boxes", boxes)
             self.annotations.save_pair_annotation(self.current_index, self.current_id, ImageAnnotation.Classes.ANNOTATION, boxes)
+            
+        anti_boxes = self.image1.get_boxes()
+        if anti_boxes:
+            print("saving anti boxes", anti_boxes)
+            self.annotations.save_pair_annotation(self.current_index, self.current_id, ImageAnnotation.Classes.ANNOTATION_X, anti_boxes)
    
     
     def load_pair(self, index):
