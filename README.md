@@ -32,6 +32,9 @@ A simple tool for annotating changes between consecutive images. Created to labe
     - no products moved around
 
 
+## UML
+![uml](image.png)
+
 ## Current Issues
 
 - State management between annotation modes needs improvement
@@ -45,6 +48,7 @@ A simple tool for annotating changes between consecutive images. Created to labe
 - Add clear boxes button
 - Support processing multiple sessions/directories
 - Visual indication when multiple boxes are drawn on same image
+- Replace boxes with segmentation
 
 ### Maybe Later
 
