@@ -43,9 +43,18 @@ class ImageAnnotation:
     def save_pair_annotation(self, pair_id, images, annotation_type, boxes=None):
         if boxes is None:
             boxes = []
-            
+        if boxes:
+            annotation_type = ImageAnnotation.Classes.ANNOTATION
+        elif annotation_type == ImageAnnotation.Classes.NOTHING:
+            annotation_type = ImageAnnotation.Classes.NOTHING
+        else:
+            # Sonst darfst du dein übergebenes z.B. "annotation_xy" speichern
+            pass   
         if len(boxes) == 0 and annotation_type == ImageAnnotation.Classes.NOTHING: 
             annotation_type = ImageAnnotation.Classes.NOTHING
+
+
+            
         im1, im2 = images
         self.annotations[f"{pair_id}"] = {
             "type": annotation_type,
