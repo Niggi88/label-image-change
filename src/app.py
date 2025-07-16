@@ -10,7 +10,8 @@ from annotatable_image import AnnotatableImage
 import tkinter.messagebox as messagebox
 from config import *
 from pathlib import Path
-
+import base64
+import io
 
 
 # TODO: removed
@@ -22,6 +23,8 @@ class ImagePairList(list):
     def __init__(self, src):
         #                   /home/niklas/dataset/bildunterschied
         self.src = Path(src)
+        # self.parent = parent
+        # self.annotation_controller = annotation_controller
         self.images = sorted(self.src.glob("*.jpeg"), key=lambda file: int(file.name.split("-")[0]))
         assert len(self.images) > 0, f"no images found at {src}"
         self.image_pairs = list(zip(self.images[:-1], self.images[1:]))
@@ -82,7 +85,7 @@ class ImagePairViewer(ttk.Frame):
         # src = "/home/niklas/dataset/bildunterschied/test_mini/clinical2"
         # self.reset(src)
         self.reset(next(self.sessions))
-
+        self.selected_box_index = None
     def reset(self, src):
         self.after(100, self.show_reset_message)
         # Create image pairs and annotation manager
@@ -94,9 +97,9 @@ class ImagePairViewer(ttk.Frame):
         self.in_annotation_mode = False
         
         # Create image viewers
-        self.image1 = AnnotatableImage(self)
+        self.image1 = AnnotatableImage(self, annotation_controller=self.annotations, controller=self)
         self.image1.grid(row=0, column=0, sticky="nsew")
-        self.image2 = AnnotatableImage(self)
+        self.image2 = AnnotatableImage(self, annotation_controller=self.annotations, controller=self)
         self.image2.grid(row=0, column=1, sticky="nsew")
         
         # Create controls
@@ -165,9 +168,24 @@ class ImagePairViewer(ttk.Frame):
         self.toggle_annotation(False)
         self.delete_selected_btn.state(['pressed'])
 
-        self.delete_selected_box()
+        # Frage BEIDE Bilder, ob eine Box ausgewählt ist:
+        if self.image1.selected_box_index is not None:
+            self.image1.delete_selected_box()
+        elif self.image2.selected_box_index is not None:
+            self.image2.delete_selected_box()
+        else:
+            print("No box selected in either image.")
 
-        self.delete_selected_btn.state(['!pressed'])  # Sofort wieder zurück!
+        # Speichern nach Löschung – IMMER für beide Seiten!
+        
+        self.annotations.save_pair_annotation(
+            # pair_id=self.current_index,  # oder dein pair_id
+            image1=self.image1,          # das ist AnnotatableImage!
+            image2=self.image2,          # AnnotatableImage!
+            annotation_type=ImageAnnotation.Classes.ANNOTATION
+        )
+
+        self.delete_selected_btn.state(['!pressed'])
 
 
 
@@ -183,32 +201,50 @@ class ImagePairViewer(ttk.Frame):
         self.image1.boxes = []
         self.image2.boxes = []
 
+        self.image1.clear_mask()
+        self.image2.clear_mask()
+
+        self.image1._original_mask_pils = []
+
+        self.image2._original_mask_pils = []
         # Auch in der Annotation leeren & speichern
+        
         self.annotations.save_pair_annotation(
-            self.current_index,
-            self.current_id,
-            ImageAnnotation.Classes.ANNOTATION,  # Typ bleibt Annotation, nur ohne Boxen
-            []
+            # pair_id=self.current_index,  # oder dein pair_id
+            image1=self.image1,          # das ist AnnotatableImage!
+            image2=self.image2,          # AnnotatableImage!
+            annotation_type=ImageAnnotation.Classes.ANNOTATION
         )
 
         print(f"Boxes cleared for pair {self.current_index}")
 
     def delete_selected_box(self):
-        """Lösche ausgewählte Box aus beiden Seiten & speichere"""
-        print("Deleting selected box...")
+        if self.selected_box_index is None:
+            print("No box selected!")
+            return
 
-        self.image1.delete_selected_box()
-        self.image2.delete_selected_box()
+        # Finde die pair_id der ausgewählten Box
+        pair_id = self.boxes[self.selected_box_index].get('pair_id')
+        print(f"Deleting box pair_id: {pair_id}")
 
-        # Speichere die Änderungen
-        self.annotations.save_pair_annotation(
-            self.current_index,
-            self.current_id,
-            ImageAnnotation.Classes.ANNOTATION,
-            self.image2.get_boxes()  # oder zusammenführen, falls du beide Seiten brauchst
-        )
+        # Lösche ALLE Boxen mit dieser pair_id in diesem Bild
+        self.boxes = [b for b in self.boxes if b.get('pair_id') != pair_id]
 
-        print("Selected box deleted and annotations updated.")
+        # Gleiche Box auch im anderen Bild löschen:
+        other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
+        other_image.boxes = [b for b in other_image.boxes if b.get('pair_id') != pair_id]
+
+        # Clear & redraw
+        self.clear_boxes()
+        self.display_boxes(self.boxes)
+
+        other_image.clear_boxes()
+        other_image.display_boxes(other_image.boxes)
+
+        self.selected_box_index = None
+        other_image.selected_box_index = None
+        print("Deleted box in both images.")
+
 
 
     def before_action(self, button_id):
@@ -226,8 +262,12 @@ class ImagePairViewer(ttk.Frame):
                 self.chaos_btn.state(['pressed'])
 
         self.process_action()
+                
         self.annotations.save_pair_annotation(
-            self.current_index, self.current_id, self.state, self.image2.get_boxes()
+            # pair_id=self.current_index,    # ✅ Kein self.controller!
+            image1=self.image1,            # ✅ AnnotatableImage Instanz
+            image2=self.image2,
+            annotation_type=self.state
         )
 
         if not self.state == ImageAnnotation.Classes.ANNOTATION:
@@ -239,7 +279,7 @@ class ImagePairViewer(ttk.Frame):
     
     def classify(self, classification_type):
         """Save a simple classification and move to next pair"""
-        self.annotations.save_pair_annotation(self.current_index, self.current_id, classification_type)
+        self.annotations.save_pair_annotation(self.image1, self.image2, classification_type)
         self.right()
         # self.load_pair(self.current_index + 1)
     
@@ -266,6 +306,7 @@ class ImagePairViewer(ttk.Frame):
         self.save_current_boxes()
         self.image1.clear_boxes()
         self.image2.clear_boxes()
+        self.right()
 
     @property
     def current_id(self):
@@ -279,46 +320,14 @@ class ImagePairViewer(ttk.Frame):
         boxes = self.image2.get_boxes()
         if boxes:
             print("saving boxes", boxes)
-            self.annotations.save_pair_annotation(self.current_index, self.current_id, ImageAnnotation.Classes.ANNOTATION, boxes)
+            self.annotations.save_pair_annotation(self.image1, self.image2, ImageAnnotation.Classes.ANNOTATION, boxes)
             
         anti_boxes = self.image1.get_boxes()
         if anti_boxes:
             print("saving anti boxes", anti_boxes)
-            self.annotations.save_pair_annotation(self.current_index, self.current_id, ImageAnnotation.Classes.ANNOTATION_X, anti_boxes)
+            self.annotations.save_pair_annotation(self.image1, self.image2, ImageAnnotation.Classes.ANNOTATION_X, anti_boxes)
    
     
-    # def load_pair(self, index):
-    #     """Load an image pair and its annotations"""
-    #     print("load pair called")
-    #     if self.in_annotation_mode:
-    #         print("Was in annotation mode, toggling off")
-    #         self.annotation_off()  # This will also save boxes
-
-    #     if 0 <= index < len(self.image_pairs):
-    #         # Save any current boxes before switching
-    #         if self.in_annotation_mode:
-    #             self.save_current_boxes()
-            
-    #         self.current_index = index
-    #         img1, img2 = self.image_pairs[index]
-            
-    #         # Load images
-    #         self.image1.load_image(img1)
-    #         self.image2.load_image(img2)
-            
-    #         # Load any existing annotations
-    #         annotation = self.annotations.get_pair_annotation(index)
-    #         if annotation["type"] == ImageAnnotation.Classes.ANNOTATION:
-    #             self.image1.boxes = annotation["boxes"]
-    #             self.image1.display_boxes(annotation["boxes"], "red")
-    #             self.image2.boxes = annotation["boxes"]
-    #             self.image2.display_boxes(annotation["boxes"])
-            
-    #         self.update_ui_state(annotation["type"])
-            
-    #     if self.end_of_set:
-    #         print("end of line")
-
     def load_pair(self, index):
         print("load pair called")
         if self.in_annotation_mode:
@@ -329,30 +338,94 @@ class ImagePairViewer(ttk.Frame):
             self.current_index = index
             img1, img2 = self.image_pairs[index]
 
-            self.image1.clear_boxes()
-            self.image2.clear_boxes()
-            self.image1.boxes = []
-            self.image2.boxes = []
+            # 1) Alles leeren
+            self.image1.clear_all()
+            self.image2.clear_all()
 
+            self.image1._resize_image()
+            self.image2._resize_image()
+
+            # 2) Bilder neu laden
             self.image1.load_image(img1)
             self.image2.load_image(img2)
 
+            # 3) Annotation laden
             annotation = self.annotations.get_pair_annotation(index)
+            print("annotation TYPE:", annotation.get("type"))
+            print("===", annotation)
 
-            if annotation["type"] == ImageAnnotation.Classes.ANNOTATION and annotation["boxes"]:
-                self.image1.boxes = annotation["boxes"]
-                self.image2.boxes = annotation["boxes"]
-                self.image1.display_boxes(annotation["boxes"], "green")
-                self.image2.display_boxes(annotation["boxes"], "green")
-            else:
-                # Keine Boxen vorhanden: sicher clear
-                self.image1.clear_boxes()
-                self.image2.clear_boxes()
+            if annotation.get("type") == ImageAnnotation.Classes.ANNOTATION:
+                # Robust: immer get() mit Default
+                boxes1 = annotation.get("boxes1", [])
+                boxes2 = annotation.get("boxes2", [])
 
-            self.update_ui_state(annotation["type"])
+                self.image1.boxes = boxes1
+                self.image2.boxes = boxes2
+
+                self.image1.display_boxes(boxes1)
+                self.image2.display_boxes(boxes2)
+
+                # Masken
+                self.image1._original_mask_pils = []
+                self.image2._original_mask_pils = []
+
+                for mask_base64 in annotation.get("masks1", []):
+                    mask_bytes = base64.b64decode(mask_base64)
+                    mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
+                    self.image1._original_mask_pils.append(mask_pil)
+
+                for mask_base64 in annotation.get("masks2", []):
+                    mask_bytes = base64.b64decode(mask_base64)
+                    mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
+                    self.image2._original_mask_pils.append(mask_pil)
+
+                self.image1.display_mask()
+                self.image2.display_mask()
+
+            self.update_ui_state(annotation.get("type"))
 
         if self.end_of_set:
-            print("end of line")
+            print("End of image pairs")
+
+
+
+
+    # def load_pair(self, index):
+    #     print("load pair called")
+    #     if self.in_annotation_mode:
+    #         print("Was in annotation mode, toggling off")
+    #         self.annotation_off()
+
+    #     if 0 <= index < len(self.image_pairs):
+    #         self.current_index = index
+    #         img1, img2 = self.image_pairs[index]
+
+    #         self.image1.clear_boxes()
+    #         self.image2.clear_boxes()
+    #         self.image1.boxes = []
+    #         self.image2.boxes = []
+
+
+    #         annotation = self.annotations.get_pair_annotation(index)
+    #         boxes = annotation["boxes"] if annotation["type"] == ImageAnnotation.Classes.ANNOTATION else []
+    #         print("boxes from load_pair:", boxes)
+    #         self.image1.load_image(img1, boxes)
+    #         self.image2.load_image(img2, boxes)
+
+    #         if annotation["type"] == ImageAnnotation.Classes.ANNOTATION and annotation["boxes"]:
+    #             self.image1.boxes = annotation["boxes"]
+    #             self.image2.boxes = annotation["boxes"]
+    #             self.image1.display_boxes(annotation["boxes"], "green")
+    #             self.image2.display_boxes(annotation["boxes"], "green")
+    #         else:
+    #             # Keine Boxen vorhanden: sicher clear
+    #             self.image1.clear_boxes()
+    #             self.image2.clear_boxes()
+
+    #         self.update_ui_state(annotation["type"])
+
+    #     if self.end_of_set:
+    #         print("end of line")
 
 
     @property

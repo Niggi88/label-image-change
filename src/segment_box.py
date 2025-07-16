@@ -4,6 +4,12 @@ import torch
 import matplotlib.pyplot as plt
 import cv2
 import sys
+import requests
+import base64
+import numpy as np
+import cv2
+from PIL import Image
+import io
 sys.path.append("..")
 
 
@@ -114,36 +120,44 @@ def get_model2():
 
     
 
-def segment(image, box):
+
+
+
+def segment(image_np, box):
     """
-    image: numpy array (dein Originalbild)
-    box: numpy array [x0, y0, x1, y1] in Bild-Koordinaten
+    Schickt Bild + Box an die FastAPI & gibt ein PIL RGBA Mask Image zurück.
     """
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    predictor = get_model2()
-    
-    with torch.inference_mode(), torch.autocast(device, dtype=torch.bfloat16):
-        predictor.set_image(image)
+    # Speichere temporär als JPG (oder PNG, wenn du willst)
+    tmp_path = "/tmp/tmp_image.jpg"
+    cv2.imwrite(tmp_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
 
-        masks, scores, logits = predictor.predict(
-            box=box,
-            multimask_output=True,
-        )
+    files = {
+        "file": open(tmp_path, "rb")
+    }
+    data = {
+        "x1": int(box[0]),
+        "y1": int(box[1]),
+        "x2": int(box[2]),
+        "y2": int(box[3]),
+    }
+    print("my data", data)
 
-    mask = masks[0]  # nimm beste Maske
-    mask = np.uint8(mask) * 255
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    response = requests.post(
+        "http://172.30.20.31:8000/segment/box",
+        files=files,
+        data=data
+    )
+    response.raise_for_status()
+    result = response.json()
 
-    new_mask = np.zeros_like(mask)
-    cv2.drawContours(new_mask, contours, 0, 255, -1)
+    if result["success"]:
+        mask_data = base64.b64decode(result["mask"])
+        mask_pil = Image.open(io.BytesIO(mask_data)).convert("RGBA")
+        return mask_pil, result
 
-    details = get_location(contours, image.shape[1], image.shape[0], only_largest=True)
-
-    # result_mask = apply_mask_and_blur(cv2.cvtColor(image, cv2.COLOR_RGB2BGR), new_mask)
-    result_mask = new_mask
-    return result_mask, details
-
+    else:
+        print("Segmentation failed:", result)
+        return None, result
 
 
 
