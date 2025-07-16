@@ -10,6 +10,8 @@ import io
 import base64
 from image_annotation import ImageAnnotation
 import uuid
+# from app import ImagePairViewer
+
 
 
 def mask_pil_to_base64(pil_image):
@@ -81,6 +83,8 @@ class AnnotatableImage(ttk.Frame):
         self.annotation_type_state = AnnotationTypeState.NEGATIVE if _id == 1 else AnnotationTypeState.POSITIVE
         self.annotation_controller = annotation_controller
         self.controller = controller
+        assert isinstance(annotation_controller, ImageAnnotation) 
+        # assert isinstance(controller, ImagePairViewer)
         # Bind mouse events for drawing
         self.canvas.bind('<Button-1>', self.start_box)
         self.canvas.bind('<B1-Motion>', self.draw_box)
@@ -113,6 +117,7 @@ class AnnotatableImage(ttk.Frame):
     def load_image(self, image_path, boxes=None):
         self.image_path = image_path
         pil_image = Image.open(image_path)
+        self.image_size = pil_image.size
         self._original_pil_image = pil_image
 
         self._original_mask_pils = []  # <--- WICHTIG: Liste leeren!
@@ -295,6 +300,7 @@ class AnnotatableImage(ttk.Frame):
         other_box = box.copy()
         other_box['annotation_type'] = other_image.annotation_type_state
         other_box['pair_id'] = pair_id
+        other_box['synced_highlight'] = True
         other_image.boxes.append(other_box)
 
         self.clear_boxes()
@@ -346,6 +352,12 @@ class AnnotatableImage(ttk.Frame):
         self.clear_boxes()
 
         for idx, box in enumerate(boxes):
+            if box.get('synced_highlight', False):
+                outline = "red"
+            elif self.selected_box_index is not None and idx == self.selected_box_index:
+                outline = "red"
+            else:
+                outline = color
             scaled_box = {
                 'x1': box['x1'] * self._scale_factor + self._offset_x,
                 'y1': box['y1'] * self._scale_factor + self._offset_y,
@@ -355,7 +367,7 @@ class AnnotatableImage(ttk.Frame):
             rect_id = self.canvas.create_rectangle(
                 scaled_box['x1'], scaled_box['y1'],
                 scaled_box['x2'], scaled_box['y2'],
-                outline="red" if self.selected_box_index is not None and idx == self.selected_box_index else color,
+                outline=outline, # if self.selected_box_index is not None and idx == self.selected_box_index else color,
                 fill="",  # oder transparente Fläche
                 width=2
             )
@@ -454,12 +466,12 @@ class AnnotatableImage(ttk.Frame):
         self._mask_overlays = []
 
     def clear_all(self):
-        self.clear_image()  # GANZ WICHTIG: altes Bild raus
+        self.clear_image()  # GANZ AM ENDE: Canvas wirklich löschen!
         self.clear_mask()   # alte Maske raus
         self.clear_boxes()  # alte Boxen raus
         self.boxes = []     # interne Liste leeren
+        # self._original_mask_pils = []  # sicherstellen
         self._original_pil_image = None  # Original Bild Reset
-        self._mask_overlays = []
 
 
     def set_drawing_mode(self, enabled):
@@ -505,6 +517,7 @@ class AnnotatableImage(ttk.Frame):
                 mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
                 self._original_mask_pils.append(mask_pil)
 
+        
         # 3) Andere Seite nur synchronisieren (keine API, keine neue Maske)
         other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
         other_image._original_mask_pils = []
@@ -520,12 +533,11 @@ class AnnotatableImage(ttk.Frame):
                 other_box['mask_base64'] = bbox['mask_base64']
                 other_box['mask_image_id'] = bbox['mask_image_id']
 
-        # 4) Speichern IMMER mit beiden Box-Listen
         self.annotation_controller.save_pair_annotation(
-            pair_id=self.controller.current_index,
-            images=[self.controller.image1.image_path, self.controller.image2.image_path],
-            annotation_type=ImageAnnotation.Classes.ANNOTATION,
-            boxes=self.controller.image1.get_boxes() + self.controller.image2.get_boxes()
+            # pair_id=self.controller.current_index,
+            image1=self,   # AnnotatableImage
+            image2=other_image,              # AnnotatableImage
+            annotation_type=ImageAnnotation.Classes.ANNOTATION
         )
 
         # 5) Anzeige aktualisieren

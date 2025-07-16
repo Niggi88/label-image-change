@@ -2,6 +2,12 @@ from pathlib import Path
 import json
 from config import *
 
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from app import ImagePairViewer
+    from image_annotation import ImageAnnotation
 
 class ImageAnnotation:
     class Classes:
@@ -40,26 +46,38 @@ class ImageAnnotation:
             "boxes": []
         })
     
-    def save_pair_annotation(self, pair_id, images, annotation_type, boxes=None):
-        if boxes is None:
-            boxes = []
+    def save_pair_annotation(self, image1, image2, annotation_type, boxes=None):
+        from annotatable_image import mask_pil_to_base64
+
+        # Entscheide, welche Boxen du speichern willst
         if boxes:
+            boxes1 = boxes
+            boxes2 = boxes
             annotation_type = ImageAnnotation.Classes.ANNOTATION
-        elif annotation_type == ImageAnnotation.Classes.NOTHING:
-            annotation_type = ImageAnnotation.Classes.NOTHING
         else:
-            # Sonst darfst du dein übergebenes z.B. "annotation_xy" speichern
-            pass   
-        if len(boxes) == 0 and annotation_type == ImageAnnotation.Classes.NOTHING: 
-            annotation_type = ImageAnnotation.Classes.NOTHING
+            boxes1 = image1.get_boxes()
+            boxes2 = image2.get_boxes()
+            if not boxes1 and not boxes2:
+                annotation_type = ImageAnnotation.Classes.NOTHING
+
+        pair_id = image1.controller.current_index
 
 
-            
-        im1, im2 = images
         self.annotations[f"{pair_id}"] = {
             "type": annotation_type,
-            "im1": str(im1),
-            "im2": str(im2),
-            "boxes": boxes
+            "im1_path": str(image1.image_path),
+            "im2_path": str(image2.image_path),
+            "boxes1": boxes1,
+            "boxes2": boxes2,
+            "masks1": [
+                mask_pil_to_base64(mask) for mask in image1._original_mask_pils
+            ],
+            "masks2": [
+                mask_pil_to_base64(mask) for mask in image2._original_mask_pils
+            ],
+            "image1_size": image1.image_size,
+            "image2_size": image2.image_size
         }
         self.save_annotations()
+        print(f"[SAVE] Pair {pair_id} -> boxes1: {len(boxes1)}, boxes2: {len(boxes2)}")
+        print(json.dumps(self.annotations[f"{pair_id}"], indent=2))
