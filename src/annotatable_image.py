@@ -83,7 +83,7 @@ class AnnotatableImage(ttk.Frame):
         self.annotation_type_state = AnnotationTypeState.NEGATIVE if _id == 1 else AnnotationTypeState.POSITIVE
         self.annotation_controller = annotation_controller
         self.controller = controller
-        assert isinstance(annotation_controller, ImageAnnotation) 
+        # assert isinstance(annotation_controller, ImageAnnotation) 
         # assert isinstance(controller, ImagePairViewer)
         # Bind mouse events for drawing
         self.canvas.bind('<Button-1>', self.start_box)
@@ -321,6 +321,18 @@ class AnnotatableImage(ttk.Frame):
     def display_mask(self):
         if not self._original_mask_pils:
             return
+
+        if not self._original_mask_pils:
+            return
+
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
+
+        if canvas_width <= 1 or canvas_height <= 1:
+            print("Canvas not ready yet, skipping mask display.")
+            return  # Avoid crashing on app start
+
+    # proceed to resize masks
 
         # Alte Masken-Canvas-IDs löschen:
         if hasattr(self, '_mask_ids'):

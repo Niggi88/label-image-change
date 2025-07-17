@@ -21,10 +21,10 @@ class HorizontalSpinner(tk.Frame):
         self.canvas.pack(side="left", fill="both", expand=True)
         
         # Add navigation buttons
-        self.prev_button = ttk.Button(self, text="◀", command=self.scroll_left)
+        self.prev_button = ttk.Button(self, text="◀", command=lambda: self.on_scroll(-1))
         self.prev_button.pack(side="left")
         
-        self.next_button = ttk.Button(self, text="▶", command=self.scroll_right)
+        self.next_button = ttk.Button(self, text="▶", command=lambda: self.on_scroll(1))
         self.next_button.pack(side="right")
         
         # Initialize visible items (show 5 items at a time)
@@ -37,6 +37,13 @@ class HorizontalSpinner(tk.Frame):
         
         # Bind resize event
         self.canvas.bind('<Configure>', self.on_resize)
+
+    def on_scroll(self, direction):
+        result = self.animate_scroll(direction)
+        if direction == 1 and result == self.ReturnCode.END_RIGHT and hasattr(self.master, "right"):
+            self.master.right()
+        elif direction == -1 and result == self.ReturnCode.END_LEFT and hasattr(self.master, "left"):
+            self.master.left()
 
     def on_resize(self, event):
         self.center_x = event.width / 2
@@ -83,37 +90,31 @@ class HorizontalSpinner(tk.Frame):
             )
 
     def animate_scroll(self, direction):
-        print("in animate scroll", direction)
         if self.animation_in_progress:
             return self.ReturnCode.ANIMATION_IN_PROGRESS
-        
+
         next_index = self.current_index + direction
         if not (0 <= next_index < len(self.items)):
-            print(next_index)
-            if next_index < 0: return self.ReturnCode.END_LEFT
-            if len(self.items) <= next_index: return self.ReturnCode.END_RIGHT
-            
+            return self.ReturnCode.END_LEFT if direction < 0 else self.ReturnCode.END_RIGHT
+
         self.animation_in_progress = True
         steps = 5
         dx = -self.item_width / steps * direction
-        
-        # Immediately update the current index and trigger callback
         self.current_index = next_index
         if self.on_change:
             self.on_change(self.items[self.current_index])
-        
-        def animate_step(remaining_steps, total_dx):
+
+        def animate_step(remaining_steps):
             if remaining_steps <= 0:
                 self.draw_items()
                 self.animation_in_progress = False
                 return
-            
             self.canvas.move("all", dx, 0)
-            self.after(20, lambda: animate_step(remaining_steps - 1, total_dx + dx))
-        
-        # Start animation in background
-        self.after(0, lambda: animate_step(steps, 0))
+            self.after(20, lambda: animate_step(remaining_steps - 1))
+
+        self.after(0, lambda: animate_step(steps))
         return self.ReturnCode.NORMAL
+
 
     def scroll_left(self, event=None):
         if self.current_index > 0 and not self.animation_in_progress:
