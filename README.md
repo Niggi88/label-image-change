@@ -1,5 +1,3 @@
-# add test line
-
 # label-image-change
 
 # how to use
@@ -9,7 +7,6 @@
 
 - navigate to ~/sarah/sam_api/src
 - run python3 main.py -> starting:
-(it says "2025-07-16 09:15:48.740 | INFO     | __main__:<module>:34 - sam2.1/sam2.1_hiera_l, False", even though it says false it is working (TODO: fix that))
 
 2. run app.py
 - canvas will open, ready to annotate
