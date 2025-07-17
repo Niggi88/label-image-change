@@ -19,6 +19,7 @@ import io
 # TODO: add x als gelöscht
 
 
+
 class ImagePairList(list):
     def __init__(self, src):
         #                   /home/niklas/dataset/bildunterschied
@@ -62,56 +63,112 @@ class PairViewerApp(tk.Tk):
         self.pair_viewer = ImagePairViewer(self, DATASET_DIR)
         self.pair_viewer.pack(fill="both", expand=True)
 
-        self.bind("<Escape>", lambda _: self.quit())
-        # self.bind("<f>", lambda _: self.pair_viewer.right())
-        self.bind("<f>", lambda _: self.pair_viewer.nothing_btn.invoke())
-        # self.bind("<s>", lambda _: self.pair_viewer.left())
-        self.bind("<s>", lambda _: self.pair_viewer.left())
-
-        self.bind("<a>", lambda _: self.pair_viewer.annotate_btn.invoke())
-        self.bind("<n>", lambda _: self.pair_viewer.nothing_btn.invoke())
-        self.bind("<c>", lambda _: self.pair_viewer.chaos_btn.invoke())
 
 
 class ImagePairViewer(ttk.Frame):
     def __init__(self, container, base_src):
-        print("init")
         super().__init__(container)
-        # Grid-Spalten und Zeilen definieren, damit sie Platz fair teilen:
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
-        self.sessions = Path(base_src).glob("*")
-        # src = "/home/niklas/dataset/bildunterschied/test_mini/clinical2"
-        # self.reset(src)
-        self.reset(next(self.sessions))
+
+        self.session_paths = self.find_session_paths(base_src)
+        assert self.session_paths, "No sessions found!"
+        self.session_index = 0
+
+        # INITIALISIERUNG — EINMALIG
+        self.image1 = AnnotatableImage(self, annotation_controller=None, controller=self)
+        self.image1.grid(row=0, column=0, sticky="nsew")
+        self.image2 = AnnotatableImage(self, annotation_controller=None, controller=self)
+        self.image2.grid(row=0, column=1, sticky="nsew")
+
+        self.setup_controls()
+
+        self.spinbox = HorizontalSpinner(self, [], self.set_images)
+        self.spinbox.grid(row=2, column=0, columnspan=2)
+
+        # Fortschrittsanzeige-Label hinzufügen (z. B. unterhalb des Spinners)
+        # self.progress_label = ttk.Label(self, anchor="center")
+        # self.progress_label.grid(row=3, column=0, columnspan=2)
+
+        self.global_progress_label = ttk.Label(self, anchor="center")
+        self.global_progress_label.grid(row=4, column=0, columnspan=2)
+
+
         self.selected_box_index = None
-    def reset(self, src):
-        self.after(100, self.show_reset_message)
-        # Create image pairs and annotation manager
+        self.reset(self.session_paths[self.session_index], initial=True)
+
+    def update_global_progress(self):
+        session_name = self.image_pairs.src.name
+        current_session_number = self.session_index + 1
+        total_sessions = len(self.session_paths)
+        current_pair = self.current_index + 1
+        total_pairs = len(self.image_pairs)
+
+        self.global_progress_label.config(
+            text=f"Session {current_session_number} / {total_sessions} — {session_name}: {current_pair} / {total_pairs}"
+        )
+
+    def find_session_paths(self, base_src):
+        base = Path(base_src)
+        session_paths = []
+        for store in sorted(base.glob("store_*")):
+            for session in sorted(store.glob("session_*")):
+                session_paths.append(session)
+        return session_paths
+
+    def setup_key_bindings(self):
+        self.master.bind("<Escape>", lambda _: self.quit())
+        self.master.bind("<Right>", lambda _: self.right())
+        self.master.bind("<Left>", lambda _: self.left())
+        self.master.bind("<a>", lambda _: self.annotate_btn.invoke())
+        self.master.bind("<n>", lambda _: self.nothing_btn.invoke())
+        self.master.bind("<c>", lambda _: self.chaos_btn.invoke())
+        self.master.bind("<d>", lambda _: self.delete_selected_btn.invoke())
+        self.master.bind("<x>", lambda _: self.clear_btn.invoke())
+        self.focus_set()
+
+
+    def reset(self, src, initial=False):
+        print("[RESET] Loading session from:", src)
+
         self.image_pairs = ImagePairList(src=src)
         self.annotations = ImageAnnotation(self.image_pairs.src)
-        
-        # Initialize state
         self.current_index = 0
         self.in_annotation_mode = False
-        
-        # Create image viewers
-        self.image1 = AnnotatableImage(self, annotation_controller=self.annotations, controller=self)
-        self.image1.grid(row=0, column=0, sticky="nsew")
-        self.image2 = AnnotatableImage(self, annotation_controller=self.annotations, controller=self)
-        self.image2.grid(row=0, column=1, sticky="nsew")
-        
-        # Create controls
-        self.setup_controls()
-        
-        # Add horizontal spinner
-        self.spinbox = HorizontalSpinner(self, self.image_pairs.ids(), self.set_images)
-        self.spinbox.grid(row=2, column=0, columnspan=2)
-        
-        # Load first pair
-        self.load_pair(0)
-        print("loaded pair")
+
+        self.session_index = self.session_paths.index(src)
+
+        # Neue Referenz übergeben
+        self.image1.annotation_controller = self.annotations
+        self.image2.annotation_controller = self.annotations
+
+        # Spinner nur updaten
+        self.spinbox.items = self.image_pairs.ids()
+        self.spinbox.current_index = 0
+        self.spinbox.draw_items()
+
+        # Update session label
+        # self.progress_label.config(
+        #     text=f"{self.image_pairs.src.name}: 1/{len(self.image_pairs)}"
+        # )
+
+        if initial:
+            self.load_pair(0)
+            self.spinbox.current_index = 0
+
+        # self.load_pair(0)
+        self.setup_key_bindings()
+
+
+        # self.progress_label.config(
+        #     text=f"{self.image_pairs.src.name}: 1/{len(self.image_pairs)}"
+        # )
+
+        self.update_global_progress()
+        # store_name = self.image_pairs.src.parent.name
+        # session_name = self.image_pairs.src.name
+        # self.progress_label.config(text=f"{store_name} / {session_name}: 1/{len(self.image_pairs)}")
 
     def show_reset_message(self):
         dialog = tk.Toplevel(self)
@@ -270,7 +327,8 @@ class ImagePairViewer(ttk.Frame):
             annotation_type=self.state
         )
 
-        if not self.state == ImageAnnotation.Classes.ANNOTATION:
+        if button_id != ImageAnnotation.Classes.ANNOTATION:
+            print(f"[before_action] Calling right() after classification: {button_id}")
             self.right()
 
 
@@ -334,6 +392,9 @@ class ImagePairViewer(ttk.Frame):
             print("Was in annotation mode, toggling off")
             self.annotation_off()
 
+        self.current_index = index
+        self.spinbox.current_index = index
+
         if 0 <= index < len(self.image_pairs):
             self.current_index = index
             img1, img2 = self.image_pairs[index]
@@ -342,12 +403,12 @@ class ImagePairViewer(ttk.Frame):
             self.image1.clear_all()
             self.image2.clear_all()
 
-            self.image1._resize_image()
-            self.image2._resize_image()
-
             # 2) Bilder neu laden
             self.image1.load_image(img1)
             self.image2.load_image(img2)
+
+            self.image1._resize_image()
+            self.image2._resize_image()
 
             # 3) Annotation laden
             annotation = self.annotations.get_pair_annotation(index)
@@ -362,8 +423,11 @@ class ImagePairViewer(ttk.Frame):
                 self.image1.boxes = boxes1
                 self.image2.boxes = boxes2
 
-                self.image1.display_boxes(boxes1)
-                self.image2.display_boxes(boxes2)
+                self.image1._resize_image()
+                self.image2._resize_image()
+
+                self.after(100, lambda: self.image1.display_boxes(boxes1))
+                self.after(100, lambda: self.image2.display_boxes(boxes2))
 
                 # Masken
                 self.image1._original_mask_pils = []
@@ -384,6 +448,15 @@ class ImagePairViewer(ttk.Frame):
 
             self.update_ui_state(annotation.get("type"))
 
+            # Fortschrittsanzeige updaten
+            session_name = self.image_pairs.src.name  # z. B. session_xxx
+            store_name = self.image_pairs.src.parent.name
+            total = len(self.image_pairs)
+            current = self.current_index + 1
+            # self.progress_label.config(text=f"{session_name}: {current}/{total}")
+
+            # self.progress_label.config(text=f"{store_name} / {session_name}: {current}/{total}")
+            self.update_global_progress()
         if self.end_of_set:
             print("End of image pairs")
 
@@ -449,21 +522,40 @@ class ImagePairViewer(ttk.Frame):
             self.image1.set_drawing_mode(self.in_annotation_mode)
             self.image2.set_drawing_mode(self.in_annotation_mode)
     
+    def right(self):
+        print(f"[RIGHT] current_index = {self.current_index}")
+        ret = self.spinbox.animate_scroll(+1)
+
+        if ret == HorizontalSpinner.ReturnCode.END_RIGHT:
+            if self.session_index + 1 < len(self.session_paths):
+                self.session_index += 1
+                next_session = self.session_paths[self.session_index]
+                self.reset(next_session)
+                self.load_pair(0)
+            else:
+                messagebox.showinfo("Done", "All sessions completed.")
+                self.quit()
+
     def left(self):
+        print(f"[LEFT] current_index = {self.current_index}")
         ret = self.spinbox.animate_scroll(-1)
 
-    def right(self):
-        if len(self.image2.get_boxes()) == 0: print("empty")
-        else: print("full")
-        ret = self.spinbox.animate_scroll(+1)
-        if ret == HorizontalSpinner.ReturnCode.END_RIGHT: 
-            try:
-                next_session = next(self.sessions)
-                print(next_session)
-                self.reset(next_session)
-            except:
-                print("done")
-                self.quit()
+        if ret == HorizontalSpinner.ReturnCode.END_LEFT:
+            if self.session_index > 0:
+                self.session_index -= 1
+                prev_session = self.session_paths[self.session_index]
+                self.reset(prev_session)
+
+                last_idx = len(self.image_pairs) - 1
+                self.current_index = last_idx
+                self.spinbox.current_index = last_idx
+                self.spinbox.draw_items()
+                self.load_pair(last_idx)
+            else:
+                print("[LEFT] Already at first session.")
+
+
+
 
     def set_images(self, idx):
         self.load_pair(idx)
