@@ -1,5 +1,24 @@
 # label-image-change
 
+# how to use
+1. start api on server:
+- navigate to ~/sarah/sam_api
+- activate sam_venv: source sam_venv/bin/activate
+
+- navigate to ~/sarah/sam_api/src
+- run python3 main.py -> starting:
+(it says "2025-07-16 09:15:48.740 | INFO     | __main__:<module>:34 - sam2.1/sam2.1_hiera_l, False", even though it says false it is working (TODO: fix that))
+
+2. run app.py
+- canvas will open, ready to annotate
+- json is saved in same folder as regarding session
+
+3. parse json to yolo format
+- run json_to_yolo.py script, this will create 3 folders:
+* images
+*images2
+*labels
+
 A simple tool for annotating changes between consecutive images. Created to label changes in image sequences for scene change detection.
 
 ## Features
@@ -32,6 +51,9 @@ A simple tool for annotating changes between consecutive images. Created to labe
     - no products moved around
 
 
+## UML
+![uml](image.png)
+
 ## Current Issues
 
 - State management between annotation modes needs improvement
@@ -45,6 +67,7 @@ A simple tool for annotating changes between consecutive images. Created to labe
 - Add clear boxes button
 - Support processing multiple sessions/directories
 - Visual indication when multiple boxes are drawn on same image
+- Replace boxes with segmentation
 
 ### Maybe Later
 
