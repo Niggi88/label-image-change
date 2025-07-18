@@ -120,7 +120,9 @@ class ImagePairViewer(ttk.Frame):
     def setup_key_bindings(self):
         self.master.bind("<Escape>", lambda _: self.quit())
         self.master.bind("<Right>", lambda _: self.right())
+        self.master.bind("<f>", lambda _: self.right())
         self.master.bind("<Left>", lambda _: self.left())
+        self.master.bind("<s>", lambda _: self.left())
         self.master.bind("<a>", lambda _: self.annotate_btn.invoke())
         self.master.bind("<n>", lambda _: self.nothing_btn.invoke())
         self.master.bind("<c>", lambda _: self.chaos_btn.invoke())
