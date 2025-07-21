@@ -7,7 +7,7 @@ def get_image_size(image_path):
     """Get image dimensions from file path."""
     try:
         with Image.open(image_path) as img:
-            return {"width": img.width, "height": img.height}
+            return [img.width, img.height]# {"width": img.width, "height": img.height}
     except Exception as e:
         print(f"Error reading image {image_path}: {e}")
         return None
@@ -118,16 +118,26 @@ def process_json_file(input_file="paste.txt", output_file="converted_data.json")
         if converted_data:
             first_key = list(converted_data.keys())[0]
             print(f"\nExample converted item (key: {first_key}):")
-            print(json.dumps(converted_data[first_key], indent=2))
         
     except Exception as e:
         print(f"Error processing file: {e}")
+    return total_items
 
 if __name__ == "__main__":
     # You can modify these file paths as needed
     
-    BASE_DIR = Path("/media/fast/dataset/bildunterschied/test_mini/small_set/session_3b508f90-94c2-4909-916b-42d7bb361f48/")
-    input_file = BASE_DIR / "annotations.json"
-    output_file = BASE_DIR / "converted_data.json"
+    # BASE_DIR = Path("/media/fast/dataset/bildunterschied/test_mini/small_set")
+    # BASE_DIR = Path("/media/fast/dataset/bildunterschied/test_mini/small_set2")
+    BASE_DIR = Path("/media/fast/dataset/bildunterschied/test_mini/small_set3")
     
-    process_json_file(str(input_file), str(output_file))
+    input_files = BASE_DIR.glob("**/annotations.json")
+    converted = 0
+    for input_file in input_files:
+        
+        # input_file = BASE_DIR / "annotations.json"
+        output_file = str(input_file).replace("annotations.json", "converted_data.json")
+        
+        # print("in:  ", str(input_file))
+        # print("out: ", str(output_file))
+        converted += process_json_file(str(input_file), output_file)
+    print(f"converted {converted} images")
