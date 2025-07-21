@@ -34,9 +34,10 @@ def export_session(annotation_file, index):
     for pair_id, pair_data in annotations.items():
         im1_path = Path(pair_data["im1_path"])
         im2_path = Path(pair_data["im2_path"])
+        index_string = str(index).zfill(7)
 
-        im1_target = IMAGES1_DIR / f"{str(index).zfill(7)}{im1_path.suffix}"
-        im2_target = IMAGES2_DIR / f"{str(index).zfill(7)}{im2_path.suffix}"
+        im1_target = IMAGES1_DIR / f"{index_string}{im1_path.suffix}"
+        im2_target = IMAGES2_DIR / f"{index_string}{im2_path.suffix}"
 
         shutil.copy(im1_path, im1_target)
         shutil.copy(im2_path, im2_target)
@@ -48,7 +49,7 @@ def export_session(annotation_file, index):
         print(image_size)
         img_w, img_h = float(img_w), float(img_h)
 
-        label_path = LABELS_DIR / f"{pair_id}.txt"
+        label_path = LABELS_DIR / f"{index_string}.txt"
 
         with open(label_path, "w") as lf:
             if boxes:
