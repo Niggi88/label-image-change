@@ -46,8 +46,8 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
         else:
             yolo_paths = yolo_splitted_paths.train
             
-        im1_path = Path(pair_data["im1_path"])
-        im2_path = Path(pair_data["im2_path"])
+        im1_path = Path(pair_data["im2_path"])
+        im2_path = Path(pair_data["im1_path"])
         index_string = str(index).zfill(7)
 
         im1_target = yolo_paths.images1 / f"{index_string}{im1_path.suffix}"
