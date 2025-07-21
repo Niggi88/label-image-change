@@ -1,9 +1,11 @@
 import json
 import shutil
 from pathlib import Path
+from itertools import chain
+
 
 # === CONFIG ===
-EXPORT_DIR = Path("/media/fast/dataset/bildunterschied/real_data/v1_tiny")
+EXPORT_DIR = Path("/media/fast/dataset/bildunterschied/real_data/v2_tiny")
 IMAGES1_DIR = EXPORT_DIR / "images"
 IMAGES2_DIR = EXPORT_DIR / "images2"
 LABELS_DIR = EXPORT_DIR / "labels"
@@ -46,7 +48,6 @@ def export_session(annotation_file, index):
         boxes = pair_data.get("boxes1", [])
         image_size = pair_data.get("image1_size")
         img_w, img_h = image_size
-        print(image_size)
         img_w, img_h = float(img_w), float(img_h)
 
         label_path = LABELS_DIR / f"{index_string}.txt"
@@ -65,7 +66,7 @@ def export_session(annotation_file, index):
                 # Write empty file for no boxes
                 lf.write("")
 
-        print(f"✅ Saved Pair {pair_id}:")
+        print(f"✅ Saved Pair {index_string}:")
         print(f"   Image1: {im1_target}")
         print(f"   Image2: {im2_target}")
         print(f"   Labels: {label_path}")
@@ -77,8 +78,21 @@ def export_session(annotation_file, index):
 
 if __name__ == "__main__":
     #  = SESSION_PATH / "converted_data.json"
-    SRC_DATA_PATH = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one")
-    annotation_files = SRC_DATA_PATH.glob("*/*/*.json")
+    # SRC_DATA_PATH = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one")
+    dataset_small_set = Path("/media/fast/dataset/bildunterschied/test_mini/small_set").glob("**/converted_data.json")
+    dataset_small_set2 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set2").glob("**/converted_data.json")
+    dataset_small_set3 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set3").glob("**/converted_data.json")
+    dataset_one = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one").glob("**/annotations.json")
+    
+    
+    annotation_files = chain(
+        dataset_small_set,
+        dataset_one,
+        dataset_small_set2,
+        dataset_small_set3,
+        # folder_path.glob("**/*.json")
+    )
     index = 0
     for f in annotation_files:
+        print(f)
         index = export_session(f, index)
