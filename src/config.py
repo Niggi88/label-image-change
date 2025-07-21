@@ -1,7 +1,7 @@
 import socket
 
 
-CACHE = True
+CACHE = False
 IMAGE_SIZE=2000
 # DATASET_NAME="complex"
 DATASET_NAME="one"

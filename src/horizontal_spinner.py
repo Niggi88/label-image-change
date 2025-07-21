@@ -100,9 +100,13 @@ class HorizontalSpinner(tk.Frame):
         self.animation_in_progress = True
         steps = 5
         dx = -self.item_width / steps * direction
+        prev_index = self.current_index
         self.current_index = next_index
+
+        # 🔁 Neuen Index auch dem Parent mitteilen (ImagePairViewer)
         if self.on_change:
-            self.on_change(self.items[self.current_index])
+            self.on_change(self.current_index)
+
 
         def animate_step(remaining_steps):
             if remaining_steps <= 0:
