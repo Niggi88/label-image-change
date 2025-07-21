@@ -4,28 +4,35 @@ from pathlib import Path
 from itertools import chain
 
 
-# === CONFIG ===
-EXPORT_DIR = Path("/media/fast/dataset/bildunterschied/real_data/v2_tiny")
-IMAGES1_DIR = EXPORT_DIR / "images"
-IMAGES2_DIR = EXPORT_DIR / "images2"
-LABELS_DIR = EXPORT_DIR / "labels"
+class YoloPaths:
+    def __init__(self, split_dir):
+        self._split_dir = split_dir
+        
+    @property
+    def images1(self):
+        return self._split_dir / "images"
+    
+    @property
+    def images2(self):
+        return self._split_dir / "images2"
+    
+    @property
+    def labels(self):
+        return self._split_dir / "labels"
+    
+    
+class YoloPathsSplit:
+    def __init__(self, split_dir):
+        self._split_dir = split_dir
+        self.val = YoloPaths(split_dir / "val")
+        self.train = YoloPaths(split_dir / "train")
+    
+    @property
+    def yaml(self):
+        return self._split_dir / "dataset.yaml"
+    
 
-# Create output folders
-for p in [IMAGES1_DIR, IMAGES2_DIR, LABELS_DIR]:
-    p.mkdir(parents=True, exist_ok=True)
-
-# SESSION_PATH = Path(
-#     "/home/sarah/Documents/background_segmentation/relevant_sessions/"
-#     "store_8dbefa14-0515-47d3-aa69-470d9ee271b3/session_a002753b-b641-4c7e-a311-e28217de4012"
-# )
-# SESSION_PATH = Path(
-#     "/media/fast/dataset/bildunterschied/test_mini/small_set/"
-#     "session_3b508f90-94c2-4909-916b-42d7bb361f48"
-# )
-
-
-
-def export_session(annotation_file, index):
+def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
     # Load your annotations
     with open(annotation_file) as f:
         annotations = json.load(f)
@@ -34,12 +41,17 @@ def export_session(annotation_file, index):
 
     # === EXPORT LOOP ===
     for pair_id, pair_data in annotations.items():
+        if int(pair_id) % 10 == 0:
+            yolo_paths = yolo_splitted_paths.val
+        else:
+            yolo_paths = yolo_splitted_paths.train
+            
         im1_path = Path(pair_data["im1_path"])
         im2_path = Path(pair_data["im2_path"])
         index_string = str(index).zfill(7)
 
-        im1_target = IMAGES1_DIR / f"{index_string}{im1_path.suffix}"
-        im2_target = IMAGES2_DIR / f"{index_string}{im2_path.suffix}"
+        im1_target = yolo_paths.images1 / f"{index_string}{im1_path.suffix}"
+        im2_target = yolo_paths.images2 / f"{index_string}{im2_path.suffix}"
 
         shutil.copy(im1_path, im1_target)
         shutil.copy(im2_path, im2_target)
@@ -50,7 +62,7 @@ def export_session(annotation_file, index):
         img_w, img_h = image_size
         img_w, img_h = float(img_w), float(img_h)
 
-        label_path = LABELS_DIR / f"{index_string}.txt"
+        label_path = yolo_paths.labels / f"{index_string}.txt"
 
         with open(label_path, "w") as lf:
             if boxes:
@@ -77,6 +89,18 @@ def export_session(annotation_file, index):
 
 
 if __name__ == "__main__":
+    
+    # === CONFIG ===
+    yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/v2_tiny"))
+    # IMAGES1_DIR = EXPORT_DIR / "images"
+    # IMAGES2_DIR = EXPORT_DIR / "images2"
+    # LABELS_DIR = EXPORT_DIR / "labels"
+
+    # Create output folders
+    for yolo_paths in [yolo_splitted_paths.val, yolo_splitted_paths.train]:
+        for p in [yolo_paths.images1, yolo_paths.images2, yolo_paths.labels]:
+            p.mkdir(parents=True, exist_ok=True)
+
     #  = SESSION_PATH / "converted_data.json"
     # SRC_DATA_PATH = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one")
     dataset_small_set = Path("/media/fast/dataset/bildunterschied/test_mini/small_set").glob("**/converted_data.json")
@@ -95,4 +119,17 @@ if __name__ == "__main__":
     index = 0
     for f in annotation_files:
         print(f)
-        index = export_session(f, index)
+        index = export_session(f, index, yolo_splitted_paths)
+        
+    from yolo_config import generate_dataset_config
+    
+    class_names = [
+        "product"
+    ]
+    
+    generate_dataset_config(
+        class_names=class_names,
+        train_path=str(yolo_splitted_paths.train.images1),
+        val_path=str(yolo_splitted_paths.val.images1),
+        output_file=yolo_splitted_paths.yaml
+    )
