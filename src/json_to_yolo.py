@@ -16,56 +16,68 @@ for p in [IMAGES1_DIR, IMAGES2_DIR, LABELS_DIR]:
 #     "/home/sarah/Documents/background_segmentation/relevant_sessions/"
 #     "store_8dbefa14-0515-47d3-aa69-470d9ee271b3/session_a002753b-b641-4c7e-a311-e28217de4012"
 # )
-SESSION_PATH = Path(
-    "/media/fast/dataset/bildunterschied/test_mini/small_set/"
-    "session_3b508f90-94c2-4909-916b-42d7bb361f48"
-)
+# SESSION_PATH = Path(
+#     "/media/fast/dataset/bildunterschied/test_mini/small_set/"
+#     "session_3b508f90-94c2-4909-916b-42d7bb361f48"
+# )
 
-ANNOTATIONS_FILE = SESSION_PATH / "converted_data.json"
 
-# Load your annotations
-with open(ANNOTATIONS_FILE) as f:
-    annotations = json.load(f)
 
-print(f"Loaded {len(annotations)} pairs.")
+def export_session(annotation_file, index):
+    # Load your annotations
+    with open(annotation_file) as f:
+        annotations = json.load(f)
 
-# === EXPORT LOOP ===
-for pair_id, pair_data in annotations.items():
-    im1_path = Path(pair_data["im1_path"])
-    im2_path = Path(pair_data["im2_path"])
+    print(f"Loaded {len(annotations)} pairs.")
 
-    im1_target = IMAGES1_DIR / f"{pair_id}{im1_path.suffix}"
-    im2_target = IMAGES2_DIR / f"{pair_id}{im2_path.suffix}"
+    # === EXPORT LOOP ===
+    for pair_id, pair_data in annotations.items():
+        im1_path = Path(pair_data["im1_path"])
+        im2_path = Path(pair_data["im2_path"])
 
-    shutil.copy(im1_path, im1_target)
-    shutil.copy(im2_path, im2_target)
+        im1_target = IMAGES1_DIR / f"{str(index).zfill(7)}{im1_path.suffix}"
+        im2_target = IMAGES2_DIR / f"{str(index).zfill(7)}{im2_path.suffix}"
 
-    # === Save YOLO labels ONLY for images1 ===
-    boxes = pair_data.get("boxes1", [])
-    image_size = pair_data.get("image1_size")
-    img_w, img_h = image_size
-    print(image_size)
-    img_w, img_h = float(img_w), float(img_h)
+        shutil.copy(im1_path, im1_target)
+        shutil.copy(im2_path, im2_target)
 
-    label_path = LABELS_DIR / f"{pair_id}.txt"
+        # === Save YOLO labels ONLY for images1 ===
+        boxes = pair_data.get("boxes1", [])
+        image_size = pair_data.get("image1_size")
+        img_w, img_h = image_size
+        print(image_size)
+        img_w, img_h = float(img_w), float(img_h)
 
-    with open(label_path, "w") as lf:
-        if boxes:
-            for box in boxes:
-                x1, y1, x2, y2 = float(box['x1']), float(box['y1']), float(box['x2']), float(box['y2'])
-                cx = ((x1 + x2) / 2) / img_w
-                cy = ((y1 + y2) / 2) / img_h
-                w = (x2 - x1) / img_w
-                h = (y2 - y1) / img_h
+        label_path = LABELS_DIR / f"{pair_id}.txt"
 
-                lf.write(f"0 {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}\n")
-        else:
-            # Write empty file for no boxes
-            lf.write("")
+        with open(label_path, "w") as lf:
+            if boxes:
+                for box in boxes:
+                    x1, y1, x2, y2 = float(box['x1']), float(box['y1']), float(box['x2']), float(box['y2'])
+                    cx = ((x1 + x2) / 2) / img_w
+                    cy = ((y1 + y2) / 2) / img_h
+                    w = (x2 - x1) / img_w
+                    h = (y2 - y1) / img_h
 
-    print(f"✅ Saved Pair {pair_id}:")
-    print(f"   Image1: {im1_target}")
-    print(f"   Image2: {im2_target}")
-    print(f"   Labels: {label_path}")
+                    lf.write(f"0 {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}\n")
+            else:
+                # Write empty file for no boxes
+                lf.write("")
 
-print("\n🎉 Export finished successfully!")
+        print(f"✅ Saved Pair {pair_id}:")
+        print(f"   Image1: {im1_target}")
+        print(f"   Image2: {im2_target}")
+        print(f"   Labels: {label_path}")
+        index += 1
+
+    print("\n🎉 Export finished successfully!")
+    return index
+
+
+if __name__ == "__main__":
+    #  = SESSION_PATH / "converted_data.json"
+    SRC_DATA_PATH = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one")
+    annotation_files = SRC_DATA_PATH.glob("*/*/*.json")
+    index = 0
+    for f in annotation_files:
+        index = export_session(f, index)

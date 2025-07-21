@@ -4,7 +4,7 @@ import socket
 CACHE = True
 IMAGE_SIZE=2000
 # DATASET_NAME="complex"
-DATASET_NAME="one"
+DATASET_NAME="tmp"
 
 HOSTNAME = socket.gethostname()
 
