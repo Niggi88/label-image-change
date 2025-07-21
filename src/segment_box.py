@@ -142,22 +142,34 @@ def segment(image_np, box):
     }
     print("my data", data)
 
-    response = requests.post(
-        "http://172.30.20.31:8000/segment/box",
-        files=files,
-        data=data
-    )
-    response.raise_for_status()
-    result = response.json()
+    try:
+        response = requests.post(
+            "http://172.30.20.31:8000/segment/box",
+            files=files,
+            data=data,
+            timeout=5  # Sekunden, z. B. wenn Backend hängt
+        )
+        response.raise_for_status()
+        result = response.json()
 
-    if result["success"]:
-        mask_data = base64.b64decode(result["mask"])
-        mask_pil = Image.open(io.BytesIO(mask_data)).convert("RGBA")
-        return mask_pil, result
+        if result.get("success"):
+            mask_data = base64.b64decode(result["mask"])
+            mask_pil = Image.open(io.BytesIO(mask_data)).convert("RGBA")
+            return mask_pil, result
+        else:
+            print("❌ Segmentierung fehlgeschlagen:", result)
+            return None, result
 
-    else:
-        print("Segmentation failed:", result)
-        return None, result
+    except requests.exceptions.Timeout:
+        print("❌ TIMEOUT: Das Backend hat nicht rechtzeitig geantwortet.")
+    except requests.exceptions.ConnectionError:
+        print("❌ VERBINDUNGSFEHLER: Backend nicht erreichbar – läuft der Server?")
+    except requests.exceptions.HTTPError as err:
+        print(f"❌ HTTP-FEHLER: {err.response.status_code} – {err.response.text}")
+    except Exception as e:
+        print(f"❌ UNBEKANNTER FEHLER: {e}")
+
+    return None, None
 
 
 
