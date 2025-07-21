@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 
 # === CONFIG ===
-EXPORT_DIR = Path("/home/sarah/Documents/change_detection/dataset")
+EXPORT_DIR = Path("/media/fast/dataset/bildunterschied/real_data/v1_tiny")
 IMAGES1_DIR = EXPORT_DIR / "images"
 IMAGES2_DIR = EXPORT_DIR / "images2"
 LABELS_DIR = EXPORT_DIR / "labels"
@@ -12,11 +12,16 @@ LABELS_DIR = EXPORT_DIR / "labels"
 for p in [IMAGES1_DIR, IMAGES2_DIR, LABELS_DIR]:
     p.mkdir(parents=True, exist_ok=True)
 
+# SESSION_PATH = Path(
+#     "/home/sarah/Documents/background_segmentation/relevant_sessions/"
+#     "store_8dbefa14-0515-47d3-aa69-470d9ee271b3/session_a002753b-b641-4c7e-a311-e28217de4012"
+# )
 SESSION_PATH = Path(
-    "/home/sarah/Documents/background_segmentation/relevant_sessions/"
-    "store_8dbefa14-0515-47d3-aa69-470d9ee271b3/session_a002753b-b641-4c7e-a311-e28217de4012"
+    "/media/fast/dataset/bildunterschied/test_mini/small_set/"
+    "session_3b508f90-94c2-4909-916b-42d7bb361f48"
 )
-ANNOTATIONS_FILE = SESSION_PATH / "annotations.json"
+
+ANNOTATIONS_FILE = SESSION_PATH / "converted_data.json"
 
 # Load your annotations
 with open(ANNOTATIONS_FILE) as f:
@@ -39,13 +44,15 @@ for pair_id, pair_data in annotations.items():
     boxes = pair_data.get("boxes1", [])
     image_size = pair_data.get("image1_size")
     img_w, img_h = image_size
+    print(image_size)
+    img_w, img_h = float(img_w), float(img_h)
 
     label_path = LABELS_DIR / f"{pair_id}.txt"
 
     with open(label_path, "w") as lf:
         if boxes:
             for box in boxes:
-                x1, y1, x2, y2 = box['x1'], box['y1'], box['x2'], box['y2']
+                x1, y1, x2, y2 = float(box['x1']), float(box['y1']), float(box['x2']), float(box['y2'])
                 cx = ((x1 + x2) / 2) / img_w
                 cy = ((y1 + y2) / 2) / img_h
                 w = (x2 - x1) / img_w
