@@ -80,7 +80,12 @@ class AnnotatableImage(ttk.Frame):
         self._original_mask_pil = None
         self._original_mask_pils = []
 
-        self.annotation_type_state = AnnotationTypeState.NEGATIVE if _id == 1 else AnnotationTypeState.POSITIVE
+        # self.annotation_type_state = AnnotationTypeState.NEGATIVE if _id == 1 else AnnotationTypeState.POSITIVE
+
+        self.annotation_type_state = (
+            ImageAnnotation.Classes.ANNOTATION_X if _id == 1 else ImageAnnotation.Classes.ANNOTATION
+        )
+
         self.annotation_controller = annotation_controller
         self.controller = controller
         # assert isinstance(annotation_controller, ImageAnnotation) 
@@ -491,9 +496,10 @@ class AnnotatableImage(ttk.Frame):
         self.drawing = enabled
         
     def get_boxes(self):
-        """Get list of boxes in original image coordinates"""
-        return self.boxes
-    
+        """Return only boxes that were manually drawn (not mirrored)"""
+        return [b for b in self.boxes if not b.get("synced_highlight", False)]
+        # return self.boxes  # ⚠️ für Debug, nicht dauerhaft!
+
 
     def generate_mask_from_bbox(self):
         """Nimmt die zuletzt gezeichnete BBox, ruft FastAPI, speichert Maske & aktualisiert Anzeige"""
@@ -507,7 +513,13 @@ class AnnotatableImage(ttk.Frame):
 
         # 1) 🛰️ API-Call
         mask_pil, details = segment(image_np, box)
-        print("Segmentation done:", details)
+        # print("Segmentation done:", details)
+
+        short_details = details.copy()
+        if "mask" in short_details:
+            short_details["mask"] = short_details["mask"][:10] + "..."
+        print("Segmentation done:", short_details)
+
         if mask_pil is None:
             print("Segmentation failed — no mask to show.")
             return
@@ -524,32 +536,34 @@ class AnnotatableImage(ttk.Frame):
         # 2) Maskenliste neu bauen für dieses Bild
         self._original_mask_pils = []
         for box in self.boxes:
-            if "mask_base64" in box and box["mask_image_id"] == str(self.image_path):
+            if "mask_base64" in box and "mask_image_id" in box and box["mask_image_id"] == str(self.image_path):
                 mask_bytes = base64.b64decode(box["mask_base64"])
                 mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
                 self._original_mask_pils.append(mask_pil)
+
 
         
         # 3) Andere Seite nur synchronisieren (keine API, keine neue Maske)
         other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
         other_image._original_mask_pils = []
         for box in other_image.boxes:
-            if "mask_base64" in box and box["mask_image_id"] == str(other_image.image_path):
+            if "mask_base64" in box and "mask_image_id" in box and box["mask_image_id"] == str(other_image.image_path):
                 mask_bytes = base64.b64decode(box["mask_base64"])
                 mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
                 other_image._original_mask_pils.append(mask_pil)
 
-        # 👉 Jetzt auch in der anderen Box mit gleicher pair_id speichern:
-        for other_box in other_image.boxes:
-            if other_box['pair_id'] == bbox['pair_id']:
-                other_box['mask_base64'] = bbox['mask_base64']
-                other_box['mask_image_id'] = bbox['mask_image_id']
+
+        # # 👉 Jetzt auch in der anderen Box mit gleicher pair_id speichern:
+        # for other_box in other_image.boxes:
+        #     if other_box['pair_id'] == bbox['pair_id']:
+        #         other_box['mask_base64'] = bbox['mask_base64']
+        #         other_box['mask_image_id'] = bbox['mask_image_id']
 
         self.annotation_controller.save_pair_annotation(
             # pair_id=self.controller.current_index,
             image1=self,   # AnnotatableImage
             image2=other_image,              # AnnotatableImage
-            annotation_type=ImageAnnotation.Classes.ANNOTATION
+            pair_state=ImageAnnotation.Classes.ANNOTATED
         )
 
         # 5) Anzeige aktualisieren
