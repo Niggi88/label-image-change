@@ -136,7 +136,7 @@ class ImagePairViewer(ttk.Frame):
         print("[RESET] Loading session from:", src)
 
         self.image_pairs = ImagePairList(src=src)
-        self.annotations = ImageAnnotation(self.image_pairs.src)
+        self.annotations = ImageAnnotation(base_path=self.image_pairs.src, total_pairs=len(self.image_pairs))
         self.current_index = 0
         self.in_annotation_mode = False
 
@@ -544,6 +544,11 @@ class ImagePairViewer(ttk.Frame):
             if self.session_index + 1 < len(self.session_paths):
                 self.session_index += 1
                 next_session = self.session_paths[self.session_index]
+
+                messagebox.showinfo(
+                    "Session complete",
+                    "Load next session"
+                )
                 self.reset(next_session)
                 self.load_pair(0)
             else:
@@ -569,6 +574,10 @@ class ImagePairViewer(ttk.Frame):
             if self.session_index > 0:
                 self.session_index -= 1
                 prev_session = self.session_paths[self.session_index]
+                messagebox.showinfo(
+                    "Back to previous session",
+                    "Jump back to previous session."
+                )
                 self.reset(prev_session)
 
                 last_idx = len(self.image_pairs) - 1
@@ -578,6 +587,10 @@ class ImagePairViewer(ttk.Frame):
                 self.load_pair(last_idx)
             else:
                 print("[LEFT] Already at first session.")
+                messagebox.showinfo(
+                    "Cannot skip back",
+                    "Already at first session."
+                )
 
 
 

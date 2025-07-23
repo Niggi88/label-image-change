@@ -119,15 +119,36 @@ def get_model2():
     return predictor
 
     
+import socket
+from tkinter import messagebox
+
+_server_reachable = None  # globaler Cache
 
 
+def is_server_reachable(host, port, timeout=1):
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 def segment(image_np, box):
-    """
-    Schickt Bild + Box an die FastAPI & gibt ein PIL RGBA Mask Image zurück.
-    """
-    # Speichere temporär als JPG (oder PNG, wenn du willst)
+    global _server_reachable
+
+    backend_host = "172.30.20.31"
+    backend_port = 8000
+
+    # Server-Reachability nur einmal prüfen
+    if _server_reachable is None:
+        _server_reachable = is_server_reachable(backend_host, backend_port)
+        if not _server_reachable:
+            messagebox.showwarning("Server nicht erreichbar", "Das Backend ist aktuell nicht erreichbar.\nEs wird eine Dummy-Maske verwendet.")
+
+    if not _server_reachable:
+        return create_dummy_mask(image_np, box), {"success": False, "message": "Dummy-Maske (Server nicht erreichbar)"}
+
+    # Wenn Server erreichbar, normal weitermachen
     tmp_path = "/tmp/tmp_image.jpg"
     cv2.imwrite(tmp_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
 
@@ -140,14 +161,13 @@ def segment(image_np, box):
         "x2": int(box[2]),
         "y2": int(box[3]),
     }
-    print("my data", data)
 
     try:
         response = requests.post(
-            "http://172.30.20.31:8000/segment/box",
+            f"http://{backend_host}:{backend_port}/segment/box",
             files=files,
             data=data,
-            timeout=5  # Sekunden, z. B. wenn Backend hängt
+            timeout=5
         )
         response.raise_for_status()
         result = response.json()
@@ -158,28 +178,82 @@ def segment(image_np, box):
             return mask_pil, result
         else:
             print("❌ Segmentierung fehlgeschlagen:", result)
-            return None, result
+            return create_dummy_mask(image_np, box), result
 
-    except requests.exceptions.Timeout:
-        print("❌ TIMEOUT: Das Backend hat nicht rechtzeitig geantwortet.")
-    except requests.exceptions.ConnectionError:
-        print("❌ VERBINDUNGSFEHLER: Backend nicht erreichbar – läuft der Server?")
-    except requests.exceptions.HTTPError as err:
-        print(f"❌ HTTP-FEHLER: {err.response.status_code} – {err.response.text}")
     except Exception as e:
-        print(f"❌ UNBEKANNTER FEHLER: {e}")
+        print(f"❌ Segmentierung fehlgeschlagen, benutze Dummy-Maske: {e}")
+        return create_dummy_mask(image_np, box), {"success": False, "message": str(e)}
 
 
-    # Dummy Maske erzeugen (RGBA)
+def create_dummy_mask(image_np, box):
     height, width = image_np.shape[:2]
-    dummy_mask = Image.new("RGBA", (width, height), (0, 0, 0, 0))  # Transparentes Bild
+    dummy_mask = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(dummy_mask)
     draw.rectangle(
-        [data["x1"], data["y1"], data["x2"], data["y2"]],
-        fill=(255, 0, 0, 128)  # Halbtransparente rote Maske
+        [box[0], box[1], box[2], box[3]],
+        fill=(255, 0, 0, 128)
     )
+    return dummy_mask
 
-    return dummy_mask, {"success": False, "message": "Dummy-Maske verwendet (Fallback)"}
+
+
+# def segment(image_np, box):
+#     """
+#     Schickt Bild + Box an die FastAPI & gibt ein PIL RGBA Mask Image zurück.
+#     """
+#     # Speichere temporär als JPG (oder PNG, wenn du willst)
+#     tmp_path = "/tmp/tmp_image.jpg"
+#     cv2.imwrite(tmp_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
+
+#     files = {
+#         "file": open(tmp_path, "rb")
+#     }
+#     data = {
+#         "x1": int(box[0]),
+#         "y1": int(box[1]),
+#         "x2": int(box[2]),
+#         "y2": int(box[3]),
+#     }
+#     print("my data", data)
+
+#     try:
+#         response = requests.post(
+#             "http://172.30.20.31:8000/segment/box",
+#             files=files,
+#             data=data,
+#             timeout=5  # Sekunden, z. B. wenn Backend hängt
+#         )
+#         response.raise_for_status()
+#         result = response.json()
+
+#         if result.get("success"):
+#             mask_data = base64.b64decode(result["mask"])
+#             mask_pil = Image.open(io.BytesIO(mask_data)).convert("RGBA")
+#             return mask_pil, result
+#         else:
+#             print("❌ Segmentierung fehlgeschlagen:", result)
+#             return None, result
+
+#     except requests.exceptions.Timeout:
+#         print("❌ TIMEOUT: Das Backend hat nicht rechtzeitig geantwortet.")
+#     except requests.exceptions.ConnectionError:
+#         print("❌ VERBINDUNGSFEHLER: Backend nicht erreichbar – läuft der Server?")
+#     except requests.exceptions.HTTPError as err:
+#         print(f"❌ HTTP-FEHLER: {err.response.status_code} – {err.response.text}")
+#     except Exception as e:
+#         print(f"❌ UNBEKANNTER FEHLER: {e}")
+
+
+#     # Dummy Maske erzeugen (RGBA)
+#     height, width = image_np.shape[:2]
+#     dummy_mask = Image.new("RGBA", (width, height), (0, 0, 0, 0))  # Transparentes Bild
+#     draw = ImageDraw.Draw(dummy_mask)
+#     draw.rectangle(
+#         [data["x1"], data["y1"], data["x2"], data["y2"]],
+#         fill=(255, 0, 0, 128)  # Halbtransparente rote Maske
+#     )
+
+#     return dummy_mask, {"success": False, "message": "Dummy-Maske verwendet (Fallback)"}
 
     # return None, None
 
