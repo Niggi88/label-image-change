@@ -309,6 +309,34 @@ class ImagePairViewer(ttk.Frame):
 
 
 
+    # def before_action(self, button_id):
+    #     self.reset_buttons()
+    #     self.state = button_id
+
+    #     if button_id == ImageAnnotation.Classes.ANNOTATION:
+    #         self.annotate_btn.state(['pressed'])
+    #         self.toggle_annotation(True)
+    #     else:
+    #         self.toggle_annotation(False)
+    #         if button_id == ImageAnnotation.Classes.NOTHING:
+    #             self.nothing_btn.state(['pressed'])
+    #         elif button_id == ImageAnnotation.Classes.CHAOS:
+    #             self.chaos_btn.state(['pressed'])
+
+    #     self.process_action()
+                
+    #     self.annotations.save_pair_annotation(
+    #         # pair_id=self.current_index,    # ✅ Kein self.controller!
+    #         image1=self.image1,            # ✅ AnnotatableImage Instanz
+    #         image2=self.image2,
+    #         pair_state=self.state
+    #     )
+
+    #     if button_id != ImageAnnotation.Classes.ANNOTATION:
+    #         print(f"[before_action] Calling right() after classification: {button_id}")
+    #         self.right()
+
+
     def before_action(self, button_id):
         self.reset_buttons()
         self.state = button_id
@@ -324,14 +352,61 @@ class ImagePairViewer(ttk.Frame):
                 self.chaos_btn.state(['pressed'])
 
         self.process_action()
-                
+        
+        # 🧠 Save current annotation state
         self.annotations.save_pair_annotation(
-            # pair_id=self.current_index,    # ✅ Kein self.controller!
-            image1=self.image1,            # ✅ AnnotatableImage Instanz
+            image1=self.image1,
             image2=self.image2,
             pair_state=self.state
         )
 
+        # 🎯 CUSTOM UI UPDATE BLOCK
+        if button_id in [ImageAnnotation.Classes.CHAOS, ImageAnnotation.Classes.NOTHING]:
+            self.image1.clear_boxes()
+            self.image2.clear_boxes()
+            self.image1.clear_mask()
+            self.image2.clear_mask()
+            
+            # Draw appropriate outline immediately
+            if button_id in [ImageAnnotation.Classes.CHAOS, ImageAnnotation.Classes.NOTHING]:
+                # Clear visual boxes
+                self.image1.clear_boxes()
+                self.image2.clear_boxes()
+
+                # Clear actual box data too!
+                self.image1.boxes = []
+                self.image2.boxes = []
+
+                # Clear masks
+                self.image1.clear_mask()
+                self.image2.clear_mask()
+
+                # Clear stored masks for safety
+                self.image1._original_mask_pils = []
+                self.image2._original_mask_pils = []
+
+                # Draw appropriate outline
+                if button_id == ImageAnnotation.Classes.CHAOS:
+                    outline_color = "orange"
+                elif button_id == ImageAnnotation.Classes.NOTHING:
+                    outline_color = "grey"
+                else:
+                    outline_color = None
+
+                if outline_color:
+                    self.image1.draw_canvas_outline(outline_color)
+                    self.image2.draw_canvas_outline(outline_color)
+                else:
+                    self.image1.canvas.delete("canvas_outline")
+                    self.image2.canvas.delete("canvas_outline")
+
+                self.annotations.save_pair_annotation(
+                    image1=self.image1,
+                    image2=self.image2,
+                    pair_state=self.state
+                )
+
+        # 🔜 Go to next pair (skip for Annotate mode)
         if button_id != ImageAnnotation.Classes.ANNOTATION:
             print(f"[before_action] Calling right() after classification: {button_id}")
             self.right()
@@ -502,8 +577,12 @@ class ImagePairViewer(ttk.Frame):
         # Update button state
         if pair_state == ImageAnnotation.Classes.NOTHING:
             self.nothing_btn.state(['pressed'])
+
+
         elif pair_state == ImageAnnotation.Classes.CHAOS:
             self.chaos_btn.state(['pressed'])
+
+
         elif pair_state == ImageAnnotation.Classes.ANNOTATION:
             self.annotate_btn.state(['pressed'])
             # Re-enable drawing if we were in annotation mode
@@ -513,8 +592,8 @@ class ImagePairViewer(ttk.Frame):
     def right(self):
         print(f"[RIGHT] current_index = {self.current_index}")
 
-    # ✅ Holt aktuelles Paar
-        # img1, img2 = self.image_pairs[self.current_index]
+        self.save_current_boxes()  # 🔧 DAS HIER HINZUFÜGEN
+
 
         # Speichern als 'skipped', falls keine Annotation gesetzt wurde
         annotation = self.annotations.get_pair_annotation(self.current_index)
@@ -534,7 +613,7 @@ class ImagePairViewer(ttk.Frame):
                 pair_state=pair_state
             )
 
-            print(f"[AUTO-SAVE-RIGHT] Marked pair {self.current_index} as SKIPPED")
+            print(f"[AUTO-SAVE-RIGHT] Marked pair {self.current_index} as {pair_state}")
 
 
 
@@ -545,10 +624,13 @@ class ImagePairViewer(ttk.Frame):
                 self.session_index += 1
                 next_session = self.session_paths[self.session_index]
 
+                
                 messagebox.showinfo(
                     "Session complete",
                     "Load next session"
                 )
+                # self.image1._resize_image()
+                # self.image2._resize_image()
                 self.reset(next_session)
                 self.load_pair(0)
             else:
@@ -585,6 +667,8 @@ class ImagePairViewer(ttk.Frame):
                 self.spinbox.current_index = last_idx
                 self.spinbox.draw_items()
                 self.load_pair(last_idx)
+                # self.image1._resize_image()
+                # self.image2._resize_image()
             else:
                 print("[LEFT] Already at first session.")
                 messagebox.showinfo(
