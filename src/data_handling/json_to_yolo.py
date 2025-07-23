@@ -10,11 +10,11 @@ class YoloPaths:
         
     @property
     def images1(self):
-        return self._split_dir / "images"
+        return self._split_dir / "images1" # links
     
     @property
     def images2(self):
-        return self._split_dir / "images2"
+        return self._split_dir / "images2" # rechts
     
     @property
     def labels(self):
@@ -39,15 +39,18 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
 
     print(f"Loaded {len(annotations)} pairs.")
 
+    root_path = Path(annotations["_meta"]["root"])
     # === EXPORT LOOP ===
     for pair_id, pair_data in annotations.items():
+        if pair_id == "_meta":
+            continue  # skip metadata
         if int(pair_id) % 10 == 0:
             yolo_paths = yolo_splitted_paths.val
         else:
             yolo_paths = yolo_splitted_paths.train
             
-        im1_path = Path(pair_data["im2_path"])
-        im2_path = Path(pair_data["im1_path"])
+        im1_path = root_path / pair_data["im2_path"]
+        im2_path = root_path / pair_data["im1_path"]
         index_string = str(index).zfill(7)
 
         im1_target = yolo_paths.images1 / f"{index_string}{im1_path.suffix}"
@@ -57,32 +60,46 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
         shutil.copy(im2_path, im2_target)
 
         # === Save YOLO labels ONLY for images1 ===
-        boxes = pair_data.get("boxes1", [])
+        pair_state = pair_data.get("pair_state", "skipped").lower()
+        boxes = pair_data.get("boxes", [])
+        img_w, img_h = map(float, pair_data["image2_size"])  # always use image2 size
+
+        label_lines = []
+
+        if pair_state == "nothing":
+            label_lines = ["0"]
+        elif pair_state == "chaos":
+            label_lines = ["1"]
+        elif pair_state == "annotated":
+            for box in boxes:
+                atype = box.get("annotation_type")
+                if atype not in {"item_added", "item_removed"}:
+                    continue
+                x1, y1, x2, y2 = float(box["x1"]), float(box["y1"]), float(box["x2"]), float(box["y2"])
+                cx = ((x1 + x2) / 2) / img_w
+                cy = ((y1 + y2) / 2) / img_h
+                w = abs(x2 - x1) / img_w
+                h = abs(y2 - y1) / img_h
+                class_id = "2" if atype == "item_added" else "3"
+                label_lines.append(f"{class_id} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
+        elif pair_state == "skipped":
+            continue  # skip saving anything
+        else:
+            label_lines = ["0"]
+
         image_size = pair_data.get("image1_size")
         img_w, img_h = image_size
         img_w, img_h = float(img_w), float(img_h)
 
         label_path = yolo_paths.labels / f"{index_string}.txt"
-
         with open(label_path, "w") as lf:
-            if boxes:
-                for box in boxes:
-                    x1, y1, x2, y2 = float(box['x1']), float(box['y1']), float(box['x2']), float(box['y2'])
-                    cx = ((x1 + x2) / 2) / img_w
-                    cy = ((y1 + y2) / 2) / img_h
-                    w = (x2 - x1) / img_w
-                    h = (y2 - y1) / img_h
+            lf.write("\n".join(label_lines))
 
-                    lf.write(f"0 {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}\n")
-            else:
-                # Write empty file for no boxes
-                lf.write("")
-
-        print(f"✅ Saved Pair {index_string}:")
-        print(f"   Image1: {im1_target}")
-        print(f"   Image2: {im2_target}")
-        print(f"   Labels: {label_path}")
-        index += 1
+            print(f"✅ Saved Pair {index_string}:")
+            print(f"   Image1: {im1_target}")
+            print(f"   Image2: {im2_target}")
+            print(f"   Labels: {label_path}")
+            index += 1
 
     print("\n🎉 Export finished successfully!")
     return index
@@ -91,7 +108,8 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
 if __name__ == "__main__":
     
     # === CONFIG ===
-    yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/v2_tiny"))
+    # yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/v2_tiny"))
+    yolo_splitted_paths = YoloPathsSplit(Path("./yolo_output"))
     # IMAGES1_DIR = EXPORT_DIR / "images"
     # IMAGES2_DIR = EXPORT_DIR / "images2"
     # LABELS_DIR = EXPORT_DIR / "labels"
@@ -107,14 +125,15 @@ if __name__ == "__main__":
     dataset_small_set2 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set2").glob("**/converted_data.json")
     dataset_small_set3 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set3").glob("**/converted_data.json")
     dataset_one = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one").glob("**/annotations.json")
-    
+    dataset_sarah = Path("/home/sarah/Documents/background_segmentation/small_relevant_sessions").glob("**/annotations.json")
     
     annotation_files = chain(
-        dataset_small_set,
-        dataset_one,
-        dataset_small_set2,
-        dataset_small_set3,
+        # dataset_small_set,
+        # dataset_one,
+        # dataset_small_set2,
+        # dataset_small_set3,
         # folder_path.glob("**/*.json")
+        dataset_sarah
     )
     index = 0
     for f in annotation_files:
