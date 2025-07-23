@@ -146,7 +146,7 @@ def segment(image_np, box):
             messagebox.showwarning("Server nicht erreichbar", "Das Backend ist aktuell nicht erreichbar.\nEs wird eine Dummy-Maske verwendet.")
 
     if not _server_reachable:
-        return create_dummy_mask(image_np, box), {"success": False, "message": "Dummy-Maske (Server nicht erreichbar)"}
+        return None, {"success": False, "message": "No mask (server not reachable)"}
 
     # Wenn Server erreichbar, normal weitermachen
     tmp_path = "/tmp/tmp_image.jpg"
