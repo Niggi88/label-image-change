@@ -8,7 +8,7 @@ import requests
 import base64
 import numpy as np
 import cv2
-from PIL import Image
+from PIL import Image, ImageDraw
 import io
 sys.path.append("..")
 
@@ -169,7 +169,19 @@ def segment(image_np, box):
     except Exception as e:
         print(f"❌ UNBEKANNTER FEHLER: {e}")
 
-    return None, None
+
+    # Dummy Maske erzeugen (RGBA)
+    height, width = image_np.shape[:2]
+    dummy_mask = Image.new("RGBA", (width, height), (0, 0, 0, 0))  # Transparentes Bild
+    draw = ImageDraw.Draw(dummy_mask)
+    draw.rectangle(
+        [data["x1"], data["y1"], data["x2"], data["y2"]],
+        fill=(255, 0, 0, 128)  # Halbtransparente rote Maske
+    )
+
+    return dummy_mask, {"success": False, "message": "Dummy-Maske verwendet (Fallback)"}
+
+    # return None, None
 
 
 
