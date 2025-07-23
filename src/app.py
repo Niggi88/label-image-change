@@ -382,84 +382,6 @@ class ImagePairViewer(ttk.Frame):
             self.annotations.save_pair_annotation(self.image1, self.image2, ImageAnnotation.Classes.ANNOTATED)
 
 
-    # def load_pair(self, index):
-    #     print("load pair called")
-    #     if self.in_annotation_mode:
-    #         print("Was in annotation mode, toggling off")
-    #         self.annotation_off()
-
-    #     self.current_index = index
-    #     self.spinbox.current_index = index
-
-    #     if 0 <= index < len(self.image_pairs):
-    #         self.current_index = index
-    #         img1, img2 = self.image_pairs[index]
-
-    #         # 1) Alles leeren
-    #         self.image1.clear_all()
-    #         self.image2.clear_all()
-
-    #         # 2) Bilder neu laden
-    #         self.image1.load_image(img1)
-    #         self.image2.load_image(img2)
-
-    #         self.image1._resize_image()
-    #         self.image2._resize_image()
-
-    #         # 3) Annotation laden
-    #         # annotation = self.annotations.get_pair_annotation(index)
-    #         annotation = self.annotations.get_pair_annotation(index)
-            
-    #         print("annotation TYPE:", annotation.get("type"))
-    #         print("===", annotation)
-            
-
-    #         if annotation.get("boxes1") or annotation.get("boxes2"):
-    #             # Robust: immer get() mit Default
-    #             boxes1 = annotation.get("boxes1", [])
-    #             boxes2 = annotation.get("boxes2", [])
-
-    #             self.image1.boxes = boxes1
-    #             self.image2.boxes = boxes2
-
-    #             self.image1._resize_image()
-    #             self.image2._resize_image()
-
-    #             self.after(100, lambda: self.image1.display_boxes(boxes1))
-    #             self.after(100, lambda: self.image2.display_boxes(boxes2))
-
-    #             # Masken
-    #             self.image1._original_mask_pils = []
-    #             self.image2._original_mask_pils = []
-
-    #             for mask_base64 in annotation.get("masks1", []):
-    #                 mask_bytes = base64.b64decode(mask_base64)
-    #                 mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
-    #                 self.image1._original_mask_pils.append(mask_pil)
-
-    #             for mask_base64 in annotation.get("masks2", []):
-    #                 mask_bytes = base64.b64decode(mask_base64)
-    #                 mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
-    #                 self.image2._original_mask_pils.append(mask_pil)
-
-    #             self.image1.display_mask()
-    #             self.image2.display_mask()
-
-    #         self.update_ui_state(annotation.get("type"))
-
-    #         # Fortschrittsanzeige updaten
-    #         session_name = self.image_pairs.src.name  # z. B. session_xxx
-    #         store_name = self.image_pairs.src.parent.name
-    #         total = len(self.image_pairs)
-    #         current = self.current_index + 1
-    #         # self.progress_label.config(text=f"{session_name}: {current}/{total}")
-
-    #         # self.progress_label.config(text=f"{store_name} / {session_name}: {current}/{total}")
-    #         self.update_global_progress()
-    #     if self.end_of_set:
-    #         print("End of image pairs")
-
-
     def load_pair(self, index):
         print("load pair called")
 
@@ -538,7 +460,26 @@ class ImagePairViewer(ttk.Frame):
             self.image1.display_mask()
             self.image2.display_mask()
 
-            self.update_ui_state(annotation.get("pair_state"))
+            pair_state = annotation.get("pair_state")
+
+            if pair_state == ImageAnnotation.Classes.SKIPPED:
+                color = "#add8e6"  # hellblau
+            elif pair_state == ImageAnnotation.Classes.CHAOS:
+                color = "orange"
+            elif pair_state == ImageAnnotation.Classes.NOTHING:
+                color = "grey"
+            else:
+                color = None  # keine Outline
+
+            if color:
+                self.image1.draw_canvas_outline(color)
+                self.image2.draw_canvas_outline(color)
+            else:
+                self.image1.canvas.delete("canvas_outline")
+                self.image2.canvas.delete("canvas_outline")
+
+            self.update_ui_state(pair_state)
+
             self.update_global_progress()
 
         if self.end_of_set:
