@@ -369,12 +369,19 @@ class AnnotatableImage(ttk.Frame):
         self.clear_boxes()
 
         for idx, box in enumerate(boxes):
-            if box.get('synced_highlight', False):
+            annotation_type = box.get("annotation_type", None)
+
+            if annotation_type == ImageAnnotation.Classes.ANNOTATION:
+                outline = "green"
+            elif annotation_type == ImageAnnotation.Classes.ANNOTATION_X:
+                outline = "red"
+            elif box.get('synced_highlight', False):
                 outline = "red"
             elif self.selected_box_index is not None and idx == self.selected_box_index:
                 outline = "red"
             else:
-                outline = color
+                outline = "grey"  # fallback if annotation_type is missing
+
             scaled_box = {
                 'x1': box['x1'] * self._scale_factor + self._offset_x,
                 'y1': box['y1'] * self._scale_factor + self._offset_y,
@@ -499,6 +506,20 @@ class AnnotatableImage(ttk.Frame):
         """Return only boxes that were manually drawn (not mirrored)"""
         return [b for b in self.boxes if not b.get("synced_highlight", False)]
         # return self.boxes  # ⚠️ für Debug, nicht dauerhaft!
+
+
+    def draw_canvas_outline(self, color):
+        """Zieht eine farbige Umrandung um das gesamte Bild/Canvas"""
+        self.canvas.delete("canvas_outline")
+        width = self.canvas.winfo_width()
+        height = self.canvas.winfo_height()
+        self.canvas.create_rectangle(
+            1, 1, width - 1, height - 1,
+            outline=color,
+            width=5,
+            tags="canvas_outline"
+        )
+
 
 
     def generate_mask_from_bbox(self):
