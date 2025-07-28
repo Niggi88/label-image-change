@@ -284,7 +284,7 @@ class ImagePairViewer(ttk.Frame):
         boxes2 = self.image2.get_boxes()
 
         pair_state = (
-            ImageAnnotation.Classes.NOTHING
+            ImageAnnotation.Classes.NO_ANNOTATION
             if not boxes1 and not boxes2
             else ImageAnnotation.Classes.ANNOTATED
         )
@@ -295,7 +295,7 @@ class ImagePairViewer(ttk.Frame):
             image2=self.image2,          # AnnotatableImage!
             pair_state=pair_state
         )
-
+        self.update_ui_state(pair_state=pair_state)
         print(f"Boxes cleared for pair {self.current_index}")
 
     def delete_selected_box(self):
@@ -615,37 +615,48 @@ class ImagePairViewer(ttk.Frame):
     #         self.image1.set_drawing_mode(self.in_annotation_mode)
     #         self.image2.set_drawing_mode(self.in_annotation_mode)
     
-    def update_ui_state(self, pair_state=None):
-        if pair_state is None:
-            annotation = self.annotations.get_pair_annotation(self.current_index)
-            pair_state = annotation.get("pair_state", ImageAnnotation.Classes.NOTHING)
+    # def update_ui_state(self, pair_state=None):
+    #     if pair_state is None:
+    #         annotation = self.annotations.get_pair_annotation(self.current_index)
+    #         pair_state = annotation.get("pair_state", ImageAnnotation.Classes.NOTHING)
 
-        self.state = pair_state
-        self.reset_buttons()
+    #     self.state = pair_state
+    #     self.reset_buttons()
 
-        color = {
-            ImageAnnotation.Classes.NOTHING: "grey",
-            ImageAnnotation.Classes.CHAOS: "orange",
-            ImageAnnotation.Classes.NO_ANNOTATION: "blue",
-            ImageAnnotation.Classes.ANNOTATED: None,  # ← No outline!
-        }.get(pair_state)
+    #     color = {
+    #         ImageAnnotation.Classes.NOTHING: "grey",
+    #         ImageAnnotation.Classes.CHAOS: "orange",
+    #         ImageAnnotation.Classes.NO_ANNOTATION: "blue",
+    #         ImageAnnotation.Classes.ANNOTATED: None,  # ← No outline!
+    #     }.get(pair_state)
+
+    #     self.image1.canvas.delete("canvas_outline")
+    #     self.image2.canvas.delete("canvas_outline")
+
+    #     if color:
+    #         self.image1.draw_canvas_outline(color)
+    #         self.image2.draw_canvas_outline(color)
+
+    #     # # Optional: highlight correct button
+    #     # if pair_state == ImageAnnotation.Classes.CHAOS:
+    #     #     self.chaos_btn.state(['pressed'])
+    #     # elif pair_state == ImageAnnotation.Classes.NO_ANNOTATION:
+    #     #     self.skip_btn.state(['pressed'])
+    #     # elif pair_state == ImageAnnotation.Classes.NOTHING:
+    #     #     self.nothing_btn.state(['pressed'])
+    #     # elif pair_state == ImageAnnotation.Classes.ANNOTATED:
+    #     #     self.annotate_btn.state(['pressed'])
+
+    def update_ui_state(self, pair_state):
+        print(f"[UI] Updating canvas outline for state: {pair_state}")
+        color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(pair_state)
 
         self.image1.canvas.delete("canvas_outline")
         self.image2.canvas.delete("canvas_outline")
 
         if color:
-            self.image1.draw_canvas_outline(color)
-            self.image2.draw_canvas_outline(color)
-
-        # # Optional: highlight correct button
-        # if pair_state == ImageAnnotation.Classes.CHAOS:
-        #     self.chaos_btn.state(['pressed'])
-        # elif pair_state == ImageAnnotation.Classes.NO_ANNOTATION:
-        #     self.skip_btn.state(['pressed'])
-        # elif pair_state == ImageAnnotation.Classes.NOTHING:
-        #     self.nothing_btn.state(['pressed'])
-        # elif pair_state == ImageAnnotation.Classes.ANNOTATED:
-        #     self.annotate_btn.state(['pressed'])
+            self.after(100, lambda: self.image1.draw_canvas_outline(color))
+            self.after(100, lambda: self.image2.draw_canvas_outline(color))
 
 
     def right(self):

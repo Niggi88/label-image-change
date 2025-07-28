@@ -34,7 +34,12 @@ class ImageAnnotation:
         ANNOTATION = "item_added"
         ANNOTATION_X = "item_removed"
         BOX_ANNOTATION_TYPES = {ANNOTATION, ANNOTATION_X}
-
+        PAIR_STATE_COLORS = {
+            NOTHING: "#ADD8E6",         # hellblau
+            CHAOS: "#FFD700",          # gelb
+            NO_ANNOTATION: "#999999",  # grau
+            ANNOTATED: None            # keine Outline
+        }
     """Handles loading, saving, and managing annotations for image pairs"""
     def __init__(self, base_path, total_pairs=None):
         self.annotations_file = base_path
