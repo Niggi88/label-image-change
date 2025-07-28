@@ -579,7 +579,7 @@ class ImagePairViewer(ttk.Frame):
                 self.image1.canvas.delete("canvas_outline")
                 self.image2.canvas.delete("canvas_outline")
 
-            self.update_ui_state(pair_state)
+            self.after(150, lambda: self.update_ui_state(pair_state))
 
             self.update_global_progress()
 
