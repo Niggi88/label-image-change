@@ -2,7 +2,7 @@
 
 # how to use
 1. start api on server:
-- navigate to ~/sarah/sam_api
+
 - activate sam_venv: source sam_venv/bin/activate
 
 - navigate to ~/sarah/sam_api/src
