@@ -128,6 +128,7 @@ class AnnotatableImage(ttk.Frame):
         self._original_mask_pils = []  # <--- WICHTIG: Liste leeren!
         self.boxes = boxes or []
 
+        
         for box in self.boxes:
             if 'mask_base64' in box and box['mask_image_id'] == str(self.image_path):
                 mask_bytes = base64.b64decode(box['mask_base64'])
@@ -267,6 +268,82 @@ class AnnotatableImage(ttk.Frame):
         )
 
     
+    # def end_box(self, event):
+    #     if not self.drawing or self.start_x is None:
+    #         return
+
+    #     # Begrenze Endpunkt INNERHALB Bildbereich
+    #     img_left = self._offset_x
+    #     img_right = self._offset_x + self._original_pil_image.width * self._scale_factor
+    #     img_top = self._offset_y
+    #     img_bottom = self._offset_y + self._original_pil_image.height * self._scale_factor
+
+    #     x = max(img_left, min(event.x, img_right))
+    #     y = max(img_top, min(event.y, img_bottom))
+
+    #     pair_id = str(uuid.uuid4())
+
+    #     box = {
+    #         'annotation_type': self.annotation_type_state,
+    #         'x1': int((min(self.start_x, x) - self._offset_x) / self._scale_factor),
+    #         'y1': int((min(self.start_y, y) - self._offset_y) / self._scale_factor),
+    #         'x2': int((max(self.start_x, x) - self._offset_x) / self._scale_factor),
+    #         'y2': int((max(self.start_y, y) - self._offset_y) / self._scale_factor),
+    #         'pair_id': pair_id,
+    #     }
+
+    #     width = abs(box['x2'] - box['x1'])
+    #     height = abs(box['y2'] - box['y1'])
+
+    #     if width < 5 or height < 5:
+    #         print("Ignored: too small to be a valid box.")
+    #         return
+
+    #     self.boxes.append(box)
+
+    #     # 👉 Gegenstück synchronisieren (ohne Maske!)
+    #     other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
+    #     other_box = box.copy()
+    #     other_box['annotation_type'] = other_image.annotation_type_state
+    #     other_box['pair_id'] = pair_id
+    #     other_box['synced_highlight'] = True
+    #     other_image.boxes.append(other_box)
+
+    #     self.clear_boxes()
+    #     self.display_boxes(self.boxes)
+
+    #     other_image.clear_boxes()
+    #     other_image.display_boxes(other_image.boxes)
+
+    #     self.start_x = None
+    #     self.start_y = None
+    #     self.current_box = None
+
+    #     # Nur HIER Masken-API für das annotierte Bild
+    #     self.generate_mask_from_bbox()
+
+    #     # Falls CHAOS, NOTHING, NO_ANNOTATION → in ANNOTATED ändern
+    #     annotation = self.controller.annotations.get_pair_annotation(self.controller.current_index)
+    #     if annotation.get("pair_state") in [
+    #         ImageAnnotation.Classes.CHAOS,
+    #         ImageAnnotation.Classes.NOTHING,
+    #         ImageAnnotation.Classes.NO_ANNOTATION,
+    #     ]:
+    #         print("[end_box] Overriding prior state with 'annotated'")
+    #         self.controller.annotations.set_pair_state(
+    #             self.controller.current_index,
+    #             ImageAnnotation.Classes.ANNOTATED
+    #         )
+    #         self.controller.state = ImageAnnotation.Classes.ANNOTATED
+
+    #         # ❗ WICHTIG: Outline sofort löschen
+    #         self.controller.image1.canvas.delete("canvas_outline")
+    #         self.controller.image2.canvas.delete("canvas_outline")
+
+    #         # Buttons aktualisieren
+    #         self.controller.reset_buttons()
+    #         self.controller.annotate_btn.state(['pressed'])
+
     def end_box(self, event):
         if not self.drawing or self.start_x is None:
             return
@@ -303,7 +380,12 @@ class AnnotatableImage(ttk.Frame):
         # 👉 Gegenstück synchronisieren (ohne Maske!)
         other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
         other_box = box.copy()
-        other_box['annotation_type'] = other_image.annotation_type_state
+        # Explicitly set inverse annotation type
+        other_box['annotation_type'] = (
+            ImageAnnotation.Classes.ANNOTATION
+            if self.annotation_type_state == ImageAnnotation.Classes.ANNOTATION_X
+            else ImageAnnotation.Classes.ANNOTATION_X
+        )
         other_box['pair_id'] = pair_id
         other_box['synced_highlight'] = True
         other_image.boxes.append(other_box)
@@ -318,8 +400,37 @@ class AnnotatableImage(ttk.Frame):
         self.start_y = None
         self.current_box = None
 
-        # Nur HIER Masken-API für das annotierte Bild
+        # 🧠 1. Check & correct pair_state
+        current_annotation = self.controller.annotations.get_pair_annotation(self.controller.current_index)
+        if current_annotation.get("pair_state") in [
+            ImageAnnotation.Classes.CHAOS,
+            ImageAnnotation.Classes.NOTHING,
+            ImageAnnotation.Classes.NO_ANNOTATION,
+        ]:
+            print("[end_box] Overriding prior state with 'annotated'")
+
+            self.controller.annotations.set_pair_state(
+                self.controller.current_index,
+                ImageAnnotation.Classes.ANNOTATED
+            )
+
+        # 🧠 2. Save new annotation state (also saves boxes + pair_state)
+        self.controller.annotations.save_pair_annotation(
+            image1=self,
+            image2=other_image,
+            pair_state=ImageAnnotation.Classes.ANNOTATED
+        )
+
+        # 🧠 3. Generate mask
         self.generate_mask_from_bbox()
+
+        if self.current_box:
+            self.canvas.delete(self.current_box)
+            self.current_box = None
+
+        # 🧠 4. UI update (outline + button highlight)
+        self.controller.update_ui_state(ImageAnnotation.Classes.ANNOTATED)
+
 
 
 
@@ -364,40 +475,88 @@ class AnnotatableImage(ttk.Frame):
             self._mask_overlays.append(mask_overlay)
 
             
+    # def display_boxes(self, boxes, color="green"):
+    #     """Display a list of boxes (in original image coordinates)"""
+    #     self.clear_boxes()
+
+    #     for idx, box in enumerate(boxes):
+    #         annotation_type = box.get("annotation_type", None)
+
+    #         if annotation_type == ImageAnnotation.Classes.ANNOTATION:
+    #             outline = "green"
+    #         elif annotation_type == ImageAnnotation.Classes.ANNOTATION_X:
+    #             outline = "red"
+    #         elif box.get('synced_highlight', False):
+    #             outline = "red"
+    #         elif self.selected_box_index is not None and idx == self.selected_box_index:
+    #             outline = "red"
+    #         else:
+    #             outline = "grey"  # fallback if annotation_type is missing
+
+    #         scaled_box = {
+    #             'x1': box['x1'] * self._scale_factor + self._offset_x,
+    #             'y1': box['y1'] * self._scale_factor + self._offset_y,
+    #             'x2': box['x2'] * self._scale_factor + self._offset_x,
+    #             'y2': box['y2'] * self._scale_factor + self._offset_y
+    #         }
+    #         rect_id = self.canvas.create_rectangle(
+    #             scaled_box['x1'], scaled_box['y1'],
+    #             scaled_box['x2'], scaled_box['y2'],
+    #             outline=outline, # if self.selected_box_index is not None and idx == self.selected_box_index else color,
+    #             fill="",  # oder transparente Fläche
+    #             width=2
+    #         )
+    #         self.box_rects.append(rect_id)
+    #         self.canvas.tag_bind(rect_id, "<Button-1>", lambda e, i=idx: self.select_box(i))
+    #         self.display_mask()
+
     def display_boxes(self, boxes, color="green"):
         """Display a list of boxes (in original image coordinates)"""
         self.clear_boxes()
 
         for idx, box in enumerate(boxes):
             annotation_type = box.get("annotation_type", None)
+            is_selected = (self.selected_box_index is not None and idx == self.selected_box_index)
+            is_synced = box.get("synced_highlight", False)
 
+            # 🎨 Color purely based on annotation_type
             if annotation_type == ImageAnnotation.Classes.ANNOTATION:
                 outline = "green"
             elif annotation_type == ImageAnnotation.Classes.ANNOTATION_X:
                 outline = "red"
-            elif box.get('synced_highlight', False):
-                outline = "red"
-            elif self.selected_box_index is not None and idx == self.selected_box_index:
-                outline = "red"
             else:
-                outline = "grey"  # fallback if annotation_type is missing
+                outline = "grey"
 
+            # ✏️ Highlight selected box
+            if is_selected:
+                outline = "blue"
+
+            # 📏 Scaled position
             scaled_box = {
                 'x1': box['x1'] * self._scale_factor + self._offset_x,
                 'y1': box['y1'] * self._scale_factor + self._offset_y,
                 'x2': box['x2'] * self._scale_factor + self._offset_x,
                 'y2': box['y2'] * self._scale_factor + self._offset_y
             }
+
+            # 📐 Visual styles
+            width = 4 if is_selected else 2
+            dash = (4, 2) if is_synced else None
+
             rect_id = self.canvas.create_rectangle(
                 scaled_box['x1'], scaled_box['y1'],
                 scaled_box['x2'], scaled_box['y2'],
-                outline=outline, # if self.selected_box_index is not None and idx == self.selected_box_index else color,
-                fill="",  # oder transparente Fläche
-                width=2
+                outline=outline,
+                fill="",
+                width=width,
+                dash=dash
             )
             self.box_rects.append(rect_id)
             self.canvas.tag_bind(rect_id, "<Button-1>", lambda e, i=idx: self.select_box(i))
-            self.display_mask()
+
+        self.display_mask()
+
+
 
     def select_box(self, index):
         """Markiere eine Box als ausgewählt"""
@@ -448,11 +607,26 @@ class AnnotatableImage(ttk.Frame):
         # 4) Neu zeichnen der Masken über _resize_image
         self._resize_image()
         other_image._resize_image()
-
+       
         # 5) Auswahl zurücksetzen
         self.selected_box_index = None
         other_image.selected_box_index = None
 
+        # 6) Wenn keine Boxen mehr übrig sind → pair_state auf "no_annotation"
+        if not self.boxes and not other_image.boxes:
+            new_state = ImageAnnotation.Classes.NO_ANNOTATION
+        else:
+            new_state = ImageAnnotation.Classes.ANNOTATED
+
+        # Save correct state!
+        self.controller.annotations.save_pair_annotation(
+            image1=self,
+            image2=other_image,
+            pair_state=new_state
+        )
+
+        # 🔄 Update UI outline & buttons
+        self.controller.update_ui_state(new_state)
         print("Deleted pair in both images & masks updated immediately.")
 
 
@@ -472,10 +646,15 @@ class AnnotatableImage(ttk.Frame):
         self._image = None
 
     def clear_boxes(self):
-        """Löscht nur die Box-Rechtecke, nicht Bild & Maske"""
         for rect in self.box_rects:
             self.canvas.delete(rect)
         self.box_rects = []
+
+        # 🧼 NEW: remove temp blue drawing
+        if self.current_box:
+            self.canvas.delete(self.current_box)
+            self.current_box = None
+
         self.selected_box_index = None
 
 
@@ -490,12 +669,12 @@ class AnnotatableImage(ttk.Frame):
         self._mask_overlays = []
 
     def clear_all(self):
-        self.clear_image()  # GANZ AM ENDE: Canvas wirklich löschen!
-        self.clear_mask()   # alte Maske raus
-        self.clear_boxes()  # alte Boxen raus
-        self.boxes = []     # interne Liste leeren
-        # self._original_mask_pils = []  # sicherstellen
-        self._original_pil_image = None  # Original Bild Reset
+        self.clear_image()
+        self.clear_mask()
+        self.clear_boxes()
+        self.boxes = []
+        self._original_pil_image = None
+
 
 
     def set_drawing_mode(self, enabled):
@@ -573,19 +752,6 @@ class AnnotatableImage(ttk.Frame):
                 mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
                 other_image._original_mask_pils.append(mask_pil)
 
-
-        # # 👉 Jetzt auch in der anderen Box mit gleicher pair_id speichern:
-        # for other_box in other_image.boxes:
-        #     if other_box['pair_id'] == bbox['pair_id']:
-        #         other_box['mask_base64'] = bbox['mask_base64']
-        #         other_box['mask_image_id'] = bbox['mask_image_id']
-
-        self.annotation_controller.save_pair_annotation(
-            # pair_id=self.controller.current_index,
-            image1=self,   # AnnotatableImage
-            image2=other_image,              # AnnotatableImage
-            pair_state=ImageAnnotation.Classes.ANNOTATED
-        )
 
         # 5) Anzeige aktualisieren
         self._resize_image()

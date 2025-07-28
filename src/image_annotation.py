@@ -24,12 +24,12 @@ def make_absolute_path(relative_path, annotations_meta):
 class ImageAnnotation:
     class Classes:
         ANNOTATED = "annotated"
-        SKIPPED = "skipped"
+        NO_ANNOTATION = "no_annotation"
         NOTHING = "nothing"
         CHAOS = "chaos"
 
         # Jetzt als dicts:
-        PAIR_STATES = {ANNOTATED, SKIPPED, NOTHING, CHAOS}
+        PAIR_STATES = {ANNOTATED, NO_ANNOTATION, NOTHING, CHAOS}
 
         ANNOTATION = "item_added"
         ANNOTATION_X = "item_removed"
