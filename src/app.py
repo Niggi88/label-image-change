@@ -555,8 +555,13 @@ class ImagePairViewer(ttk.Frame):
             self.image2.boxes = image2_boxes
 
             # Anzeige leicht verzögert
-            self.after(100, lambda: self.image1.display_boxes(image1_boxes))
-            self.after(100, lambda: self.image2.display_boxes(image2_boxes))
+            def draw_all():
+                self.image1.display_boxes(image1_boxes)
+                self.image2.display_boxes(image2_boxes)
+                self.update_ui_state(pair_state)
+
+            self.after(200, draw_all)
+
 
             self.image1.display_mask()
             self.image2.display_mask()
@@ -579,7 +584,7 @@ class ImagePairViewer(ttk.Frame):
                 self.image1.canvas.delete("canvas_outline")
                 self.image2.canvas.delete("canvas_outline")
 
-            self.after(150, lambda: self.update_ui_state(pair_state))
+            # self.after(150, lambda: self.update_ui_state(pair_state))
 
             self.update_global_progress()
 
