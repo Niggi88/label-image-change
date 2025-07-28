@@ -238,14 +238,24 @@ class ImagePairViewer(ttk.Frame):
         else:
             print("No box selected in either image.")
 
-        # Speichern nach Löschung – IMMER für beide Seiten!
-        
+        # wenn NACH dem Löschen KEINE Boxen mehr existieren → setze pair_state = NO_ANNOTATION
+        if not self.image1.get_boxes() and not self.image2.get_boxes():
+            new_state = ImageAnnotation.Classes.NO_ANNOTATION
+        else:
+            new_state = ImageAnnotation.Classes.ANNOTATED
+
         self.annotations.save_pair_annotation(
-            # pair_id=self.current_index,  # oder dein pair_id
-            image1=self.image1,          # das ist AnnotatableImage!
-            image2=self.image2,          # AnnotatableImage!
-            pair_state=ImageAnnotation.Classes.ANNOTATED
+            image1=self.image1,
+            image2=self.image2,
+            pair_state=new_state
         )
+
+        # Optional: Outline anpassen
+        self.image1.canvas.delete("canvas_outline")
+        self.image2.canvas.delete("canvas_outline")
+        if new_state == ImageAnnotation.Classes.NO_ANNOTATION:
+            self.image1.draw_canvas_outline("grey")
+            self.image2.draw_canvas_outline("grey")
 
         self.delete_selected_btn.state(['!pressed'])
 
@@ -270,14 +280,22 @@ class ImagePairViewer(ttk.Frame):
 
         self.image2._original_mask_pils = []
         # Auch in der Annotation leeren & speichern
-        
+        boxes1 = self.image1.get_boxes()
+        boxes2 = self.image2.get_boxes()
+
+        pair_state = (
+            ImageAnnotation.Classes.NO_ANNOTATION
+            if not boxes1 and not boxes2
+            else ImageAnnotation.Classes.ANNOTATED
+        )
+
         self.annotations.save_pair_annotation(
             # pair_id=self.current_index,  # oder dein pair_id
             image1=self.image1,          # das ist AnnotatableImage!
             image2=self.image2,          # AnnotatableImage!
-            pair_state=ImageAnnotation.Classes.ANNOTATION
+            pair_state=pair_state
         )
-
+        self.update_ui_state(pair_state=pair_state)
         print(f"Boxes cleared for pair {self.current_index}")
 
     def delete_selected_box(self):
@@ -479,6 +497,7 @@ class ImagePairViewer(ttk.Frame):
             self.image1.load_image(img1)
             self.image2.load_image(img2)
 
+
             self.image1._resize_image()
             self.image2._resize_image()
 
@@ -503,41 +522,53 @@ class ImagePairViewer(ttk.Frame):
 
             for box in boxes:
                 box_copy = dict(box)
+
+
                 if box["annotation_type"] == ImageAnnotation.Classes.ANNOTATION_X:
                     # Originalbox auf image1
                     image1_boxes.append(box_copy)
+                    mirror = box_copy.copy()
+                    mirror["annotation_type"] = ImageAnnotation.Classes.ANNOTATION
                     if "mask_base64" in box:
                         mask_bytes = base64.b64decode(box["mask_base64"])
                         mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
                         self.image1._original_mask_pils.append(mask_pil)
 
                     # Gegenstück visuell auf image2
-                    image2_boxes.append(box_copy.copy())  # optional gespiegelt
+                    image2_boxes.append(mirror)  # optional gespiegelt
 
                 elif box["annotation_type"] == ImageAnnotation.Classes.ANNOTATION:
                     # Originalbox auf image2
                     image2_boxes.append(box_copy)
+                    mirror = box_copy.copy()
+                    mirror["annotation_type"] = ImageAnnotation.Classes.ANNOTATION_X
+
                     if "mask_base64" in box:
                         mask_bytes = base64.b64decode(box["mask_base64"])
                         mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
                         self.image2._original_mask_pils.append(mask_pil)
 
                     # Gegenstück visuell auf image1
-                    image1_boxes.append(box_copy.copy())
+                    image1_boxes.append(mirror)
 
             self.image1.boxes = image1_boxes
             self.image2.boxes = image2_boxes
 
             # Anzeige leicht verzögert
-            self.after(100, lambda: self.image1.display_boxes(image1_boxes))
-            self.after(100, lambda: self.image2.display_boxes(image2_boxes))
+            def draw_all():
+                self.image1.display_boxes(image1_boxes)
+                self.image2.display_boxes(image2_boxes)
+                self.update_ui_state(pair_state)
+
+            self.after(200, draw_all)
+
 
             self.image1.display_mask()
             self.image2.display_mask()
 
             pair_state = annotation.get("pair_state")
 
-            if pair_state == ImageAnnotation.Classes.SKIPPED:
+            if pair_state == ImageAnnotation.Classes.NO_ANNOTATION:
                 color = "#add8e6"  # hellblau
             elif pair_state == ImageAnnotation.Classes.CHAOS:
                 color = "orange"
@@ -553,7 +584,7 @@ class ImagePairViewer(ttk.Frame):
                 self.image1.canvas.delete("canvas_outline")
                 self.image2.canvas.delete("canvas_outline")
 
-            self.update_ui_state(pair_state)
+            # self.after(150, lambda: self.update_ui_state(pair_state))
 
             self.update_global_progress()
 
@@ -568,34 +599,78 @@ class ImagePairViewer(ttk.Frame):
     def end_of_set(self):
         return self.current_index == len(self.image_pairs) - 1
 
-    def update_ui_state(self, pair_state):
-        """Update UI to reflect current annotation state"""
-        # Reset all buttons
-        for btn in [self.nothing_btn, self.chaos_btn, self.annotate_btn]:
-            btn.state(['!pressed'])
+    # def update_ui_state(self, pair_state):
+    #     """Update UI to reflect current annotation state"""
+    #     # Reset all buttons
+    #     for btn in [self.nothing_btn, self.chaos_btn, self.annotate_btn]:
+    #         btn.state(['!pressed'])
         
-        # Update button state
-        if pair_state == ImageAnnotation.Classes.NOTHING:
-            self.nothing_btn.state(['pressed'])
+    #     # Update button state
+    #     if pair_state == ImageAnnotation.Classes.NOTHING:
+    #         self.nothing_btn.state(['pressed'])
 
 
-        elif pair_state == ImageAnnotation.Classes.CHAOS:
-            self.chaos_btn.state(['pressed'])
+    #     elif pair_state == ImageAnnotation.Classes.CHAOS:
+    #         self.chaos_btn.state(['pressed'])
 
 
-        elif pair_state == ImageAnnotation.Classes.ANNOTATION:
-            self.annotate_btn.state(['pressed'])
-            # Re-enable drawing if we were in annotation mode
-            self.image1.set_drawing_mode(self.in_annotation_mode)
-            self.image2.set_drawing_mode(self.in_annotation_mode)
+    #     elif pair_state == ImageAnnotation.Classes.ANNOTATION:
+    #         self.annotate_btn.state(['pressed'])
+    #         # Re-enable drawing if we were in annotation mode
+    #         self.image1.set_drawing_mode(self.in_annotation_mode)
+    #         self.image2.set_drawing_mode(self.in_annotation_mode)
     
+    # def update_ui_state(self, pair_state=None):
+    #     if pair_state is None:
+    #         annotation = self.annotations.get_pair_annotation(self.current_index)
+    #         pair_state = annotation.get("pair_state", ImageAnnotation.Classes.NOTHING)
+
+    #     self.state = pair_state
+    #     self.reset_buttons()
+
+    #     color = {
+    #         ImageAnnotation.Classes.NOTHING: "grey",
+    #         ImageAnnotation.Classes.CHAOS: "orange",
+    #         ImageAnnotation.Classes.NO_ANNOTATION: "blue",
+    #         ImageAnnotation.Classes.ANNOTATED: None,  # ← No outline!
+    #     }.get(pair_state)
+
+    #     self.image1.canvas.delete("canvas_outline")
+    #     self.image2.canvas.delete("canvas_outline")
+
+    #     if color:
+    #         self.image1.draw_canvas_outline(color)
+    #         self.image2.draw_canvas_outline(color)
+
+    #     # # Optional: highlight correct button
+    #     # if pair_state == ImageAnnotation.Classes.CHAOS:
+    #     #     self.chaos_btn.state(['pressed'])
+    #     # elif pair_state == ImageAnnotation.Classes.NO_ANNOTATION:
+    #     #     self.skip_btn.state(['pressed'])
+    #     # elif pair_state == ImageAnnotation.Classes.NOTHING:
+    #     #     self.nothing_btn.state(['pressed'])
+    #     # elif pair_state == ImageAnnotation.Classes.ANNOTATED:
+    #     #     self.annotate_btn.state(['pressed'])
+
+    def update_ui_state(self, pair_state):
+        print(f"[UI] Updating canvas outline for state: {pair_state}")
+        color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(pair_state)
+
+        self.image1.canvas.delete("canvas_outline")
+        self.image2.canvas.delete("canvas_outline")
+
+        if color:
+            self.after(100, lambda: self.image1.draw_canvas_outline(color))
+            self.after(100, lambda: self.image2.draw_canvas_outline(color))
+
+
     def right(self):
         print(f"[RIGHT] current_index = {self.current_index}")
 
         self.save_current_boxes()  # 🔧 DAS HIER HINZUFÜGEN
 
 
-        # Speichern als 'skipped', falls keine Annotation gesetzt wurde
+        # Speichern als 'no_annotation', falls keine Annotation gesetzt wurde
         annotation = self.annotations.get_pair_annotation(self.current_index)
         pair_state = annotation.get("pair_state")
         boxes_exist = bool(self.image1.get_boxes() or self.image2.get_boxes())
@@ -604,7 +679,7 @@ class ImagePairViewer(ttk.Frame):
             if boxes_exist:
                 pair_state = ImageAnnotation.Classes.ANNOTATED
             else:
-                pair_state = ImageAnnotation.Classes.SKIPPED
+                pair_state = ImageAnnotation.Classes.NO_ANNOTATION
             
             print(f"[AUTO] setting default state: {pair_state}")
             self.annotations.save_pair_annotation(
@@ -645,9 +720,9 @@ class ImagePairViewer(ttk.Frame):
             self.annotations.save_pair_annotation(
                 self.image1,
                 self.image2,
-                pair_state=ImageAnnotation.Classes.SKIPPED
+                pair_state=ImageAnnotation.Classes.NO_ANNOTATION
             )
-        print(f"[AUTO-SAVE-LEFT] Marked pair {self.current_index} as SKIPPED")
+        print(f"[AUTO-SAVE-LEFT] Marked pair {self.current_index} as NO_ANNOTATION")
 
 
         ret = self.spinbox.animate_scroll(-1)
