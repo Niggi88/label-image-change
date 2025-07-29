@@ -107,9 +107,10 @@ class ImageAnnotation:
         print(f"[DEBUG] image1 boxes: {len(boxes1)} | image2 boxes: {len(boxes2)}")
 
         collected_boxes = boxes1 + boxes2
+        boxes_to_save = [b for b in collected_boxes if not b.get("synced_highlight")]
 
         final_boxes = []
-        for box in collected_boxes:
+        for box in boxes_to_save:
             entry = {
                 "x1": box["x1"],
                 "y1": box["y1"],
@@ -123,6 +124,8 @@ class ImageAnnotation:
                 entry["mask_image_id"] = box.get("mask_image_id")
 
             final_boxes.append(entry)
+
+    
 
         self.annotations[f"{pair_id}"] = {
             "pair_state": pair_state,

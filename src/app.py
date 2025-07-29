@@ -200,7 +200,7 @@ class ImagePairViewer(ttk.Frame):
         self.delete_selected_btn = ttk.Button(
             controls,
             text="Delete Selected Box",
-            command=self.before_delete_selected  # ACHTUNG: gleich neue Methode
+            command=self.before_delete_selected
         )
 
 
@@ -238,6 +238,9 @@ class ImagePairViewer(ttk.Frame):
         else:
             print("No box selected in either image.")
 
+            self.image1.selected_box_index = None
+            self.image2.selected_box_index = None
+        
         # wenn NACH dem Löschen KEINE Boxen mehr existieren → setze pair_state = NO_ANNOTATION
         if not self.image1.get_boxes() and not self.image2.get_boxes():
             new_state = ImageAnnotation.Classes.NO_ANNOTATION
@@ -471,8 +474,11 @@ class ImagePairViewer(ttk.Frame):
 
     def save_current_boxes(self):
         all_boxes = self.image1.get_boxes() + self.image2.get_boxes()
-        if all_boxes:
-            self.annotations.save_pair_annotation(self.image1, self.image2, ImageAnnotation.Classes.ANNOTATED)
+        boxes_to_save = [b for b in all_boxes if not b.get("synced_highlight")]
+
+        if not boxes_to_save:
+            return
+        self.annotations.save_pair_annotation(self.image1, self.image2, ImageAnnotation.Classes.ANNOTATED)
 
 
     def load_pair(self, index):
@@ -519,6 +525,8 @@ class ImagePairViewer(ttk.Frame):
 
             image1_boxes = []
             image2_boxes = []
+            image1_mirrored_boxes = []
+            image2_mirrored_boxes = []
 
             for box in boxes:
                 box_copy = dict(box)
@@ -529,6 +537,7 @@ class ImagePairViewer(ttk.Frame):
                     image1_boxes.append(box_copy)
                     mirror = box_copy.copy()
                     mirror["annotation_type"] = ImageAnnotation.Classes.ANNOTATION
+                    mirror["synced_highlight"] = True
                     if "mask_base64" in box:
                         mask_bytes = base64.b64decode(box["mask_base64"])
                         mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
@@ -542,6 +551,7 @@ class ImagePairViewer(ttk.Frame):
                     image2_boxes.append(box_copy)
                     mirror = box_copy.copy()
                     mirror["annotation_type"] = ImageAnnotation.Classes.ANNOTATION_X
+                    mirror["synced_highlight"] = True
 
                     if "mask_base64" in box:
                         mask_bytes = base64.b64decode(box["mask_base64"])
@@ -549,6 +559,7 @@ class ImagePairViewer(ttk.Frame):
                         self.image2._original_mask_pils.append(mask_pil)
 
                     # Gegenstück visuell auf image1
+
                     image1_boxes.append(mirror)
 
             self.image1.boxes = image1_boxes
@@ -558,6 +569,7 @@ class ImagePairViewer(ttk.Frame):
             def draw_all():
                 self.image1.display_boxes(image1_boxes)
                 self.image2.display_boxes(image2_boxes)
+
                 self.update_ui_state(pair_state)
 
             self.after(200, draw_all)
