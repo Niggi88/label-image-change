@@ -103,17 +103,18 @@ class PairViewerApp(tk.Tk):
                 background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
                 relief=[("pressed", "sunken"), ("!pressed", "flat")])
 
-        # 🗑️ Delete Selected Box = grau (wie bisher)
+
+        # 🗑️ Delete Selected Box = helleres rot
         style.configure("Delete.TButton",
-                        background="#DDDDDD",
+                        background="#FF9999",  # ✅ korrektes Format
                         relief="flat",
                         borderwidth=1,
                         padding=(8, 6),
                         anchor="center")
 
         style.map("Delete.TButton",
-                background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
-                relief=[("pressed", "sunken"), ("!pressed", "flat")])
+                    background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
+                    relief=[("pressed", "sunken"), ("!pressed", "flat")])
 
         # ❌ Clear All = rot
         style.configure("Clear.TButton",
@@ -278,7 +279,7 @@ class ImagePairViewer(ttk.Frame):
 
         self.delete_selected_btn = ttk.Button(
             controls, text="Delete Selected Box",
-            style="NoAnnotation.TButton",
+            style="Delete.TButton",
             command=self.before_delete_selected
         )
 
