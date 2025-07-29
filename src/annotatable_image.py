@@ -216,6 +216,9 @@ class AnnotatableImage(ttk.Frame):
         self._offset_x = (canvas_width - display_width) // 2
         self._offset_y = (canvas_height - display_height) // 2
 
+        self.canvas.delete("canvas_outline")  # make sure it's gone BEFORE drawing
+
+
         # 3. Komplettes Canvas leeren & nur das Bild rein
         self.canvas.delete("all")
         self._background_id = self.canvas.create_image(

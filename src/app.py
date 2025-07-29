@@ -564,6 +564,9 @@ class ImagePairViewer(ttk.Frame):
             self.current_index = index
             img1, img2 = self.image_pairs[index]
 
+            self.image1.canvas.delete("canvas_outline")
+            self.image2.canvas.delete("canvas_outline")
+
             # 1) Alles leeren
             self.image1.clear_all()
             self.image2.clear_all()
@@ -658,16 +661,18 @@ class ImagePairViewer(ttk.Frame):
             else:
                 color = None  # keine Outline
 
-            if color:
-                self.image1.draw_canvas_outline(color)
-                self.image2.draw_canvas_outline(color)
-            else:
-                self.image1.canvas.delete("canvas_outline")
-                self.image2.canvas.delete("canvas_outline")
+            # if color:
+            #     self.image1.draw_canvas_outline(color)
+            #     self.image2.draw_canvas_outline(color)
+            # else:
+            #     self.image1.canvas.delete("canvas_outline")
+            #     self.image2.canvas.delete("canvas_outline")
 
-            # self.after(150, lambda: self.update_ui_state(pair_state))
 
             self.update_global_progress()
+
+            self.after_idle(lambda: self.update_ui_state(pair_state))
+
 
         if self.end_of_set:
             print("End of image pairs")
@@ -741,8 +746,9 @@ class ImagePairViewer(ttk.Frame):
         self.image2.canvas.delete("canvas_outline")
 
         if color:
-            self.after(100, lambda: self.image1.draw_canvas_outline(color))
-            self.after(100, lambda: self.image2.draw_canvas_outline(color))
+            self.after_idle(lambda: self.image1.draw_canvas_outline(color))
+            self.after_idle(lambda: self.image2.draw_canvas_outline(color))
+
 
 
     def right(self):
