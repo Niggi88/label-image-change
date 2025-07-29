@@ -35,8 +35,9 @@ we have 4 classes:
     - delete selected: click on the button, then click on the box you want to remove, press button again, box and mirrored box disappear
     - clear all: deletes all annotations, leaving the state as "not_annotated", marking it as gray outline
 
-* when no label fits to the image pair, you can skip, also defining that pair as "not annotated", marking it as gray outline
-
+* not_annotated (marked as gray outline):
+    - when there are no annotations yet and no label fits to the image pair, you can skip, defining that pair as "not annotated"
+    - when the image pair is already annotated: press clear all to remove any annotations to set the image pair to "not_annotated"
 
 ## Use keyboard shortcuts:
 
