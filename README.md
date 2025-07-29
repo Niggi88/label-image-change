@@ -15,6 +15,9 @@ A simple tool for annotating changes between consecutive images. Created to labe
 * optional: set scaling factors
 
 # 3: Start annotating
+
+* decide if you want to skip over already completed sessions or not
+
 we have 4 classes:
         "nothing_changed",  # 0 (displayed as light blue)
         "chaos",            # 1 (displayed as yellow)
