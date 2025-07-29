@@ -3,6 +3,8 @@ import socket
 
 CACHE = True
 IMAGE_SIZE=2000
+UI_SCALING=1.5
+FONT_SCALING=1.5
 # DATASET_NAME="complex"
 DATASET_NAME="tmp"
 

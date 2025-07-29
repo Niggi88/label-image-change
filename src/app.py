@@ -60,13 +60,13 @@ class PairViewerApp(tk.Tk):
 
         from tkinter import font
 
-        self.tk.call('tk', 'scaling', 1.5)
+        self.tk.call('tk', 'scaling', UI_SCALING)
 
         self.title("Side by Side Images")
         
         default_font = font.nametofont("TkDefaultFont")
 
-        default_font.configure(size=int(default_font['size'] * 1.5))
+        default_font.configure(size=int(default_font['size'] * FONT_SCALING))
 
         # Define a consistent layout for all button styles
         style = ttk.Style()
