@@ -13,6 +13,7 @@ from pathlib import Path
 import base64
 import io
 import copy
+import json
 
 
 class ImagePairList(list):
@@ -129,6 +130,30 @@ class ImagePairViewer(ttk.Frame):
 
         self.session_paths = self.find_session_paths(base_src)
         assert self.session_paths, "No sessions found!"
+
+        # Ask user if they want to skip fully annotated sessions
+        skip_completed = messagebox.askyesno(
+            "Skip Complete Sessions",
+            "Do you want to skip sessions marked as fully annotated?"
+        )
+
+        if skip_completed:
+            filtered_paths = []
+            for session_path in self.session_paths:
+                annotation_file = session_path / "annotations.json"
+                if annotation_file.exists():
+                    try:
+                        with open(annotation_file, "r") as f:
+                            data = json.load(f)
+                        if not data.get("_meta", {}).get("completed", False):
+                            filtered_paths.append(session_path)
+                    except Exception as e:
+                        print(f"Failed to read {annotation_file}: {e}")
+                        filtered_paths.append(session_path)  # fail safe
+                else:
+                    filtered_paths.append(session_path)  # no annotation yet
+            self.session_paths = filtered_paths
+
         self.session_index = 0
 
         # INITIALISIERUNG — EINMALIG
