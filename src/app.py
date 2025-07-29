@@ -68,8 +68,53 @@ class PairViewerApp(tk.Tk):
 
         default_font.configure(size=int(default_font['size'] * 1.5))
 
-        # Create the pair viewer with required arguments
+        style = ttk.Style()
+        style.theme_use("default")
+
+        # Define a consistent layout for all button styles
+        for name, color in {
+            "Nothing": "#ADD8E6",
+            "Chaos": "#FFD700",
+            "NoAnnotation": "#999999"
+        }.items():
+            style.configure(f"{name}.TButton",
+                            background="white",  # damit Flat-Style nicht total leer aussieht
+                            relief="flat",
+                            borderwidth=1,
+                            padding=(8, 6),  # horizontal, vertical padding
+                            anchor="center")
+
+            style.map(f"{name}.TButton",
+                    background=[("active", color), ("pressed", color)],
+                    relief=[("pressed", "sunken"), ("!pressed", "flat")])
+
+            style.configure("Annotate.TButton",
+                background="white",
+                relief="flat",
+                borderwidth=1,
+                padding=(8, 6),
+                anchor="center")
+            
+            style.map("Annotate.TButton",
+                    background=[("active", "#999999"), ("pressed", "#999999")])
+
+            style.configure("Clear.TButton",
+                            background="white",
+                            relief="flat",
+                            borderwidth=1,
+                            padding=(8, 6),
+                            anchor="center")
+            style.map("Clear.TButton",
+                    background=[("active", "#999999"), ("pressed", "#999999")])
+
+
+
+
+
+
+            # Create the pair viewer with required arguments
         self.pair_viewer = ImagePairViewer(self, DATASET_DIR)
+            
         self.pair_viewer.pack(fill="both", expand=True)
 
 
@@ -194,22 +239,38 @@ class ImagePairViewer(ttk.Frame):
         controls = ttk.Frame(self)
         controls.grid(row=1, column=0, columnspan=2, sticky="ew")
         
-        self.nothing_btn = ttk.Button(controls, text="Nothing Changed", 
-                                    command=lambda: self.before_action(ImageAnnotation.Classes.NOTHING))
-        self.chaos_btn = ttk.Button(controls, text="Chaos", 
-                                    command=lambda: self.before_action(ImageAnnotation.Classes.CHAOS))
-        self.annotate_btn = ttk.Button(controls, text="Annotate", 
-                                    command=lambda: self.before_action(ImageAnnotation.Classes.ANNOTATION))
-        self.clear_btn = ttk.Button(
-            controls,
-            text="Clear All",
-            command=self.clear_current_boxes
+        
+                
+        self.nothing_btn = ttk.Button(
+            controls, text="Nothing Changed",
+            style="Nothing.TButton",
+            command=lambda: self.before_action(ImageAnnotation.Classes.NOTHING),
         )
+
+        self.chaos_btn = ttk.Button(
+            controls, text="Chaos",
+            style="Chaos.TButton",
+            command=lambda: self.before_action(ImageAnnotation.Classes.CHAOS)
+        )
+
+        self.annotate_btn = ttk.Button(
+            controls, text="Annotate",
+            style="Annotate.TButton",
+            command=lambda: self.before_action(ImageAnnotation.Classes.ANNOTATION)
+        )
+
         self.delete_selected_btn = ttk.Button(
-            controls,
-            text="Delete Selected Box",
+            controls, text="Delete Selected Box",
+            style="NoAnnotation.TButton",
             command=self.before_delete_selected
         )
+
+        self.clear_btn = ttk.Button(
+            controls, text="Clear All",
+            style="Clear.TButton",
+            command=self.clear_current_boxes
+        )
+
 
 
 
@@ -686,7 +747,7 @@ class ImagePairViewer(ttk.Frame):
 
     def right(self):
         print(f"[RIGHT] current_index = {self.current_index}")
-
+        self.reset_buttons() 
         self.save_current_boxes()  # 🔧 DAS HIER HINZUFÜGEN
 
 
@@ -735,6 +796,7 @@ class ImagePairViewer(ttk.Frame):
     def left(self):
         print(f"[LEFT] current_index = {self.current_index}")
         # Speichern vor Verlassen
+        self.reset_buttons() 
         annotation = self.annotations.get_pair_annotation(self.current_index)
         if not annotation or not annotation.get("pair_state"):
             self.annotations.save_pair_annotation(

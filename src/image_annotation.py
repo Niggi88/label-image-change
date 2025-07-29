@@ -40,6 +40,12 @@ class ImageAnnotation:
             NO_ANNOTATION: "#999999",  # grau
             ANNOTATED: None            # keine Outline
         }
+
+        HOVER_COLORS = {
+            NOTHING: "#0000FF",         # real blue
+            CHAOS: "#FFA500",           # orange
+            NO_ANNOTATION: "#333333",   # dark grey
+        }
     """Handles loading, saving, and managing annotations for image pairs"""
     def __init__(self, base_path, total_pairs=None):
         self.annotations_file = base_path
