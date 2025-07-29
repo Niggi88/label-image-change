@@ -130,7 +130,12 @@ class AnnotatableImage(ttk.Frame):
 
         
         for box in self.boxes:
-            if 'mask_base64' in box and box['mask_image_id'] == str(self.image_path):
+            from image_annotation import make_absolute_path
+
+            annotations_meta = self.controller.annotations.annotations.get("_meta", {})
+            box_abs_path = make_absolute_path(box.get("mask_image_id"), annotations_meta)
+
+            if 'mask_base64' in box and box_abs_path == str(self.image_path):
                 mask_bytes = base64.b64decode(box['mask_base64'])
                 mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
                 self._original_mask_pils.append(mask_pil)

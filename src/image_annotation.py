@@ -121,7 +121,7 @@ class ImageAnnotation:
             }
             if "mask_base64" in box:
                 entry["mask_base64"] = box["mask_base64"]
-                entry["mask_image_id"] = box.get("mask_image_id")
+                entry["mask_image_id"] = make_relative_path(box.get("mask_image_id"))
 
             final_boxes.append(entry)
 

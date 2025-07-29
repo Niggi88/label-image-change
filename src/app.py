@@ -57,9 +57,17 @@ class ImagePairList(list):
 class PairViewerApp(tk.Tk):
     def __init__(self):
         super().__init__()
+
+        from tkinter import font
+
+        self.tk.call('tk', 'scaling', 1.5)
+
         self.title("Side by Side Images")
         
-        
+        default_font = font.nametofont("TkDefaultFont")
+
+        default_font.configure(size=int(default_font['size'] * 1.5))
+
         # Create the pair viewer with required arguments
         self.pair_viewer = ImagePairViewer(self, DATASET_DIR)
         self.pair_viewer.pack(fill="both", expand=True)
