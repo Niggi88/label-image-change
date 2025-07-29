@@ -60,7 +60,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
         shutil.copy(im2_path, im2_target)
 
         # === Save YOLO labels ONLY for images1 ===
-        pair_state = pair_data.get("pair_state", "skipped").lower()
+        pair_state = pair_data.get("pair_state", "no_annotation").lower()
         boxes = pair_data.get("boxes", [])
         img_w, img_h = map(float, pair_data["image2_size"])  # always use image2 size
 
@@ -82,7 +82,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
                 h = abs(y2 - y1) / img_h
                 class_id = "2" if atype == "item_added" else "3"
                 label_lines.append(f"{class_id} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
-        elif pair_state == "skipped":
+        elif pair_state == "no_annotation":
             continue  # skip saving anything
         else:
             label_lines = ["0"]
@@ -143,7 +143,10 @@ if __name__ == "__main__":
     from yolo_config import generate_dataset_config
     
     class_names = [
-        "product"
+        "nothing_changed",  # 0
+        "chaos",            # 1
+        "item_added",       # 2
+        "item_removed"      # 3
     ]
     
     generate_dataset_config(
