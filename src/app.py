@@ -124,7 +124,7 @@ class ImagePairViewer(ttk.Frame):
         super().__init__(container)
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
-        self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
 
         self.session_paths = self.find_session_paths(base_src)
         assert self.session_paths, "No sessions found!"
@@ -132,21 +132,21 @@ class ImagePairViewer(ttk.Frame):
 
         # INITIALISIERUNG — EINMALIG
         self.image1 = AnnotatableImage(self, annotation_controller=None, controller=self)
-        self.image1.grid(row=0, column=0, sticky="nsew")
+        self.image1.grid(row=1, column=0, sticky="nsew")
         self.image2 = AnnotatableImage(self, annotation_controller=None, controller=self)
-        self.image2.grid(row=0, column=1, sticky="nsew")
+        self.image2.grid(row=1, column=1, sticky="nsew")
 
         self.setup_controls()
 
         self.spinbox = HorizontalSpinner(self, [], self.set_images)
-        self.spinbox.grid(row=2, column=0, columnspan=2)
+        self.spinbox.grid(row=3, column=0, columnspan=2)
 
         # Fortschrittsanzeige-Label hinzufügen (z. B. unterhalb des Spinners)
         # self.progress_label = ttk.Label(self, anchor="center")
         # self.progress_label.grid(row=3, column=0, columnspan=2)
 
         self.global_progress_label = ttk.Label(self, anchor="center")
-        self.global_progress_label.grid(row=4, column=0, columnspan=2)
+        self.global_progress_label.grid(row=0, column=0, columnspan=2, pady=(8, 4))
 
 
         self.selected_box_index = None
@@ -237,7 +237,7 @@ class ImagePairViewer(ttk.Frame):
     def setup_controls(self):
         """Set up classification and navigation controls"""
         controls = ttk.Frame(self)
-        controls.grid(row=1, column=0, columnspan=2, sticky="ew")
+        controls.grid(row=2, column=0, columnspan=2, sticky="ew")
         
         
                 
