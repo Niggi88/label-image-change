@@ -167,12 +167,56 @@ class ImagePairViewer(ttk.Frame):
         self.spinbox = HorizontalSpinner(self, [], self.set_images)
         self.spinbox.grid(row=3, column=0, columnspan=2)
 
-        self.global_progress_label = ttk.Label(self, anchor="center")
-        self.global_progress_label.grid(row=0, column=0, columnspan=2, pady=(8, 4))
+        # self.global_progress_label = ttk.Label(self, anchor="center")
+        # self.global_progress_label.grid(row=0, column=0, columnspan=2, pady=(8, 4))
 
+        # ─── TOP BAR ────────────────────────────────────────────────────────────────
+        top_bar = ttk.Frame(self)
+        top_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(8, 4))
+        top_bar.columnconfigure(0, weight=1)
+
+        self.global_progress_label = ttk.Label(top_bar, anchor="w")
+        self.global_progress_label.grid(row=0, column=0, sticky="w")
+
+        self.skip_session_btn = ttk.Button(
+            top_bar,
+            text="Skip This Session",
+            style="Danger.TButton",  # optional, use default if not styled
+            command=self.skip_current_session
+        )
+        self.skip_session_btn.grid(row=0, column=1, sticky="e")
 
         self.selected_box_index = None
         self.reset(self.session_paths[self.session_index], initial=True)
+
+
+    def skip_current_session(self):
+        annotation_path = self.image_pairs.src / "annotations.json"
+
+        data = {}
+        if annotation_path.exists():
+            with open(annotation_path, "r") as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    print(f"Error decoding {annotation_path}, using empty fallback.")
+
+        data.setdefault("_meta", {})["usable"] = False
+        data["_meta"]["completed"] = True
+
+        with open(annotation_path, "w") as f:
+            json.dump(data, f, indent=2)
+
+        messagebox.showinfo("Skipped", "Marked session as unusable and moving on.")
+
+        # Move to next session
+        if self.session_index + 1 < len(self.session_paths):
+            self.session_index += 1
+            self.reset(self.session_paths[self.session_index])
+            self.load_pair(0)
+        else:
+            messagebox.showinfo("Done", "All sessions completed.")
+            self.quit()
 
     def update_global_progress(self):
         session_name = self.image_pairs.src.name
