@@ -1,24 +1,61 @@
 # label-image-change
 
-# how to use
-1. start api on server:
-- navigate to user sam
-- activate sam_venv: source sam_venv/bin/activate
-
-- navigate to ~/sarah/sam_api/src
-- run python3 main.py -> starting:
-
-2. run app.py
-- canvas will open, ready to annotate
-- json is saved in same folder as regarding session
-
-3. parse json to yolo format
-- run json_to_yolo.py script, this will create 3 folders:
-* images
-*images2
-*labels
-
 A simple tool for annotating changes between consecutive images. Created to label changes in image sequences for scene change detection.
+
+# How to use
+# 1 (optional for generating masks): Start backend
+* log into user sam
+* cd backend/cart_SAMbackend
+* source sam_venv/bin/activate
+* open tmux window
+*  run: python3  backend/cart_SAMbackend/src/main.py
+
+# 2: Adjust config
+*  set DATASET_DIR and DATASET_NAME (folder where all stores and sessions lie)
+* optional: set scaling factors
+
+# 3: Start annotating
+we have 4 classes:
+        "nothing_changed",  # 0 (displayed as light blue)
+        "chaos",            # 1 (displayed as yellow)
+        "item_added",       # 2 (displayed as green box)
+        "item_removed"      # 3 (disyplayed as red box)
+
+## Options for annotating:
+* nothing changed: when no item was added/removed, basically the content of the cart did not change
+* chaos: when there is a lot going on, and its not clear whats going on (might be considered as unsure)
+* annotate: lets you draw a box:
+    - if an item was added (usually in the right image), draw a box around it
+    - if and item was removed (when it is in the left image but not in the right image), draw a box about this item (left image)
+
+* delete annotations:
+    - delete selected: click on the button, then click on the box you want to remove, press button again, box and mirrored box disappear
+    - clear all: deletes all annotations, leaving the state as "not_annotated", marking it as gray outline
+
+* when no label fits to the image pair, you can skip, also defining that pair as "not annotated", marking it as gray outline
+
+
+## Use keyboard shortcuts:
+
+    → or f — next pair
+    ← or s — previous pair
+    a — annotate mode
+    n — classify as "Nothing"
+    c — classify as "Chaos"
+    d — delete selected box
+    x — clear all boxes
+
+# 4: Parse annotations.json files into correct format
+
+* for each session, a annotations.json file gets saved in the respective session folder (where this session's images lie)
+* go to script: src/data_handling/json_to_yolo.py  and run it. since the location of the annotation files is accessed from config, it accessess the annotations from the respective folders
+
+
+
+# Notes:
+* dataset should have following saving strucutre: DATASET_DIR/DATASET_NAME/store_folder/session_folder/images.jpeg
+
+
 
 ## Features
 
@@ -29,47 +66,4 @@ A simple tool for annotating changes between consecutive images. Created to labe
 - Chaos 'c' / Reorder / (too much change to annotate)
 - Annotate specific changes with bounding boxes 'a'
 
-## Usage
 
-1. Place images in a directory (numbered sequentially)
-2. Start tool with directory path
-3. Navigate through images with 's' -> left, 'f' -> right or spinner
-4. Press 'a' to enter annotation mode and to leave annotation mode
-5. Draw boxes around changes
-    - for added product on right image
-    - for removed product on left images 
-    - so always on the image where the product actually is
-    - multiple boxes are possible
-6. chaos short cut 'c'
-    - if there is a hand blocking view to any relevant part of the image
-    - if there is too much movement in the cart
-    - if the customer moves items in around in the cart
-7. nothing happened 'n'
-    - if nothing happened
-    - no products added or removed
-    - no products moved around
-
-
-## UML
-![uml](image.png)
-
-## Current Issues
-
-- State management between annotation modes needs improvement
-- Box persistence issues when navigating between images
-- Annotation mode doesn't properly reset when changing images
-
-## TODO
-
-- alle boxen anzeigen
-- alle boxen sicher persistieren auch bei zurück clicken
-- Add clear boxes button
-- Support processing multiple sessions/directories
-- Visual indication when multiple boxes are drawn on same image
-- Replace boxes with segmentation
-
-### Maybe Later
-
-- Make boxes editable (move/resize)
-- Delete individual boxes
-- Different colors for different types of changes
