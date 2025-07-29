@@ -15,18 +15,11 @@ import io
 import copy
 
 
-# TODO: removed
-# TODO: new class / no class
-# TODO: add x als gelöscht
-
-
-
 class ImagePairList(list):
     def __init__(self, src):
-        #                   /home/niklas/dataset/bildunterschied
+
         self.src = Path(src)
-        # self.parent = parent
-        # self.annotation_controller = annotation_controller
+
         self.images = sorted(self.src.glob("*.jpeg"), key=lambda file: int(file.name.split("-")[0]))
         assert len(self.images) > 0, f"no images found at {src}"
         self.image_pairs = list(zip(self.images[:-1], self.images[1:]))
@@ -43,16 +36,6 @@ class ImagePairList(list):
     
     def ids(self):
         return list(range(len(self)))
-
-
-# def open_image(image_dir):
-#     pil_img = Image.open(image_dir)
-#     print("pil_img", pil_img)
-#     pil_img = resize_with_aspect_ratio(pil_img, 50, 50)
-#     print("pil_img", pil_img)
-#     tk_image = ImageTk.PhotoImage(pil_img)
-#     return tk_image
-
 
 class PairViewerApp(tk.Tk):
     def __init__(self):
@@ -159,10 +142,6 @@ class ImagePairViewer(ttk.Frame):
         self.spinbox = HorizontalSpinner(self, [], self.set_images)
         self.spinbox.grid(row=3, column=0, columnspan=2)
 
-        # Fortschrittsanzeige-Label hinzufügen (z. B. unterhalb des Spinners)
-        # self.progress_label = ttk.Label(self, anchor="center")
-        # self.progress_label.grid(row=3, column=0, columnspan=2)
-
         self.global_progress_label = ttk.Label(self, anchor="center")
         self.global_progress_label.grid(row=0, column=0, columnspan=2, pady=(8, 4))
 
@@ -222,11 +201,6 @@ class ImagePairViewer(ttk.Frame):
         self.spinbox.current_index = 0
         self.spinbox.draw_items()
 
-        # Update session label
-        # self.progress_label.config(
-        #     text=f"{self.image_pairs.src.name}: 1/{len(self.image_pairs)}"
-        # )
-
         if initial:
             self.load_pair(0)
             self.spinbox.current_index = 0
@@ -234,15 +208,7 @@ class ImagePairViewer(ttk.Frame):
         # self.load_pair(0)
         self.setup_key_bindings()
 
-
-        # self.progress_label.config(
-        #     text=f"{self.image_pairs.src.name}: 1/{len(self.image_pairs)}"
-        # )
-
         self.update_global_progress()
-        # store_name = self.image_pairs.src.parent.name
-        # session_name = self.image_pairs.src.name
-        # self.progress_label.config(text=f"{store_name} / {session_name}: 1/{len(self.image_pairs)}")
 
     def show_reset_message(self):
         dialog = tk.Toplevel(self)
@@ -416,33 +382,6 @@ class ImagePairViewer(ttk.Frame):
         print("Deleted box in both images.")
 
 
-
-    # def before_action(self, button_id):
-    #     self.reset_buttons()
-    #     self.state = button_id
-
-    #     if button_id == ImageAnnotation.Classes.ANNOTATION:
-    #         self.annotate_btn.state(['pressed'])
-    #         self.toggle_annotation(True)
-    #     else:
-    #         self.toggle_annotation(False)
-    #         if button_id == ImageAnnotation.Classes.NOTHING:
-    #             self.nothing_btn.state(['pressed'])
-    #         elif button_id == ImageAnnotation.Classes.CHAOS:
-    #             self.chaos_btn.state(['pressed'])
-
-    #     self.process_action()
-                
-    #     self.annotations.save_pair_annotation(
-    #         # pair_id=self.current_index,    # ✅ Kein self.controller!
-    #         image1=self.image1,            # ✅ AnnotatableImage Instanz
-    #         image2=self.image2,
-    #         pair_state=self.state
-    #     )
-
-    #     if button_id != ImageAnnotation.Classes.ANNOTATION:
-    #         print(f"[before_action] Calling right() after classification: {button_id}")
-    #         self.right()
 
 
     def before_action(self, button_id):
@@ -679,14 +618,6 @@ class ImagePairViewer(ttk.Frame):
             else:
                 color = None  # keine Outline
 
-            # if color:
-            #     self.image1.draw_canvas_outline(color)
-            #     self.image2.draw_canvas_outline(color)
-            # else:
-            #     self.image1.canvas.delete("canvas_outline")
-            #     self.image2.canvas.delete("canvas_outline")
-
-
             self.update_global_progress()
 
             self.after_idle(lambda: self.update_ui_state(pair_state))
@@ -703,58 +634,7 @@ class ImagePairViewer(ttk.Frame):
     def end_of_set(self):
         return self.current_index == len(self.image_pairs) - 1
 
-    # def update_ui_state(self, pair_state):
-    #     """Update UI to reflect current annotation state"""
-    #     # Reset all buttons
-    #     for btn in [self.nothing_btn, self.chaos_btn, self.annotate_btn]:
-    #         btn.state(['!pressed'])
-        
-    #     # Update button state
-    #     if pair_state == ImageAnnotation.Classes.NOTHING:
-    #         self.nothing_btn.state(['pressed'])
 
-
-    #     elif pair_state == ImageAnnotation.Classes.CHAOS:
-    #         self.chaos_btn.state(['pressed'])
-
-
-    #     elif pair_state == ImageAnnotation.Classes.ANNOTATION:
-    #         self.annotate_btn.state(['pressed'])
-    #         # Re-enable drawing if we were in annotation mode
-    #         self.image1.set_drawing_mode(self.in_annotation_mode)
-    #         self.image2.set_drawing_mode(self.in_annotation_mode)
-    
-    # def update_ui_state(self, pair_state=None):
-    #     if pair_state is None:
-    #         annotation = self.annotations.get_pair_annotation(self.current_index)
-    #         pair_state = annotation.get("pair_state", ImageAnnotation.Classes.NOTHING)
-
-    #     self.state = pair_state
-    #     self.reset_buttons()
-
-    #     color = {
-    #         ImageAnnotation.Classes.NOTHING: "grey",
-    #         ImageAnnotation.Classes.CHAOS: "orange",
-    #         ImageAnnotation.Classes.NO_ANNOTATION: "blue",
-    #         ImageAnnotation.Classes.ANNOTATED: None,  # ← No outline!
-    #     }.get(pair_state)
-
-    #     self.image1.canvas.delete("canvas_outline")
-    #     self.image2.canvas.delete("canvas_outline")
-
-    #     if color:
-    #         self.image1.draw_canvas_outline(color)
-    #         self.image2.draw_canvas_outline(color)
-
-    #     # # Optional: highlight correct button
-    #     # if pair_state == ImageAnnotation.Classes.CHAOS:
-    #     #     self.chaos_btn.state(['pressed'])
-    #     # elif pair_state == ImageAnnotation.Classes.NO_ANNOTATION:
-    #     #     self.skip_btn.state(['pressed'])
-    #     # elif pair_state == ImageAnnotation.Classes.NOTHING:
-    #     #     self.nothing_btn.state(['pressed'])
-    #     # elif pair_state == ImageAnnotation.Classes.ANNOTATED:
-    #     #     self.annotate_btn.state(['pressed'])
 
     def update_ui_state(self, pair_state):
         print(f"[UI] Updating canvas outline for state: {pair_state}")

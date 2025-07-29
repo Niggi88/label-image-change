@@ -197,67 +197,6 @@ def create_dummy_mask(image_np, box):
 
 
 
-# def segment(image_np, box):
-#     """
-#     Schickt Bild + Box an die FastAPI & gibt ein PIL RGBA Mask Image zurück.
-#     """
-#     # Speichere temporär als JPG (oder PNG, wenn du willst)
-#     tmp_path = "/tmp/tmp_image.jpg"
-#     cv2.imwrite(tmp_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
-
-#     files = {
-#         "file": open(tmp_path, "rb")
-#     }
-#     data = {
-#         "x1": int(box[0]),
-#         "y1": int(box[1]),
-#         "x2": int(box[2]),
-#         "y2": int(box[3]),
-#     }
-#     print("my data", data)
-
-#     try:
-#         response = requests.post(
-#             "http://172.30.20.31:8000/segment/box",
-#             files=files,
-#             data=data,
-#             timeout=5  # Sekunden, z. B. wenn Backend hängt
-#         )
-#         response.raise_for_status()
-#         result = response.json()
-
-#         if result.get("success"):
-#             mask_data = base64.b64decode(result["mask"])
-#             mask_pil = Image.open(io.BytesIO(mask_data)).convert("RGBA")
-#             return mask_pil, result
-#         else:
-#             print("❌ Segmentierung fehlgeschlagen:", result)
-#             return None, result
-
-#     except requests.exceptions.Timeout:
-#         print("❌ TIMEOUT: Das Backend hat nicht rechtzeitig geantwortet.")
-#     except requests.exceptions.ConnectionError:
-#         print("❌ VERBINDUNGSFEHLER: Backend nicht erreichbar – läuft der Server?")
-#     except requests.exceptions.HTTPError as err:
-#         print(f"❌ HTTP-FEHLER: {err.response.status_code} – {err.response.text}")
-#     except Exception as e:
-#         print(f"❌ UNBEKANNTER FEHLER: {e}")
-
-
-#     # Dummy Maske erzeugen (RGBA)
-#     height, width = image_np.shape[:2]
-#     dummy_mask = Image.new("RGBA", (width, height), (0, 0, 0, 0))  # Transparentes Bild
-#     draw = ImageDraw.Draw(dummy_mask)
-#     draw.rectangle(
-#         [data["x1"], data["y1"], data["x2"], data["y2"]],
-#         fill=(255, 0, 0, 128)  # Halbtransparente rote Maske
-#     )
-
-#     return dummy_mask, {"success": False, "message": "Dummy-Maske verwendet (Fallback)"}
-
-    # return None, None
-
-
 
 def get_location(contours, image_width, image_height, only_largest=True):
     """

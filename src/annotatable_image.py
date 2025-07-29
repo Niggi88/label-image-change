@@ -10,7 +10,6 @@ import io
 import base64
 from image_annotation import ImageAnnotation
 import uuid
-# from app import ImagePairViewer
 
 
 
@@ -80,17 +79,13 @@ class AnnotatableImage(ttk.Frame):
         self._original_mask_pil = None
         self._original_mask_pils = []
 
-        # self.annotation_type_state = AnnotationTypeState.NEGATIVE if _id == 1 else AnnotationTypeState.POSITIVE
-
         self.annotation_type_state = (
             ImageAnnotation.Classes.ANNOTATION_X if _id == 1 else ImageAnnotation.Classes.ANNOTATION
         )
 
         self.annotation_controller = annotation_controller
         self.controller = controller
-        # assert isinstance(annotation_controller, ImageAnnotation) 
-        # assert isinstance(controller, ImagePairViewer)
-        # Bind mouse events for drawing
+
         self.canvas.bind('<Button-1>', self.start_box)
         self.canvas.bind('<B1-Motion>', self.draw_box)
         self.canvas.bind('<ButtonRelease-1>', self.end_box)
@@ -98,25 +93,6 @@ class AnnotatableImage(ttk.Frame):
         self._image = None  # Keep reference to avoid garbage collection
         self._scale_factor = 1.0
     
-    # def load_image(self, image_path, max_size=(IMAGE_SIZE, IMAGE_SIZE)):
-    #     """Load and display an image using existing resize method"""
-    #     print("loaded image", image_path)
-    #     pil_image = Image.open(image_path)
-        
-    #     # Store original size for scaling factor calculation
-    #     original_size = pil_image.size
-        
-    #     # Use existing resize method
-    #     pil_image = resize_with_aspect_ratio(pil_image, *max_size)
-    #     self._image = ImageTk.PhotoImage(pil_image)
-        
-    #     # Calculate scale factor based on the resize results
-    #     self._scale_factor = pil_image.size[0] / original_size[0]
-        
-    #     # Update canvas size and display image
-    #     self.canvas.config(width=pil_image.size[0], height=pil_image.size[1])
-    #     self.canvas.create_image(0, 0, anchor="nw", image=self._image)
-
 
 
     def load_image(self, image_path, boxes=None):
@@ -144,57 +120,7 @@ class AnnotatableImage(ttk.Frame):
             self._resize_image()
 
 
-    # def _resize_image(self, event=None):
-    #     if self._original_pil_image is None:
-    #         return
 
-    #     canvas_width = self.canvas.winfo_width()
-    #     canvas_height = self.canvas.winfo_height()
-        
-    #     if canvas_width <= 1 or canvas_height <= 1:
-    #         return  # Vermeidet width/height = 0 Fehler!
-
-    #     resized_pil = resize_with_aspect_ratio(
-    #         self._original_pil_image,
-    #         canvas_width,
-    #         canvas_height
-    #     )
-        
-    #     self._image = ImageTk.PhotoImage(resized_pil)
-
-
-    #     # === NEU: Maske synchron skalieren ===
-    #     if self._original_mask_pil:
-    #         resized_mask = resize_with_aspect_ratio(
-    #             self._original_mask_pil,
-    #             canvas_width,
-    #             canvas_height
-    #         )
-    #         self._mask_overlay = ImageTk.PhotoImage(resized_mask)
-    #     else:
-    #         self._mask_overlay = None
-
-    #     # === NEU: Berechne Scale & Offsets ===
-    #     original_width, original_height = self._original_pil_image.size
-    #     display_width, display_height = resized_pil.size
-
-    #     self._scale_factor = display_width / original_width
-    #     self._offset_x = (canvas_width - display_width) // 2
-    #     self._offset_y = (canvas_height - display_height) // 2
-        
-    #     self.canvas.delete("all")
-    #     self.canvas.create_image(
-    #         canvas_width // 2,
-    #         canvas_height // 2,
-    #         anchor="center",
-    #         image=self._image
-    #     )
-
-    #     # Maske drüberlegen, wenn vorhanden
-    #     if self._mask_overlay:
-    #         self.display_mask()
-    #     if self.boxes:
-    #         self.display_boxes(self.boxes)
 
     def _resize_image(self, event=None):
         if self._original_pil_image is None:
@@ -276,82 +202,6 @@ class AnnotatableImage(ttk.Frame):
         )
 
     
-    # def end_box(self, event):
-    #     if not self.drawing or self.start_x is None:
-    #         return
-
-    #     # Begrenze Endpunkt INNERHALB Bildbereich
-    #     img_left = self._offset_x
-    #     img_right = self._offset_x + self._original_pil_image.width * self._scale_factor
-    #     img_top = self._offset_y
-    #     img_bottom = self._offset_y + self._original_pil_image.height * self._scale_factor
-
-    #     x = max(img_left, min(event.x, img_right))
-    #     y = max(img_top, min(event.y, img_bottom))
-
-    #     pair_id = str(uuid.uuid4())
-
-    #     box = {
-    #         'annotation_type': self.annotation_type_state,
-    #         'x1': int((min(self.start_x, x) - self._offset_x) / self._scale_factor),
-    #         'y1': int((min(self.start_y, y) - self._offset_y) / self._scale_factor),
-    #         'x2': int((max(self.start_x, x) - self._offset_x) / self._scale_factor),
-    #         'y2': int((max(self.start_y, y) - self._offset_y) / self._scale_factor),
-    #         'pair_id': pair_id,
-    #     }
-
-    #     width = abs(box['x2'] - box['x1'])
-    #     height = abs(box['y2'] - box['y1'])
-
-    #     if width < 5 or height < 5:
-    #         print("Ignored: too small to be a valid box.")
-    #         return
-
-    #     self.boxes.append(box)
-
-    #     # 👉 Gegenstück synchronisieren (ohne Maske!)
-    #     other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
-    #     other_box = box.copy()
-    #     other_box['annotation_type'] = other_image.annotation_type_state
-    #     other_box['pair_id'] = pair_id
-    #     other_box['synced_highlight'] = True
-    #     other_image.boxes.append(other_box)
-
-    #     self.clear_boxes()
-    #     self.display_boxes(self.boxes)
-
-    #     other_image.clear_boxes()
-    #     other_image.display_boxes(other_image.boxes)
-
-    #     self.start_x = None
-    #     self.start_y = None
-    #     self.current_box = None
-
-    #     # Nur HIER Masken-API für das annotierte Bild
-    #     self.generate_mask_from_bbox()
-
-    #     # Falls CHAOS, NOTHING, NO_ANNOTATION → in ANNOTATED ändern
-    #     annotation = self.controller.annotations.get_pair_annotation(self.controller.current_index)
-    #     if annotation.get("pair_state") in [
-    #         ImageAnnotation.Classes.CHAOS,
-    #         ImageAnnotation.Classes.NOTHING,
-    #         ImageAnnotation.Classes.NO_ANNOTATION,
-    #     ]:
-    #         print("[end_box] Overriding prior state with 'annotated'")
-    #         self.controller.annotations.set_pair_state(
-    #             self.controller.current_index,
-    #             ImageAnnotation.Classes.ANNOTATED
-    #         )
-    #         self.controller.state = ImageAnnotation.Classes.ANNOTATED
-
-    #         # ❗ WICHTIG: Outline sofort löschen
-    #         self.controller.image1.canvas.delete("canvas_outline")
-    #         self.controller.image2.canvas.delete("canvas_outline")
-
-    #         # Buttons aktualisieren
-    #         self.controller.reset_buttons()
-    #         self.controller.annotate_btn.state(['pressed'])
-
     def end_box(self, event):
         if not self.drawing or self.start_x is None:
             return
@@ -482,41 +332,6 @@ class AnnotatableImage(ttk.Frame):
             self._mask_ids.append(mask_id)
             self._mask_overlays.append(mask_overlay)
 
-            
-    # def display_boxes(self, boxes, color="green"):
-    #     """Display a list of boxes (in original image coordinates)"""
-    #     self.clear_boxes()
-
-    #     for idx, box in enumerate(boxes):
-    #         annotation_type = box.get("annotation_type", None)
-
-    #         if annotation_type == ImageAnnotation.Classes.ANNOTATION:
-    #             outline = "green"
-    #         elif annotation_type == ImageAnnotation.Classes.ANNOTATION_X:
-    #             outline = "red"
-    #         elif box.get('synced_highlight', False):
-    #             outline = "red"
-    #         elif self.selected_box_index is not None and idx == self.selected_box_index:
-    #             outline = "red"
-    #         else:
-    #             outline = "grey"  # fallback if annotation_type is missing
-
-    #         scaled_box = {
-    #             'x1': box['x1'] * self._scale_factor + self._offset_x,
-    #             'y1': box['y1'] * self._scale_factor + self._offset_y,
-    #             'x2': box['x2'] * self._scale_factor + self._offset_x,
-    #             'y2': box['y2'] * self._scale_factor + self._offset_y
-    #         }
-    #         rect_id = self.canvas.create_rectangle(
-    #             scaled_box['x1'], scaled_box['y1'],
-    #             scaled_box['x2'], scaled_box['y2'],
-    #             outline=outline, # if self.selected_box_index is not None and idx == self.selected_box_index else color,
-    #             fill="",  # oder transparente Fläche
-    #             width=2
-    #         )
-    #         self.box_rects.append(rect_id)
-    #         self.canvas.tag_bind(rect_id, "<Button-1>", lambda e, i=idx: self.select_box(i))
-    #         self.display_mask()
 
     def display_boxes(self, boxes, color="green"):
         """Display a list of boxes (in original image coordinates)"""
@@ -643,16 +458,6 @@ class AnnotatableImage(ttk.Frame):
         self.controller.update_ui_state(new_state)
         print("Deleted pair in both images & masks updated immediately.")
 
-
-
-        
-    # def clear_boxes(self):
-    #     """Clear all boxes from display"""
-    #     self.boxes = []
-    #     # Keep the image, delete everything else
-    #     self.canvas.delete("all")
-    #     if self._image:
-    #         self.canvas.create_image(0, 0, anchor="nw", image=self._image)
     
     def clear_image(self):
         """Löscht das Hintergrund-Bild"""
