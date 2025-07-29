@@ -535,11 +535,16 @@ class AnnotatableImage(ttk.Frame):
             else:
                 outline = "grey"
 
-            # ✏️ Highlight selected box
+            # Highlight selected box
             if is_selected:
                 outline = "blue"
+                dash = (4, 2)
+            elif is_synced:
+                dash = (4, 2)
+            else:
+                dash = None
 
-            # 📏 Scaled position
+            # Scaled position
             scaled_box = {
                 'x1': box['x1'] * self._scale_factor + self._offset_x,
                 'y1': box['y1'] * self._scale_factor + self._offset_y,
@@ -575,10 +580,11 @@ class AnnotatableImage(ttk.Frame):
         # self.display_boxes(self.boxes)  # Du brauchst nichts zu löschen, weil display_boxes das immer tut.
 
     def update_box_highlight(self):
-        """Nur Farben der Boxen updaten"""
         for idx, rect_id in enumerate(self.box_rects):
-            color = "red" if idx == self.selected_box_index else "green"
-            self.canvas.itemconfig(rect_id, outline=color)
+            if idx == self.selected_box_index:
+                self.canvas.itemconfig(rect_id, outline="blue", width=4, dash=(4, 2))
+            else:
+                self.canvas.itemconfig(rect_id, width=2, dash=None)
 
     def delete_selected_box(self):
         if self.selected_box_index is None:
