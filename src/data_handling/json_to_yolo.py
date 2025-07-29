@@ -2,7 +2,7 @@ import json
 import shutil
 from pathlib import Path
 from itertools import chain
-
+from config import DATASET_DIR
 
 class YoloPaths:
     def __init__(self, split_dir):
@@ -127,13 +127,15 @@ if __name__ == "__main__":
     dataset_one = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one").glob("**/annotations.json")
     dataset_sarah = Path("/home/sarah/Documents/background_segmentation/small_relevant_sessions").glob("**/annotations.json")
     
+    dataset_config = Path(DATASET_DIR)
+    
     annotation_files = chain(
         # dataset_small_set,
         # dataset_one,
         # dataset_small_set2,
         # dataset_small_set3,
         # folder_path.glob("**/*.json")
-        dataset_sarah
+        dataset_config
     )
     index = 0
     for f in annotation_files:
