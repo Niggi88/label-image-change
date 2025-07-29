@@ -68,47 +68,64 @@ class PairViewerApp(tk.Tk):
 
         default_font.configure(size=int(default_font['size'] * 1.5))
 
+        # Define a consistent layout for all button styles
         style = ttk.Style()
         style.theme_use("default")
 
-        # Define a consistent layout for all button styles
-        for name, color in {
-            "Nothing": "#ADD8E6",
-            "Chaos": "#FFD700",
-            "NoAnnotation": "#999999"
-        }.items():
+        # Klassifikationsfarben für Grundzustand
+        button_colors = {
+            "Nothing": "#ADD8E6",       # hellblau
+            "Chaos": "#FFD700",         # gelb
+            "NoAnnotation": "#999999"   # grau
+        }
+
+        for name, color in button_colors.items():
             style.configure(f"{name}.TButton",
-                            background="white",  # damit Flat-Style nicht total leer aussieht
-                            relief="flat",
-                            borderwidth=1,
-                            padding=(8, 6),  # horizontal, vertical padding
-                            anchor="center")
-
-            style.map(f"{name}.TButton",
-                    background=[("active", color), ("pressed", color)],
-                    relief=[("pressed", "sunken"), ("!pressed", "flat")])
-
-            style.configure("Annotate.TButton",
-                background="white",
-                relief="flat",
-                borderwidth=1,
-                padding=(8, 6),
-                anchor="center")
-            
-            style.map("Annotate.TButton",
-                    background=[("active", "#999999"), ("pressed", "#999999")])
-
-            style.configure("Clear.TButton",
-                            background="white",
+                            background=color,
                             relief="flat",
                             borderwidth=1,
                             padding=(8, 6),
                             anchor="center")
-            style.map("Clear.TButton",
-                    background=[("active", "#999999"), ("pressed", "#999999")])
 
+            style.map(f"{name}.TButton",
+                    background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
+                    relief=[("pressed", "sunken"), ("!pressed", "flat")])
 
+        # ✅ Annotate = grün
+        style.configure("Annotate.TButton",
+                        background="#66CC66",  # soft green
+                        relief="flat",
+                        borderwidth=1,
+                        padding=(8, 6),
+                        anchor="center")
 
+        style.map("Annotate.TButton",
+                background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
+                relief=[("pressed", "sunken"), ("!pressed", "flat")])
+
+        # 🗑️ Delete Selected Box = grau (wie bisher)
+        style.configure("Delete.TButton",
+                        background="#DDDDDD",
+                        relief="flat",
+                        borderwidth=1,
+                        padding=(8, 6),
+                        anchor="center")
+
+        style.map("Delete.TButton",
+                background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
+                relief=[("pressed", "sunken"), ("!pressed", "flat")])
+
+        # ❌ Clear All = rot
+        style.configure("Clear.TButton",
+                        background="#FF6666",  # soft red
+                        relief="flat",
+                        borderwidth=1,
+                        padding=(8, 6),
+                        anchor="center")
+
+        style.map("Clear.TButton",
+                background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
+                relief=[("pressed", "sunken"), ("!pressed", "flat")])
 
 
 
