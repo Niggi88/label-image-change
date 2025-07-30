@@ -311,6 +311,12 @@ class ImagePairViewer(ttk.Frame):
             self.image2.load_image(self.image_pairs[self.current_index][1])
             self.image2._resize_image()
             print("Flicker stopped")
+            pair_state = self.annotations.get_pair_annotation(self.current_index).get("pair_state")
+            color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(pair_state)
+            if color:
+                self.image1.draw_canvas_outline(color)
+                self.image2.draw_canvas_outline(color)
+
 
     def _run_flicker(self):
         if not self.flicker_running:
@@ -322,6 +328,12 @@ class ImagePairViewer(ttk.Frame):
         self.image2.load_image(img)
         self.image2._resize_image()
 
+        # Re-draw the outline
+        pair_state = self.annotations.get_pair_annotation(self.current_index).get("pair_state")
+        color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(pair_state)
+        if color:
+            self.image1.draw_canvas_outline(color)
+            self.image2.draw_canvas_outline(color)
         self.after(100, self._run_flicker)
 
 
@@ -332,6 +344,8 @@ class ImagePairViewer(ttk.Frame):
             self.flicker_running = False
             self.flicker_active = False
             print("Flicker automatically stopped due to navigation.")
+
+
 
     def reset(self, src, initial=False):
         print("[RESET] Loading session from:", src)
@@ -775,7 +789,7 @@ class ImagePairViewer(ttk.Frame):
             pair_state = annotation.get("pair_state")
 
             if pair_state == ImageAnnotation.Classes.NO_ANNOTATION:
-                color = "#B497B8"  # hellblau
+                color = "#B497B8" 
             elif pair_state == ImageAnnotation.Classes.CHAOS:
                 color = "orange"
             elif pair_state == ImageAnnotation.Classes.NOTHING:
