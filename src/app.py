@@ -215,6 +215,13 @@ class ImagePairViewer(ttk.Frame):
 
 
     def skip_current_session(self):
+        confirm = messagebox.askyesno(
+            "Skip Session?",
+            "Are you sure you want to mark this session as unusable and skip it?"
+        )
+        if not confirm:
+            return  # User chose to cancel
+        
         annotation_path = self.image_pairs.src / "annotations.json"
 
         data = {}
