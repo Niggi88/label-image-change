@@ -287,6 +287,13 @@ class ImagePairViewer(ttk.Frame):
 
         self.after(100, self._run_flicker)
 
+
+    def stop_flicker_if_running(self):
+        if self.flicker_running:
+            self.flicker_running = False
+            self.flicker_active = False
+            print("Flicker automatically stopped due to navigation.")
+
     def reset(self, src, initial=False):
         print("[RESET] Loading session from:", src)
 
@@ -621,6 +628,8 @@ class ImagePairViewer(ttk.Frame):
 
     def load_pair(self, index):
         print("load pair called")
+        
+        self.stop_flicker_if_running()
 
         if self.in_annotation_mode:
             print("Was in annotation mode, toggling off")
