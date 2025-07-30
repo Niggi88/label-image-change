@@ -187,13 +187,26 @@ class ImagePairViewer(ttk.Frame):
         self.global_progress_label = ttk.Label(top_bar, anchor="w")
         self.global_progress_label.grid(row=0, column=0, sticky="w")
 
+        # Container for either the flicker label or the button
+        self.top_right_container = ttk.Frame(top_bar)
+        self.top_right_container.grid(row=0, column=1, sticky="e")
+
+        self.flicker_label = ttk.Label(
+            self.top_right_container,
+            text="Flickering",
+            foreground="green"
+        )
+
         self.skip_session_btn = ttk.Button(
-            top_bar,
+            self.top_right_container,
             text="Skip This Session",
-            style="Danger.TButton",  # optional, use default if not styled
+            style="Danger.TButton",
             command=self.skip_current_session
         )
-        self.skip_session_btn.grid(row=0, column=1, sticky="e")
+
+        # Start with the button shown
+        self.skip_session_btn.pack()
+
 
         self.selected_box_index = None
         self.flicker_running = False
@@ -264,13 +277,26 @@ class ImagePairViewer(ttk.Frame):
 
         self.focus_set()
 
+
+    def update_flicker_ui(self, flickering: bool):
+        # Clear current contents
+        for widget in self.top_right_container.winfo_children():
+            widget.pack_forget()
+
+        if flickering:
+            self.flicker_label.pack()
+        else:
+            self.skip_session_btn.pack()
+
     def toggle_flicker(self):
         if not self.flicker_running:
             self.flicker_running = True
+            self.update_flicker_ui(True)  # ✅ MOVE HERE
             self._run_flicker()
             print("Flicker started")
         else:
             self.flicker_running = False
+            self.update_flicker_ui(False)  # ✅ ADD THIS
             self.image2.load_image(self.image_pairs[self.current_index][1])
             self.image2._resize_image()
             print("Flicker stopped")
@@ -278,7 +304,7 @@ class ImagePairViewer(ttk.Frame):
     def _run_flicker(self):
         if not self.flicker_running:
             return
-
+        
         self.flicker_active = not self.flicker_active
         img = self.image_pairs[self.current_index][0] if self.flicker_active else self.image_pairs[self.current_index][1]
 
@@ -290,6 +316,8 @@ class ImagePairViewer(ttk.Frame):
 
     def stop_flicker_if_running(self):
         if self.flicker_running:
+            self.update_flicker_ui(flickering=False)
+
             self.flicker_running = False
             self.flicker_active = False
             print("Flicker automatically stopped due to navigation.")
@@ -628,7 +656,7 @@ class ImagePairViewer(ttk.Frame):
 
     def load_pair(self, index):
         print("load pair called")
-        
+
         self.stop_flicker_if_running()
 
         if self.in_annotation_mode:
