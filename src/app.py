@@ -196,6 +196,8 @@ class ImagePairViewer(ttk.Frame):
         self.skip_session_btn.grid(row=0, column=1, sticky="e")
 
         self.selected_box_index = None
+        self.flicker_running = False
+        self.flicker_active = False
         self.reset(self.session_paths[self.session_index], initial=True)
 
 
@@ -258,8 +260,32 @@ class ImagePairViewer(ttk.Frame):
         self.master.bind("<d>", lambda _: self.delete_selected_btn.invoke())
         self.master.bind("<x>", lambda _: self.clear_btn.invoke())
         self.master.bind("<u>", lambda _: self.unsure_btn.invoke())
+        self.bind_all("<space>", lambda e: self.toggle_flicker())
+
         self.focus_set()
 
+    def toggle_flicker(self):
+        if not self.flicker_running:
+            self.flicker_running = True
+            self._run_flicker()
+            print("Flicker started")
+        else:
+            self.flicker_running = False
+            self.image2.load_image(self.image_pairs[self.current_index][1])
+            self.image2._resize_image()
+            print("Flicker stopped")
+
+    def _run_flicker(self):
+        if not self.flicker_running:
+            return
+
+        self.flicker_active = not self.flicker_active
+        img = self.image_pairs[self.current_index][0] if self.flicker_active else self.image_pairs[self.current_index][1]
+
+        self.image2.load_image(img)
+        self.image2._resize_image()
+
+        self.after(100, self._run_flicker)
 
     def reset(self, src, initial=False):
         print("[RESET] Loading session from:", src)
