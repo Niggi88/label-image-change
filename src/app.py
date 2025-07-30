@@ -113,6 +113,15 @@ class PairViewerApp(tk.Tk):
                 relief=[("pressed", "sunken"), ("!pressed", "flat")])
 
 
+        style.configure("Unsure.TButton",
+                                background="#F07EFF",
+                                relief="flat",
+                                borderwidth=1,
+                                padding=(8, 6),
+                                anchor="center")
+        style.map("Unsure.TButton",
+                background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
+                relief=[("pressed", "sunken"), ("!pressed", "flat")])
 
             # Create the pair viewer with required arguments
         self.pair_viewer = ImagePairViewer(self, DATASET_DIR)
@@ -248,6 +257,7 @@ class ImagePairViewer(ttk.Frame):
         self.master.bind("<c>", lambda _: self.chaos_btn.invoke())
         self.master.bind("<d>", lambda _: self.delete_selected_btn.invoke())
         self.master.bind("<x>", lambda _: self.clear_btn.invoke())
+        self.master.bind("<u>", lambda _: self.unsure_btn.invoke())
         self.focus_set()
 
 
@@ -321,14 +331,19 @@ class ImagePairViewer(ttk.Frame):
         self.clear_btn = ttk.Button(
             controls, text="Reset All",
             style="Clear.TButton",
-            command=self.clear_current_boxes
+            command=lambda: self.clear_current_boxes(skip=False)
         )
 
-
+        self.unsure_btn = ttk.Button(
+            controls, text="Unsure",
+            style="Unsure.TButton",
+            command=lambda: self.clear_current_boxes(skip=True)
+        )
 
 
         self.nothing_btn.pack(side="left", fill="x", expand=True)
         self.chaos_btn.pack(side="left", fill="x", expand=True)
+        self.unsure_btn.pack(side="left", fill="x", expand=True)
         self.annotate_btn.pack(side="left", fill="x", expand=True)
         self.delete_selected_btn.pack(side="left", fill="x", expand=True)
         self.clear_btn.pack(side="left", fill="x", expand=True)
@@ -386,7 +401,7 @@ class ImagePairViewer(ttk.Frame):
 
 
 
-    def clear_current_boxes(self):
+    def clear_current_boxes(self, skip):
         """Clear all boxes for the current image pair and update JSON"""
         print(f"Clearing boxes for pair {self.current_index}")
 
@@ -420,9 +435,11 @@ class ImagePairViewer(ttk.Frame):
             image2=self.image2,          # AnnotatableImage!
             pair_state=pair_state
         )
+        
         self.update_ui_state(pair_state=pair_state)
         print(f"Boxes cleared for pair {self.current_index}")
-
+        if skip == True:
+            self.right()
     def delete_selected_box(self):
         if self.selected_box_index is None:
             print("No box selected!")
