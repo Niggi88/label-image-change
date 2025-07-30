@@ -60,7 +60,7 @@ class PairViewerApp(tk.Tk):
         button_colors = {
             "Nothing": "#ADD8E6",       # hellblau
             "Chaos": "#FFD700",         # gelb
-            "NoAnnotation": "#999999"   # grau
+            "NoAnnotation": "#B497B8"   # grau
         }
 
         for name, color in button_colors.items():
@@ -114,7 +114,7 @@ class PairViewerApp(tk.Tk):
 
 
         style.configure("Unsure.TButton",
-                                background="#F07EFF",
+                                background="#B497B8",
                                 relief="flat",
                                 borderwidth=1,
                                 padding=(8, 6),
@@ -455,8 +455,8 @@ class ImagePairViewer(ttk.Frame):
         self.image1.canvas.delete("canvas_outline")
         self.image2.canvas.delete("canvas_outline")
         if new_state == ImageAnnotation.Classes.NO_ANNOTATION:
-            self.image1.draw_canvas_outline("grey")
-            self.image2.draw_canvas_outline("grey")
+            self.image1.draw_canvas_outline("#B497B8")
+            self.image2.draw_canvas_outline("#B497B8")
 
         self.delete_selected_btn.state(['!pressed'])
 
@@ -583,7 +583,7 @@ class ImagePairViewer(ttk.Frame):
                 if button_id == ImageAnnotation.Classes.CHAOS:
                     outline_color = "orange"
                 elif button_id == ImageAnnotation.Classes.NOTHING:
-                    outline_color = "grey"
+                    outline_color = "#ADD8E6"
                 else:
                     outline_color = None
 
@@ -759,11 +759,11 @@ class ImagePairViewer(ttk.Frame):
             pair_state = annotation.get("pair_state")
 
             if pair_state == ImageAnnotation.Classes.NO_ANNOTATION:
-                color = "#add8e6"  # hellblau
+                color = "#B497B8"  # hellblau
             elif pair_state == ImageAnnotation.Classes.CHAOS:
                 color = "orange"
             elif pair_state == ImageAnnotation.Classes.NOTHING:
-                color = "grey"
+                color = "#add8e6"
             else:
                 color = None  # keine Outline
 

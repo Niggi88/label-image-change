@@ -37,7 +37,7 @@ class ImageAnnotation:
         PAIR_STATE_COLORS = {
             NOTHING: "#ADD8E6",         # hellblau
             CHAOS: "#FFD700",          # gelb
-            NO_ANNOTATION: "#999999",  # grau
+            NO_ANNOTATION: "#B497B8",  # grau
             ANNOTATED: None            # keine Outline
         }
 

@@ -348,7 +348,7 @@ class AnnotatableImage(ttk.Frame):
             elif annotation_type == ImageAnnotation.Classes.ANNOTATION_X:
                 outline = "red"
             else:
-                outline = "grey"
+                outline = "#B497B8"
 
             # Highlight selected box
             if is_selected:
