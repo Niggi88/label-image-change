@@ -108,6 +108,16 @@ class ImageAnnotation:
         pair_id = str(image1.controller.current_index)
         print("[DEBUG] Saving annotation for pair_id:", pair_id)
 
+
+        # ✅ STEP 1 — check if this is the first meaningful annotation
+        prev = self.annotations.get(pair_id)
+        prev_state = prev.get("pair_state") if prev else None
+        is_first_real_annotation = (
+            prev_state not in self.Classes.PAIR_STATES and
+            pair_state in self.Classes.PAIR_STATES
+        )
+
+
         boxes1 = image1.get_boxes()
         boxes2 = image2.get_boxes()
         print(f"[DEBUG] image1 boxes: {len(boxes1)} | image2 boxes: {len(boxes2)}")
@@ -141,6 +151,9 @@ class ImageAnnotation:
             "image2_size": image2.image_size,
             "boxes": final_boxes
         }
+        if is_first_real_annotation:
+            from app import report_annotation, USERNAME
+            report_annotation(USERNAME, class_name=pair_state)
 
         self.save_annotations()
         print(f"[SAVE] Pair {pair_id} saved with {len(final_boxes)} boxes.")

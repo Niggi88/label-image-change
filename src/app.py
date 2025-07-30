@@ -14,6 +14,24 @@ import base64
 import io
 import copy
 import json
+import requests
+
+
+def report_annotation(user, class_name="unknown"):
+    try:
+        response = requests.post(
+            "http://172.30.20.31:8010/api/annotate",
+            json={
+                "username": user,
+                "className": class_name,
+                "count": 1
+            },
+            timeout=1
+        )
+        print("[INFO] Reported annotation:", response.status_code)
+    except Exception as e:
+        print(f"[WARN] Could not send annotation count: {e}")
+
 
 
 class ImagePairList(list):
@@ -634,7 +652,14 @@ class ImagePairViewer(ttk.Frame):
             print(f"[before_action] Calling right() after classification: {button_id}")
             self.right()
 
+
+        pair_state = self.annotations.get_pair_annotation(self.current_index).get("pair_state")
+        report_annotation(USERNAME, class_name=pair_state)
+
         self.refocus_after_button()
+
+
+
 
     def process_action(self):
         print("State was set to:", self.state)
