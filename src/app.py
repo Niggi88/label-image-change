@@ -213,6 +213,8 @@ class ImagePairViewer(ttk.Frame):
         self.flicker_active = False
         self.reset(self.session_paths[self.session_index], initial=True)
 
+    def refocus_after_button(self):
+        self.focus_set()  # Put focus back to main frame (not the button)
 
     def skip_current_session(self):
         confirm = messagebox.askyesno(
@@ -248,6 +250,8 @@ class ImagePairViewer(ttk.Frame):
         else:
             messagebox.showinfo("Done", "All sessions completed.")
             self.quit()
+        self.refocus_after_button()
+
 
     def update_global_progress(self):
         session_name = self.image_pairs.src.name
@@ -467,6 +471,7 @@ class ImagePairViewer(ttk.Frame):
 
         self.delete_selected_btn.state(['!pressed'])
 
+        self.refocus_after_button()
 
 
     def clear_current_boxes(self, skip):
@@ -508,6 +513,9 @@ class ImagePairViewer(ttk.Frame):
         print(f"Boxes cleared for pair {self.current_index}")
         if skip == True:
             self.right()
+
+        self.refocus_after_button()
+
     def delete_selected_box(self):
         if self.selected_box_index is None:
             print("No box selected!")
@@ -612,6 +620,7 @@ class ImagePairViewer(ttk.Frame):
             print(f"[before_action] Calling right() after classification: {button_id}")
             self.right()
 
+        self.refocus_after_button()
 
     def process_action(self):
         print("State was set to:", self.state)
