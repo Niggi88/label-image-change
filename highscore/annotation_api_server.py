@@ -109,7 +109,7 @@ async def update_annotation(annotation: AnnotationUpdate):
 
         else:
             # Not "no_annotation"
-            if is_new_pair:
+            if is_new_pair or old_class == "no_annotation":
                 user_data["total"] += 1
                 data["totalAnnotations"] += 1
             elif class_changed and old_class != "no_annotation":
