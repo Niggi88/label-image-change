@@ -14,6 +14,8 @@ import base64
 import io
 import copy
 import json
+import requests
+
 
 
 class ImagePairList(list):

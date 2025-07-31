@@ -4,6 +4,7 @@ from config import *
 import os
 from typing import TYPE_CHECKING
 from datetime import datetime
+from utils import report_annotation, already_annotated_on_server
 
 if TYPE_CHECKING:
     from app import ImagePairViewer
@@ -108,6 +109,7 @@ class ImageAnnotation:
         pair_id = str(image1.controller.current_index)
         print("[DEBUG] Saving annotation for pair_id:", pair_id)
 
+
         boxes1 = image1.get_boxes()
         boxes2 = image2.get_boxes()
         print(f"[DEBUG] image1 boxes: {len(boxes1)} | image2 boxes: {len(boxes2)}")
@@ -141,6 +143,14 @@ class ImageAnnotation:
             "image2_size": image2.image_size,
             "boxes": final_boxes
         }
+
+        session_path = Path(make_relative_path(image1.image_path)).parent
+        session_id = str(session_path).replace(os.sep, "_")
+        pair_id_unique = f"{session_id}_{image1.controller.current_index}"
+
+        print(f"[HIGHSCORE] Sending annotation for pair {pair_id_unique}: {pair_state}")
+        report_annotation(USERNAME, class_name=pair_state, pair_id=pair_id_unique)
+
 
         self.save_annotations()
         print(f"[SAVE] Pair {pair_id} saved with {len(final_boxes)} boxes.")

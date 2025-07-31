@@ -15,7 +15,8 @@ if HOSTNAME == "niggis-brain":
 elif HOSTNAME == "KPKP":
     DATASET_DIR = f"/home/niklas/dataset/bildunterschied/test_mini/{DATASET_NAME}"
 elif HOSTNAME == "sarah-XPS-15-9530":
-    DATASET_NAME = "small_relevant_sessions"
+    USERNAME = "sarah"
+    DATASET_NAME = "test_highscore"
     # DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
     DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
 else:
