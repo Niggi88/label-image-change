@@ -1,4 +1,4 @@
-# server.py - FastAPI annotation leaderboard server
+# server.py - Updated to use SQLite database (NO ASYNC CHANGES!)
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -6,13 +6,17 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Dict, Optional
-import json
 import os
 from pathlib import Path
 
+# ONLY CHANGE: Replace JSON import with database import
+# OLD: import json
+# NEW: Import your database module
+from highscore_db import initialize_data_file, read_data, write_data, get_database_stats
+
 app = FastAPI(title="Annotation Leaderboard API")
 
-# Enable CORS
+# Enable CORS (UNCHANGED)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,17 +25,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Data file path
-DATA_FILE = "highscore_list.json"
+# REMOVE: No more DATA_FILE needed!
+# OLD: DATA_FILE = "highscore_list.json"
 
-# Request models
+# Request models (UNCHANGED)
 class AnnotationUpdate(BaseModel):
     username: str
     className: str
     pairId: str
     count: int = 1
 
-# Response models
+# Response models (UNCHANGED)
 class UserStats(BaseModel):
     total: int
     classes: Dict[str, int]
@@ -48,46 +52,31 @@ class LeaderboardResponse(BaseModel):
     totalAnnotations: int
     lastUpdated: str
 
-# Initialize data file if it doesn't exist
-def initialize_data_file():
-    if not os.path.exists(DATA_FILE):
-        initial_data = {
-            "users": {},
-            "totalAnnotations": 0,
-            "lastUpdated": datetime.now().isoformat()
-        }
-        with open(DATA_FILE, 'w') as f:
-            json.dump(initial_data, f, indent=2)
+# REMOVE: Old functions are now in database.py!
+# OLD: def initialize_data_file(): ...
+# OLD: def read_data(): ...  
+# OLD: def write_data(data): ...
 
-# Read data from file
-def read_data():
-    with open(DATA_FILE, 'r') as f:
-        return json.load(f)
-
-# Write data to file
-def write_data(data):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
-
-# Initialize on startup
+# Initialize on startup (UNCHANGED - still synchronous!)
 initialize_data_file()
 
-# API Routes
+# API Routes (COMPLETELY UNCHANGED!)
 
 @app.get("/api/stats")
 async def get_stats():
-    """Get all statistics"""
+    """Get all statistics (UNCHANGED)"""
     try:
-        data = read_data()
+        data = read_data()  # Same call, no await needed!
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to read stats")
 
 @app.post("/api/annotate")
 async def update_annotation(annotation: AnnotationUpdate):
+    # YOUR EXISTING CODE - COMPLETELY UNCHANGED!
     try:
         print(f"[SERVER] Received annotation from {annotation.username} for {annotation.pairId}: {annotation.className}")
-        data = read_data()
+        data = read_data()  # Same call!
 
         user_data = data["users"].setdefault(annotation.username, {
             "total": 0,
@@ -138,7 +127,7 @@ async def update_annotation(annotation: AnnotationUpdate):
         user_data["lastAnnotation"] = now
         data["lastUpdated"] = now
 
-        write_data(data)
+        write_data(data)  # Same call!
 
         print(f"[SERVER] Updated {annotation.username}: pair={pair_id}, class={new_class}, total={user_data['total']}, classes={user_data['classes']}")
 
@@ -151,14 +140,11 @@ async def update_annotation(annotation: AnnotationUpdate):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update annotation: {e}")
 
-
-
-
 @app.get("/api/leaderboard", response_model=LeaderboardResponse)
 async def get_leaderboard():
-    """Get the leaderboard sorted by total annotations"""
+    """Get the leaderboard sorted by total annotations (UNCHANGED)"""
     try:
-        data = read_data()
+        data = read_data()  # Same call!
         
         # Convert users dict to sorted leaderboard list
         leaderboard = []
@@ -181,19 +167,24 @@ async def get_leaderboard():
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to get leaderboard")
 
-# Mount static files (for serving the HTML)
+# BONUS: New endpoint to check database health
+@app.get("/api/database/stats")
+async def get_database_stats_endpoint():
+    """Get database statistics and health info"""
+    try:
+        return get_database_stats()  # No await needed!
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to get database stats")
+
+# Mount static files (UNCHANGED)
 app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
-# Serve the main page
+# Serve the main page (UNCHANGED)
 @app.get("/")
 async def read_index():
     return FileResponse('static/index.html')
 
-# Example usage from your labeling tool:
-
-
 if __name__ == "__main__":
     import uvicorn
-    # Run with: python server.py
-    # Or with hot reload: uvicorn server:app --reload
+    # INSTALL: pip install (no aiosqlite needed - using regular sqlite3!)
     uvicorn.run(app, host="0.0.0.0", port=8010)
