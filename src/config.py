@@ -12,6 +12,7 @@ HOSTNAME = socket.gethostname()
 
 if HOSTNAME == "niggis-brain":
     DATASET_DIR = f"/media/fast/dataset/bildunterschied/test_mini/new_label_tool/{DATASET_NAME}"
+    USERNAME = "niklas"
 elif HOSTNAME == "KPKP":
     DATASET_DIR = f"/home/niklas/dataset/bildunterschied/test_mini/{DATASET_NAME}"
 elif HOSTNAME == "sarah-XPS-15-9530":
