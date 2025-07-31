@@ -1,0 +1,25 @@
+{
+  "users": {
+    "sarah": {
+      "total": 4,
+      "classes": {
+        "nothing": 1,
+        "no_annotation": 4,
+        "chaos": 5
+      },
+      "lastAnnotation": "2025-07-31T15:21:21.515410",
+      "pairs": {
+        "store_283eba02-97fd-4284-8da2-a5d91badac98_session_80b4f657-4b46-496d-9f4a-63a4384109e4_0": "nothing",
+        "store_283eba02-97fd-4284-8da2-a5d91badac98_session_80b4f657-4b46-496d-9f4a-63a4384109e4_1": "chaos",
+        "store_283eba02-97fd-4284-8da2-a5d91badac98_session_80b4f657-4b46-496d-9f4a-63a4384109e4_2": "no_annotation",
+        "store_283eba02-97fd-4284-8da2-a5d91badac98_session_80b4f657-4b46-496d-9f4a-63a4384109e4_3": "no_annotation",
+        "store_283eba02-97fd-4284-8da2-a5d91badac98_session_80b4f657-4b46-496d-9f4a-63a4384109e4_4": "chaos",
+        "store_283eba02-97fd-4284-8da2-a5d91badac98_session_80b4f657-4b46-496d-9f4a-63a4384109e4_5": "chaos",
+        "store_283eba02-97fd-4284-8da2-a5d91badac98_session_80b4f657-4b46-496d-9f4a-63a4384109e4_6": "chaos",
+        "store_283eba02-97fd-4284-8da2-a5d91badac98_session_80b4f657-4b46-496d-9f4a-63a4384109e4_7": "chaos"
+      }
+    }
+  },
+  "totalAnnotations": 4,
+  "lastUpdated": "2025-07-31T15:21:21.515410"
+}
