@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 from pathlib import Path
-from utils import resize_with_aspect_ratio
+from utils import resize_with_aspect_ratio, flush_annotation_cache
 from horizontal_spinner import HorizontalSpinner
 # from image_cache import ImageCache
 from image_annotation import ImageAnnotation
@@ -209,6 +209,13 @@ class ImagePairViewer(ttk.Frame):
         # Start with the button shown
         self.skip_session_btn.pack()
 
+        self.flush_btn = ttk.Button(
+            self.top_right_container,
+            text="Flush Cache",
+            style="Clear.TButton",
+            command=self.flush_cache
+        )
+        self.flush_btn.pack(pady=(4, 0))  # slight spacing below the skip button
 
         self.selected_box_index = None
         self.flicker_running = False
@@ -253,6 +260,11 @@ class ImagePairViewer(ttk.Frame):
             messagebox.showinfo("Done", "All sessions completed.")
             self.quit()
         self.refocus_after_button()
+
+    def flush_cache(self):
+        print("[FLUSH] Attempting to upload cached annotations...")
+        flush_annotation_cache()
+        messagebox.showinfo("Flush Complete", "Cached annotations were flushed to the server (if reachable).")
 
 
     def update_global_progress(self):

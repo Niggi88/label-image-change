@@ -1,5 +1,7 @@
 from PIL import Image
 import requests
+import os
+import json
 
 try:
     resample_filter = Image.Resampling.LANCZOS
@@ -36,20 +38,25 @@ def resize_with_aspect_ratio(pil_img, base_width=None, base_height=None):
 
 
 def report_annotation(user, class_name="unknown", pair_id=None):
+    annotation_payload = {
+        "username": user,
+        "className": class_name,
+        "pairId": pair_id,
+        "count": 1
+    }
+
     try:
         response = requests.post(
             "http://172.30.20.31:8010/api/annotate",
-            json={
-                "username": user,
-                "className": class_name,
-                "pairId": pair_id,
-                "count": 1
-            },
+            json=annotation_payload,
             timeout=1
         )
+        response.raise_for_status()  # raises if 500, 400, etc.
         print("[INFO] Reported annotation:", response.status_code)
     except Exception as e:
-        print(f"[WARN] Could not send annotation count: {e}")
+        print(f"[WARN] Could not send annotation, caching: {e}")
+        cache_annotation(annotation_payload)
+
 
 import requests
 
@@ -69,3 +76,46 @@ def already_annotated_on_server(username: str, pair_id: str) -> bool:
         print(f"[WARN] Failed to check server annotation status: {e}")
         # Fallback: assume already annotated to be safe
         return True
+
+
+def cache_annotation(annotation):
+    cache_file = "annotation_cache.json"
+    try:
+        cache = []
+        if os.path.exists(cache_file):
+            with open(cache_file) as f:
+                cache = json.load(f)
+        cache.append(annotation)
+        with open(cache_file, "w") as f:
+            json.dump(cache, f, indent=2)
+    except Exception as e:
+        print(f"[ERROR] Failed to cache annotation: {e}")
+
+
+from collections import defaultdict
+
+def flush_annotation_cache():
+    cache_file = "annotation_cache.json"
+    if not os.path.exists(cache_file):
+        return
+
+    with open(cache_file) as f:
+        cached = json.load(f)
+
+    # Aggregate by (username, pairId) → use the latest className
+    grouped = {}
+    for annotation in cached:
+        key = (annotation["username"], annotation["pairId"])
+        grouped[key] = annotation  # Latest annotation overrides previous ones
+
+    remaining = []
+    for ann in grouped.values():
+        try:
+            res = requests.post("http://172.30.20.31:8010/api/annotate", json=ann)
+            res.raise_for_status()
+        except Exception as e:
+            print(f"[WARN] Failed to upload cached annotation: {e}")
+            remaining.append(ann)
+
+    with open(cache_file, "w") as f:
+        json.dump(remaining, f, indent=2)
