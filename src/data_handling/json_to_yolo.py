@@ -1,6 +1,8 @@
+import sys
 import json
 import shutil
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from itertools import chain
 from config import DATASET_DIR
 
@@ -41,23 +43,21 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
 
     root_path = Path(annotations["_meta"]["root"])
     # === EXPORT LOOP ===
-    for pair_id, pair_data in annotations.items():
+    for i, (pair_id, pair_data) in enumerate(annotations.items()):
+        index += 1
         if pair_id == "_meta":
             continue  # skip metadata
-        if int(pair_id) % 10 == 0:
+        if i % 10 == 0:
             yolo_paths = yolo_splitted_paths.val
         else:
             yolo_paths = yolo_splitted_paths.train
             
-        im1_path = root_path / pair_data["im2_path"]
-        im2_path = root_path / pair_data["im1_path"]
+        im1_path = root_path / pair_data["im1_path"]
+        im2_path = root_path / pair_data["im2_path"]
         index_string = str(index).zfill(7)
 
         im1_target = yolo_paths.images1 / f"{index_string}{im1_path.suffix}"
         im2_target = yolo_paths.images2 / f"{index_string}{im2_path.suffix}"
-
-        shutil.copy(im1_path, im1_target)
-        shutil.copy(im2_path, im2_target)
 
         # === Save YOLO labels ONLY for images1 ===
         pair_state = pair_data.get("pair_state", "no_annotation").lower()
@@ -74,7 +74,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
             for box in boxes:
                 atype = box.get("annotation_type")
                 if atype not in {"item_added", "item_removed"}:
-                    continue
+                    raise Exception(f"invalid atype: {atype}")
                 x1, y1, x2, y2 = float(box["x1"]), float(box["y1"]), float(box["x2"]), float(box["y2"])
                 cx = ((x1 + x2) / 2) / img_w
                 cy = ((y1 + y2) / 2) / img_h
@@ -83,10 +83,14 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
                 class_id = "2" if atype == "item_added" else "3"
                 label_lines.append(f"{class_id} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
         elif pair_state == "no_annotation":
-            continue  # skip saving anything
+            continue
+            #label_lines = ["0"]  # skip saving anything
         else:
             label_lines = ["0"]
 
+        shutil.copy(im1_path, im1_target)
+        shutil.copy(im2_path, im2_target)
+        
         image_size = pair_data.get("image1_size")
         img_w, img_h = image_size
         img_w, img_h = float(img_w), float(img_h)
@@ -99,9 +103,11 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
             print(f"   Image1: {im1_target}")
             print(f"   Image2: {im2_target}")
             print(f"   Labels: {label_path}")
-            index += 1
+            if index == 93: exit()
+        
 
     print("\n🎉 Export finished successfully!")
+
     return index
 
 
@@ -109,7 +115,7 @@ if __name__ == "__main__":
     
     # === CONFIG ===
     # yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/v2_tiny"))
-    yolo_splitted_paths = YoloPathsSplit(Path("./yolo_output"))
+    yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/v3_tiny"))
     # IMAGES1_DIR = EXPORT_DIR / "images"
     # IMAGES2_DIR = EXPORT_DIR / "images2"
     # LABELS_DIR = EXPORT_DIR / "labels"
@@ -124,18 +130,19 @@ if __name__ == "__main__":
     dataset_small_set = Path("/media/fast/dataset/bildunterschied/test_mini/small_set").glob("**/converted_data.json")
     dataset_small_set2 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set2").glob("**/converted_data.json")
     dataset_small_set3 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set3").glob("**/converted_data.json")
-    dataset_one = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one").glob("**/annotations.json")
-    dataset_sarah = Path("/home/sarah/Documents/background_segmentation/small_relevant_sessions").glob("**/annotations.json")
+    # dataset_one = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one").glob("**/annotations.json")
+    # dataset_sarah = Path("/home/sarah/Documents/background_segmentation/small_relevant_sessions").glob("**/annotations.json")
     
     dataset_config = Path(DATASET_DIR)
     
     annotation_files = chain(
-        # dataset_small_set,
-        # dataset_one,
+        dataset_small_set,
+        dataset_small_set2,
+        dataset_small_set3,
         # dataset_small_set2,
         # dataset_small_set3,
         # folder_path.glob("**/*.json")
-        dataset_config
+        # dataset_config
     )
     index = 0
     for f in annotation_files:
@@ -145,10 +152,9 @@ if __name__ == "__main__":
     from yolo_config import generate_dataset_config
     
     class_names = [
-        "nothing_changed",  # 0
+        "nothing",  # 0
         "chaos",            # 1
-        "item_added",       # 2
-        "item_removed"      # 3
+        "annotated",       # 2
     ]
     
     generate_dataset_config(
