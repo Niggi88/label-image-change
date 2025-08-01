@@ -6,9 +6,10 @@ A simple tool for annotating changes between consecutive images. Created to labe
 
 # 0: start highscore counter
 * log into user sam
-* cd backend/cart_SAMbackend
+* cd backend/cart_SAMbackend/highscore
 * source sam_venv/bin/activate
 * open tmux window: tmux new-session -s highscore
+
 
 (* run: python3 highscore/annotation-api-server.py) // maybe dont do that, because the server then crashes? 
 * rather run: uvicorn annotation_api_server:app --host 0.0.0.0 --port 8010 --reload
