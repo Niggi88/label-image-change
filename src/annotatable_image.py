@@ -93,6 +93,98 @@ class AnnotatableImage(ttk.Frame):
         self._image = None  # Keep reference to avoid garbage collection
         self._scale_factor = 1.0
     
+        self.moving_box = False
+        self.move_start_x = None
+        self.move_start_y = None
+        self.moving_box_index = None
+        self.move_start_coords = None
+
+
+        self.canvas.bind("<Button-3>", self.on_right_click)
+        self.canvas.bind("<B3-Motion>", self.on_right_drag)
+        self.canvas.bind("<ButtonRelease-3>", self.on_right_release)
+
+
+    def on_right_click(self, event):
+        x = self.canvas.canvasx(event.x)
+        y = self.canvas.canvasy(event.y)
+
+        # Get index of the box at the clicked location
+        index = self.get_box_at(x, y)  # ✅ this returns an integer index
+
+        if index is not None:
+            self.moving_box_index = index
+            self.move_start_coords = (x, y)
+            print(f"[MOVE] Selected box {index} for moving")
+        else:
+            print("[MOVE] No box at clicked position")
+
+    def get_box_at(self, x, y):
+        """Return index of box that contains (canvas-x, canvas-y) by converting to image-space"""
+        image_x = int((x - self._offset_x) / self._scale_factor)
+        image_y = int((y - self._offset_y) / self._scale_factor)
+
+        for i, box in enumerate(self.boxes):
+            if box["x1"] <= image_x <= box["x2"] and box["y1"] <= image_y <= box["y2"]:
+                return i
+        return None
+
+
+    def on_right_drag(self, event):
+        if self.moving_box_index is None:
+            return
+
+        new_x = self.canvas.canvasx(event.x)
+        new_y = self.canvas.canvasy(event.y)
+
+        dx = new_x - self.move_start_coords[0]
+        dy = new_y - self.move_start_coords[1]
+
+        box = self.boxes[self.moving_box_index]
+        box["x1"] += dx
+        box["y1"] += dy
+        box["x2"] += dx
+        box["y2"] += dy
+
+        self.move_start_coords = (new_x, new_y)
+
+        self.display_boxes(self.boxes)
+
+    def on_right_release(self, event):
+        if self.moving_box_index is not None:
+            print(f"[MOVE] Finished moving box {self.moving_box_index}")
+
+            moved_box = self.boxes[self.moving_box_index]
+            pair_id = moved_box.get("pair_id")
+            if not pair_id:
+                print("[WARN] Moved box has no pair_id.")
+                return
+
+            # Get the mirrored box in the other image
+            other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
+            for box in other_image.boxes:
+                if box.get("pair_id") == pair_id:
+                    # Update position
+                    box["x1"] = moved_box["x1"]
+                    box["y1"] = moved_box["y1"]
+                    box["x2"] = moved_box["x2"]
+                    box["y2"] = moved_box["y2"]
+                    break
+            else:
+                print("[WARN] No mirrored box found.")
+
+            # Redraw boxes in both views
+            self.display_boxes(self.boxes)
+            other_image.display_boxes(other_image.boxes)
+
+            # Auto-save
+            if self.controller:
+                self.controller.save_current_boxes()
+
+            # Reset state
+            self.moving_box_index = None
+            self.move_start_coords = None
+
 
 
     def load_image(self, image_path, boxes=None):
