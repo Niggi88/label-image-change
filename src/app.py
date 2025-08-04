@@ -462,7 +462,7 @@ class ImagePairViewer(ttk.Frame):
         )
 
         self.clear_btn = ttk.Button(
-            controls, text="Reset All",
+            controls, text="Reset",
             style="Clear.TButton",
             command=lambda: self.clear_current_boxes(skip=False)
         )
