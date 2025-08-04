@@ -105,6 +105,28 @@ class AnnotatableImage(ttk.Frame):
         self.canvas.bind("<ButtonRelease-3>", self.on_right_release)
 
 
+        self.crosshair_lines = []
+        self.canvas.bind("<Motion>", self.show_crosshair)
+        self.canvas.bind("<Leave>", lambda e: self.clear_crosshair())
+
+    def show_crosshair(self, event):
+        self.clear_crosshair()
+
+        x = self.canvas.canvasx(event.x)
+        y = self.canvas.canvasy(event.y)
+        width = self.canvas.winfo_width()
+        height = self.canvas.winfo_height()
+
+        horiz = self.canvas.create_line(0, y, width, y, fill="gray", dash=(2, 2), tags="crosshair")
+        vert = self.canvas.create_line(x, 0, x, height, fill="gray", dash=(2, 2), tags="crosshair")
+        self.crosshair_lines = [horiz, vert]
+
+
+    def clear_crosshair(self):
+        for line in self.crosshair_lines:
+            self.canvas.delete(line)
+        self.crosshair_lines = []
+
     def on_right_click(self, event):
         x = self.canvas.canvasx(event.x)
         y = self.canvas.canvasy(event.y)
