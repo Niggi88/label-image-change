@@ -281,6 +281,15 @@ class AnnotatableImage(ttk.Frame):
         return (int(size[0] * ratio), int(size[1] * ratio))
     
     def start_box(self, event):
+        x = self.canvas.canvasx(event.x)
+        y = self.canvas.canvasy(event.y)
+        box_index = self.get_box_at(x, y)
+        if box_index is not None:
+            print(f"[SELECT] Box {box_index} selected by click.")
+            self.select_box(box_index)
+            return
+        
+        print("No box found, start_box")
         if not self.drawing:
             return
         # Clamp innerhalb Bild-Bereich:
@@ -494,7 +503,7 @@ class AnnotatableImage(ttk.Frame):
                 dash=dash
             )
             self.box_rects.append(rect_id)
-            self.canvas.tag_bind(rect_id, "<Button-1>", lambda e, i=idx: self.select_box(i))
+            # self.canvas.tag_bind(rect_id, "<Button-1>", lambda e, i=idx: self.select_box(i))
 
         self.display_mask()
 
