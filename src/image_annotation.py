@@ -11,15 +11,17 @@ if TYPE_CHECKING:
     from image_annotation import ImageAnnotation
 
 
+
 def make_relative_path(abs_path):
-    """Convert an absolute image path to relative based on the dataset root"""
-    return os.path.relpath(str(Path(abs_path).resolve()), start=str(Path(DATASET_DIR).resolve()))
+    """Convert an absolute image path to POSIX-style relative based on the dataset root"""
+    return Path(abs_path).resolve().relative_to(Path(DATASET_DIR).resolve()).as_posix()
 
 
 def make_absolute_path(relative_path, annotations_meta):
-    """Reconstruct absolute path from relative path and meta root"""
-    root = annotations_meta.get("root", str(DATASET_DIR))
-    return os.path.join(root, relative_path)
+    """Reconstruct absolute path from POSIX-style relative path and meta root"""
+    root = Path(annotations_meta.get("root", DATASET_DIR))
+    return (root / Path(relative_path)).resolve()
+
 
 
 class ImageAnnotation:

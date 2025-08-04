@@ -22,6 +22,13 @@ elif HOSTNAME == "sarah-XPS-15-9530":
     DATASET_NAME = "small_relevant_sessions"
     # DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
     DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
+
+elif HOSTNAME == "NB-ENDRES":
+    USERNAME = "sarah_windoof"
+    DATASET_NAME = "example_sessions"
+    # DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
+    DATASET_DIR = rf"C:\Users\sarah.endres\Documents\{DATASET_NAME}"
+
 else:
     raise Exception("Unknown host", HOSTNAME)
 
