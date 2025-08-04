@@ -325,6 +325,39 @@ class ImagePairViewer(ttk.Frame):
             self.image2.load_image(self.image_pairs[self.current_index][1])
             self.image2._resize_image()
             print("Flicker stopped")
+
+            # 🧠 Boxes + Masken nach Flicker neu anzeigen
+            annotation = self.annotations.get_pair_annotation(self.current_index)
+            boxes = annotation.get("boxes", [])
+
+            image1_boxes = []
+            image2_boxes = []
+
+            for box in boxes:
+                box_copy = dict(box)
+                if box["annotation_type"] == ImageAnnotation.Classes.ANNOTATION_X:
+                    image1_boxes.append(box_copy)
+                    mirror = box_copy.copy()
+                    mirror["annotation_type"] = ImageAnnotation.Classes.ANNOTATION
+                    mirror["synced_highlight"] = True
+                    image2_boxes.append(mirror)
+                elif box["annotation_type"] == ImageAnnotation.Classes.ANNOTATION:
+                    image2_boxes.append(box_copy)
+                    mirror = box_copy.copy()
+                    mirror["annotation_type"] = ImageAnnotation.Classes.ANNOTATION_X
+                    mirror["synced_highlight"] = True
+                    image1_boxes.append(mirror)
+
+            self.image1.boxes = image1_boxes
+            self.image2.boxes = image2_boxes
+
+            self.image1.display_boxes(image1_boxes)
+            self.image2.display_boxes(image2_boxes)
+
+            self.image1.display_mask()
+            self.image2.display_mask()
+
+
             pair_state = self.annotations.get_pair_annotation(self.current_index).get("pair_state")
             color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(pair_state)
             if color:
