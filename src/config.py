@@ -5,6 +5,8 @@ CACHE = True
 IMAGE_SIZE=2000
 UI_SCALING=1.5
 FONT_SCALING=1.5
+SERVER_AVAILABLE = None
+
 # DATASET_NAME="complex"
 DATASET_NAME="tmp"
 
@@ -17,7 +19,7 @@ elif HOSTNAME == "KPKP":
     DATASET_DIR = f"/home/niklas/dataset/bildunterschied/test_mini/{DATASET_NAME}"
 elif HOSTNAME == "sarah-XPS-15-9530":
     USERNAME = "sarah"
-    DATASET_NAME = "test_highscore"
+    DATASET_NAME = "relevant_sessions"
     # DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
     DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
 else:

@@ -2,7 +2,7 @@ from PIL import Image
 import requests
 import os
 import json
-
+import config
 try:
     resample_filter = Image.Resampling.LANCZOS
 except AttributeError:
@@ -37,6 +37,27 @@ def resize_with_aspect_ratio(pil_img, base_width=None, base_height=None):
 
 
 
+# def report_annotation(user, class_name="unknown", pair_id=None):
+#     annotation_payload = {
+#         "username": user,
+#         "className": class_name,
+#         "pairId": pair_id,
+#         "count": 1
+#     }
+
+#     try:
+#         response = requests.post(
+#             "http://172.30.20.31:8010/api/annotate",
+#             json=annotation_payload,
+#             timeout=1
+#         )
+#         response.raise_for_status()  # raises if 500, 400, etc.
+#         print("[INFO] Reported annotation:", response.status_code)
+#     except Exception as e:
+#         print(f"[WARN] Could not send annotation, caching: {e}")
+#         cache_annotation(annotation_payload)
+
+
 def report_annotation(user, class_name="unknown", pair_id=None):
     annotation_payload = {
         "username": user,
@@ -45,18 +66,25 @@ def report_annotation(user, class_name="unknown", pair_id=None):
         "count": 1
     }
 
+    # ⛔ Server bereits als nicht verfügbar markiert?
+    if config.SERVER_AVAILABLE is False:
+        print("[SKIP] Server offline, writing to cache")
+        cache_annotation(annotation_payload)
+        return
+
     try:
         response = requests.post(
             "http://172.30.20.31:8010/api/annotate",
             json=annotation_payload,
             timeout=1
         )
-        response.raise_for_status()  # raises if 500, 400, etc.
+        response.raise_for_status()
         print("[INFO] Reported annotation:", response.status_code)
+        config.SERVER_AVAILABLE = True  # ✅ Server OK
     except Exception as e:
         print(f"[WARN] Could not send annotation, caching: {e}")
+        config.SERVER_AVAILABLE = False  # ❌ Server als offline markieren
         cache_annotation(annotation_payload)
-
 
 import requests
 
