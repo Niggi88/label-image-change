@@ -6,19 +6,17 @@ A simple tool for annotating changes between consecutive images. Created to labe
 
 # 0: start highscore counter
 * log into user sam
-* cd backend/cart_SAMbackend/highscore
-* source sam_venv/bin/activate
+* navigate to: cd backend/cart_SAMbackend
+* activate environment: source sam_venv/bin/activate
+* navigate to backend/cart_SAMbackend/highscore
 * open tmux window: tmux new-session -s highscore
+* run: uvicorn annotation_api_server:app --host 0.0.0.0 --port 8010 --reload
 
-
-(* run: python3 highscore/annotation-api-server.py) // maybe dont do that, because the server then crashes? 
-* rather run: uvicorn annotation_api_server:app --host 0.0.0.0 --port 8010 --reload
-
-* open http://172.30.20.31:8010/ in your browsser to see the leaderboard
+* open http://172.30.20.31:8010/ in your browser to see the leaderboard
 
 
 # 1 (optional for generating masks): Start backend
-* log into user sam
+* log into user sam (ssh sam@m01)
 * cd backend/cart_SAMbackend
 * source sam_venv/bin/activate
 * open tmux window: tmux new-session -s masks
