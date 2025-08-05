@@ -37,7 +37,8 @@ we have 4 classes:
         "item_removed"      # 3 (disyplayed as red box)
 
 
-# 4: Upload your annotations
+# 4: Upload your annotations and images
+
 * log into ssh ansible@172.30.20.31
 * navigate to: /opt/datasets/change_detection
 * run command: uvicorn receive_annotations_files:app --host 0.0.0.0 --port 8080 (via tmux)
@@ -48,13 +49,20 @@ This will automatically search for annotations.json files in the dataset directo
 * Each user gets their own subfolder (<username>) inside change_data/.
 * Each uploaded annotation file is renamed using its store and session ID: Example: store_001__session_001.json.
 
-* Saving structure:
+* Saving structure (Annotations):
 /opt/datasets/change_detection/change_data/
 └── <username>/
     ├── store_001__session_001.json
     ├── store_001__session_002.json
     └── ...
-
+    
+* Saving structure (Images)
+/opt/datasets/change_detection/change_data/images/
+└── store_<store_id>/
+    └── session_<session_id>/
+        ├── <image_filename_1>.jpeg
+        ├── <image_filename_2>.jpeg
+        └── ...
 
 ## Options for annotating:
 * nothing changed: when no item was added/removed, basically the content of the cart did not change
