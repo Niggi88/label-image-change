@@ -36,6 +36,26 @@ we have 4 classes:
         "item_added",       # 2 (displayed as green box)
         "item_removed"      # 3 (disyplayed as red box)
 
+
+# 4: Upload your annotations
+* log into ssh ansible@172.30.20.31
+* navigate to: /opt/datasets/change_detection
+* run command: uvicorn receive_annotations_files:app --host 0.0.0.0 --port 8080 (via tmux)
+
+* run on client side: upload_annotations.py
+This will automatically search for annotations.json files in the dataset directory defined in the config (under store_*/session_*/) and upload them to the server.
+
+* Each user gets their own subfolder (<username>) inside change_data/.
+* Each uploaded annotation file is renamed using its store and session ID: Example: store_001__session_001.json.
+
+* Saving structure:
+/opt/datasets/change_detection/change_data/
+└── <username>/
+    ├── store_001__session_001.json
+    ├── store_001__session_002.json
+    └── ...
+
+
 ## Options for annotating:
 * nothing changed: when no item was added/removed, basically the content of the cart did not change
 * chaos: when there is a lot going on, and its not clear whats going on (might be considered as unsure)
@@ -47,7 +67,7 @@ we have 4 classes:
     - delete selected: click on the button, then click on the box you want to remove, press button again, box and mirrored box disappear
     - clear all: deletes all annotations, leaving the state as "not_annotated", marking it as gray outline
 
-* not_annotated (marked as gray outline):
+* not_annotated (marked as purple outline):
     - when there are no annotations yet and no label fits to the image pair, you can skip, defining that pair as "not annotated"
     - when the image pair is already annotated: press clear all to remove any annotations to set the image pair to "not_annotated"
 
