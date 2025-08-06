@@ -74,7 +74,7 @@ def report_annotation(user, class_name="unknown", pair_id=None):
 
     try:
         response = requests.post(
-            "http://172.30.20.31:8010/api/annotate",
+            f"{config.SERVER}api/annotate",
             json=annotation_payload,
             timeout=1
         )
@@ -92,7 +92,7 @@ import requests
 
 def already_annotated_on_server(username: str, pair_id: str) -> bool:
     try:
-        response = requests.get("http://172.30.20.31:8010/api/stats", timeout=2)
+        response = requests.get(f"{config.SERVER}api/stats", timeout=2)
         response.raise_for_status()
         data = response.json()
 
@@ -139,7 +139,7 @@ def flush_annotation_cache():
     remaining = []
     for ann in grouped.values():
         try:
-            res = requests.post("http://172.30.20.31:8010/api/annotate", json=ann)
+            res = requests.post(f"{SERVER}api/annotate", json=ann)
             res.raise_for_status()
         except Exception as e:
             print(f"[WARN] Failed to upload cached annotation: {e}")
