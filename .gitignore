@@ -1,3 +1,8 @@
+# my ignores
+*.db*
+*.json*
+*.swp
+
 # Byte-compiled / optimized / DLL files
 annotation_cache.json
 annotation_cache copy.json
