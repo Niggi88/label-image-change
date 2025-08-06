@@ -14,10 +14,14 @@ DATASET_NAME="tmp"
 HOSTNAME = socket.gethostname()
 
 if HOSTNAME == "niggis-brain":
+    UI_SCALING=2.5
+    FONT_SCALING=2.5
     DATASET_NAME="tmp"
     DATASET_DIR = f"/media/fast/dataset/bildunterschied/test_mini/new_label_tool/{DATASET_NAME}"
     USERNAME = "niklas"
 elif HOSTNAME == "niklas-XPS-15-9530":
+    UI_SCALING=2.5
+    FONT_SCALING=2.5
     DATASET_NAME="dev"
     DATASET_DIR = f"/home/niklas/dataset/bildunterschied/{DATASET_NAME}"
     USERNAME = "niklas"
