@@ -117,8 +117,8 @@ class AnnotatableImage(ttk.Frame):
         width = self.canvas.winfo_width()
         height = self.canvas.winfo_height()
 
-        horiz = self.canvas.create_line(0, y, width, y, fill="gray", dash=(2, 2), tags="crosshair")
-        vert = self.canvas.create_line(x, 0, x, height, fill="gray", dash=(2, 2), tags="crosshair")
+        horiz = self.canvas.create_line(0, y, width, y, fill="gray", dash=(2, 2), tags="crosshair", width=8)
+        vert = self.canvas.create_line(x, 0, x, height, fill="gray", dash=(2, 2), tags="crosshair", width=8)
         self.crosshair_lines = [horiz, vert]
 
 
@@ -637,7 +637,7 @@ class AnnotatableImage(ttk.Frame):
         self.canvas.create_rectangle(
             1, 1, width - 1, height - 1,
             outline=color,
-            width=5,
+            width=20,
             tags="canvas_outline"
         )
 

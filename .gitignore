@@ -1,4 +1,6 @@
 # Byte-compiled / optimized / DLL files
+annotation_cache.json
+annotation_cache copy.json
 __pycache__/
 *.py[cod]
 *$py.class
