@@ -35,14 +35,12 @@ def generate_dataset_config(class_names, train_path, val_path, output_file,
 # Example usage
 if __name__ == "__main__":
     class_names = [
-        "aptamil", "ariel", "bag", "cigarettes", "fresh_food_counter",
-        "generic_coffee", "head_and_shoulders", "jack_daniels", "merci",
-        "nescafe", "produce_net", "razorblades", "redbull", "toffifee"
+        "nothing", "chaos", "item_added"
     ]
     
     generate_dataset_config(
         class_names=class_names,
-        train_path="/media/fast/dataset/product_detection/multi_small/synthetic/v1/train/images",
-        val_path="/media/fast/dataset/product_detection/multi_small/synthetic/v1/val/images",
+        train_path="/media/fast/dataset/product_detection/multi_small2/synthetic/v1/train/images",
+        val_path="/media/fast/dataset/product_detection/multi_small2/synthetic/v1/val/images",
         output_file="dataset.yaml"
     )
