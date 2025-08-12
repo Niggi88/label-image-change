@@ -116,7 +116,6 @@ class AnnotatableImage(ttk.Frame):
         y = self.canvas.canvasy(event.y)
         width = self.canvas.winfo_width()
         height = self.canvas.winfo_height()
-
         horiz = self.canvas.create_line(0, y, width, y, fill="gray", dash=(2, 2), tags="crosshair", width=8)
         vert = self.canvas.create_line(x, 0, x, height, fill="gray", dash=(2, 2), tags="crosshair", width=8)
         self.crosshair_lines = [horiz, vert]
@@ -491,7 +490,7 @@ class AnnotatableImage(ttk.Frame):
             }
 
             # 📐 Visual styles
-            width = 4 if is_selected else 2
+            width = 6 if is_selected else 4
             dash = (4, 2) if is_synced else None
 
             rect_id = self.canvas.create_rectangle(
