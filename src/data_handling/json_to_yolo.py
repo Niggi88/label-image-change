@@ -57,8 +57,15 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
             
         im1_path = root_path / pair_data["im1_path"]
         im2_path = root_path / pair_data["im2_path"]
-        index_string = str(index).zfill(7)
-
+        store, session, img1_str = pair_data["im1_path"].split("/")
+        img1_str = img1_str.split(".")[0]
+        store, session, img2_str = pair_data["im2_path"].split("/")
+        img2_str = img2_str.split(".")[0]
+        
+        pair_guid = "__".join([store, session, img1_str, img2_str])
+        # index_string = str(index).zfill(7)
+        index_string = pair_guid
+        
         im1_target = yolo_paths.images1 / f"{index_string}{im1_path.suffix}"
         im2_target = yolo_paths.images2 / f"{index_string}{im2_path.suffix}"
 
@@ -117,7 +124,8 @@ if __name__ == "__main__":
     
     # === CONFIG ===
     # yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/v2_tiny"))
-    yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/test_sarah"))
+    # yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/test_sarah"))
+    yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/test_pair_id"))
     # IMAGES1_DIR = EXPORT_DIR / "images"
     # IMAGES2_DIR = EXPORT_DIR / "images2"
     # LABELS_DIR = EXPORT_DIR / "labels"
