@@ -34,14 +34,17 @@ class YoloPathsSplit:
         return self._split_dir / "dataset.yaml"
     
 
-def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit):
+def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, override_root=None):
     # Load your annotations
     with open(annotation_file) as f:
         annotations = json.load(f)
 
     print(f"Loaded {len(annotations)} pairs.")
 
-    root_path = Path(annotations["_meta"]["root"])
+    if override_root is None:
+        root_path = Path(annotations["_meta"]["root"])
+    else:
+        root_path = Path(override_root)
     # === EXPORT LOOP ===
     for i, (pair_id, pair_data) in enumerate(annotations.items()):
         index += 1
@@ -114,7 +117,7 @@ if __name__ == "__main__":
     
     # === CONFIG ===
     # yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/v2_tiny"))
-    yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/v4_small"))
+    yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/test_sarah"))
     # IMAGES1_DIR = EXPORT_DIR / "images"
     # IMAGES2_DIR = EXPORT_DIR / "images2"
     # LABELS_DIR = EXPORT_DIR / "labels"
@@ -129,7 +132,8 @@ if __name__ == "__main__":
     # dataset_small_set = Path("/media/fast/dataset/bildunterschied/test_mini/small_set").glob("**/converted_data.json")
     # dataset_small_set2 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set2").glob("**/converted_data.json")
     # dataset_small_set3 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set3").glob("**/converted_data.json")
-    dataset_small_set4 = Path("/media/fast/dataset/bildunterschied/labeling/gemuese_netz_sub").glob("**/annotations.json")
+    # dataset_small_set4 = Path("/media/fast/dataset/bildunterschied/labeling/gemuese_netz_sub").glob("**/annotations.json")
+    dataset_small_set4 = Path("/media/fast/dataset/bildunterschied/real_data/test_sarah/sarah").glob("*.json")
 
     # dataset_one = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one").glob("**/annotations.json")
     # dataset_sarah = Path("/home/sarah/Documents/background_segmentation/small_relevant_sessions").glob("**/annotations.json")
@@ -145,9 +149,12 @@ if __name__ == "__main__":
         # folder_path.glob("**/*.json")
         # dataset_config
     ))
+    
+    override_root = "/media/fast/dataset/bildunterschied/real_data/test_sarah/images"
     index = 0
     for f in annotation_files:
-        index = export_session(f, index, yolo_splitted_paths)
+        # index = export_session(f, index, yolo_splitted_paths)
+        index = export_session(f, index, yolo_splitted_paths, override_root=override_root)
     print(len(annotation_files))
     from yolo_config import generate_dataset_config
     
