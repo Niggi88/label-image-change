@@ -6,11 +6,9 @@ A simple tool for annotating changes between consecutive images. Created to labe
 
 # 0: start highscore counter
 * log into user sam
-* navigate to: cd backend/cart_SAMbackend
-* activate environment: source sam_venv/bin/activate
-* navigate to backend/cart_SAMbackend/highscore
+* navigate to: ~/backend/cart_SAMbackend/highscore/label-image-change/highscore
 * open tmux window: tmux new-session -s highscore
-* run: uvicorn annotation_api_server:app --host 0.0.0.0 --port 8010 --reload
+* run: python3 annotation_api_server.py
 
 * open http://172.30.20.31:8010/ in your browser to see the leaderboard
 
