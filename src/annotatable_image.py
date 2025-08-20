@@ -464,13 +464,20 @@ class AnnotatableImage(ttk.Frame):
             is_selected = (self.selected_box_index is not None and idx == self.selected_box_index)
             is_synced = box.get("synced_highlight", False)
 
-            # 🎨 Color purely based on annotation_type
-            if annotation_type == ImageAnnotation.Classes.ANNOTATION:
-                outline = "green"
-            elif annotation_type == ImageAnnotation.Classes.ANNOTATION_X:
+            # # 🎨 Color purely based on annotation_type
+            # if annotation_type == ImageAnnotation.Classes.ANNOTATION:
+            #     outline = "green"
+            # elif annotation_type == ImageAnnotation.Classes.ANNOTATION_X:
+            #     outline = "red"
+            # else:
+            #     outline = "#B497B8"
+
+
+            if is_synced:
                 outline = "red"
             else:
-                outline = "#B497B8"
+                outline = "green"
+
 
             # Highlight selected box
             if is_selected:
