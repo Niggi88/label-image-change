@@ -123,9 +123,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
 if __name__ == "__main__":
     
     # === CONFIG ===
-    # yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/v2_tiny"))
-    # yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/test_sarah"))
-    yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/test_pair_id"))
+    yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/v7_medium"))
     # IMAGES1_DIR = EXPORT_DIR / "images"
     # IMAGES2_DIR = EXPORT_DIR / "images2"
     # LABELS_DIR = EXPORT_DIR / "labels"
@@ -141,7 +139,10 @@ if __name__ == "__main__":
     # dataset_small_set2 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set2").glob("**/converted_data.json")
     # dataset_small_set3 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set3").glob("**/converted_data.json")
     # dataset_small_set4 = Path("/media/fast/dataset/bildunterschied/labeling/gemuese_netz_sub").glob("**/annotations.json")
-    dataset_small_set4 = Path("/media/fast/dataset/bildunterschied/real_data/test_sarah/sarah").glob("*.json")
+    dataset_small_set_santiago = Path("/media/fast/dataset/bildunterschied/change_data/santiago").glob("*.json")
+    dataset_small_set_nik = Path("/media/fast/dataset/bildunterschied/change_data/niklas").glob("*.json")
+
+    # dataset_small_set4 = Path("/media/fast/dataset/bildunterschied/real_data/test_sarah/sarah").glob("*.json")
 
     # dataset_one = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one").glob("**/annotations.json")
     # dataset_sarah = Path("/home/sarah/Documents/background_segmentation/small_relevant_sessions").glob("**/annotations.json")
@@ -151,14 +152,14 @@ if __name__ == "__main__":
     annotation_files = list(chain(
         # dataset_small_set,
         # dataset_small_set2,
-        dataset_small_set4,
-        # dataset_small_set2,
+        dataset_small_set_santiago,
+        dataset_small_set_nik,
         # dataset_small_set3,
         # folder_path.glob("**/*.json")
         # dataset_config
     ))
     
-    override_root = "/media/fast/dataset/bildunterschied/real_data/test_sarah/images"
+    override_root = "/media/fast/dataset/bildunterschied/change_data/images"
     index = 0
     for f in annotation_files:
         # index = export_session(f, index, yolo_splitted_paths)
