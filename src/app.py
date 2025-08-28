@@ -15,7 +15,8 @@ import io
 import copy
 import json
 import requests
-
+import threading  # ensure this import exists at top of file
+import time     
 
 
 class ImagePairList(list):
@@ -39,6 +40,34 @@ class ImagePairList(list):
     
     def ids(self):
         return list(range(len(self)))
+
+
+class FlatPairList:
+    """
+    Adapter für eine flache Liste aus unsicheren Paaren.
+    Erwartet Items als Dict mit:
+      - session_path: Path   (Session-Ordner mit annotations.json)
+      - pair_id: int         (Original-Index in dieser Session)
+      - im1_path: Path
+      - im2_path: Path
+    """
+    def __init__(self, items):
+        self._items = items
+
+    def __getitem__(self, index):
+        it = self._items[index]
+        return (it["im1_path"], it["im2_path"])
+
+    def __len__(self):
+        return len(self._items)
+
+    def ids(self):
+        return list(range(len(self._items)))
+
+    def meta_at(self, index):
+        return self._items[index]
+
+
 
 class PairViewerApp(tk.Tk):
     def __init__(self):
@@ -133,11 +162,80 @@ class PairViewerApp(tk.Tk):
 
 
 class ImagePairViewer(ttk.Frame):
-    def __init__(self, container, base_src):
+    def __init__(self, container, base_src, flat_pairs=None, unsure_log_path=None):
         super().__init__(container)
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(1, weight=1)
+
+        self._flat_mode = flat_pairs is not None
+        self._flat_view_index = 0  # Position in der flachen Liste
+
+        # Flicker state (works in both modes)
+        self.flicker_running = False
+        self.flicker_active = False
+
+        self._unsure_log_path = unsure_log_path  # None in session mode
+
+        def _build_scaffold():
+            # (du hast das bereits in __init__ inline – wir nutzen weiter DEINE Widgets,
+            # nur das Packen/Verstecken vom Skip-Button ändern wir im nächsten Schritt)
+            pass
+
+
+                # --- Wenn Flat-Modus: keine Sessions scannen, UI wie gewohnt bauen ---
+        if self._flat_mode:
+            # Bilder/Topbar/Controls wie in deinem bestehenden Code bauen:
+            self.image1 = AnnotatableImage(self, annotation_controller=None, controller=self)
+            self.image1.grid(row=1, column=0, sticky="nsew")
+            self.image2 = AnnotatableImage(self, annotation_controller=None, controller=self)
+            self.image2.grid(row=1, column=1, sticky="nsew")
+
+            self.setup_controls()
+
+            self.spinbox = HorizontalSpinner(self, [], self.set_images)
+            self.spinbox.grid(row=3, column=0, columnspan=2)
+
+            # ─ Top Bar (wie bei dir) ─
+            top_bar = ttk.Frame(self)
+            top_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(8, 4))
+            top_bar.columnconfigure(0, weight=1)
+
+            self.global_progress_label = ttk.Label(top_bar, anchor="w")
+            self.global_progress_label.grid(row=0, column=0, sticky="w")
+
+            self.top_right_container = ttk.Frame(top_bar)
+            self.top_right_container.grid(row=0, column=1, sticky="e")
+
+            self.flicker_label = ttk.Label(self.top_right_container, text="Flickering", foreground="green")
+
+            # Skip-Button im Flat-Modus NICHT anzeigen
+            self.skip_session_btn = ttk.Button(
+                self.top_right_container, text="Skip This Session",
+                style="Danger.TButton", command=self.skip_current_session
+            )
+            # self.skip_session_btn.pack()  # <-- im Flat-Modus NICHT packen
+
+            self.flush_btn = ttk.Button(self.top_right_container, text="Flush Cache",
+                                        style="Clear.TButton", command=self.flush_cache)
+            self.flush_btn.pack(pady=(4, 0))
+
+            # Datenquelle setzen
+            self.image_pairs = FlatPairList(flat_pairs)
+            self.annotations = None            # wird pro Pair auf die passende Session umgeschaltet
+            self.current_index = 0             # bleibt der "original pair_id" Wert der Session
+            self.in_annotation_mode = False
+
+            # Spinner füttern
+            self.spinbox.items = self.image_pairs.ids()
+            self.spinbox.current_index = 0
+            self.spinbox.draw_items()
+
+            # Tastenbelegung & erstes Bild laden
+            self.setup_key_bindings()
+            self.load_pair(0)
+            return  # wichtig: Session-Init überspringen
+        
 
         self.session_paths = self.find_session_paths(base_src)
         assert self.session_paths, "No sessions found!"
@@ -220,7 +318,75 @@ class ImagePairViewer(ttk.Frame):
         self.selected_box_index = None
         self.flicker_running = False
         self.flicker_active = False
+        self._flicker_thread = None
+        self._flicker_stop = threading.Event()
+
         self.reset(self.session_paths[self.session_index], initial=True)
+
+    def _maybe_save(self, pair_state=None):
+        """Session-Mode: normal speichern.
+        Unsure-Mode (flat): nur global loggen, keine Session-Datei schreiben."""
+        if getattr(self, "_flat_mode", False):
+            # NUR globale Sammeldatei aktualisieren
+            self._log_unsure_review(pair_state=pair_state)
+            print("Save review_unsure.json: ", pair_state)
+            return
+
+        # Normaler Session-Mode: wie gehabt in annotations.json speichern
+        self.annotations.save_pair_annotation(
+            image1=self.image1,
+            image2=self.image2,
+            pair_state=pair_state
+        )
+        print("Save pair annotation.json: ", pair_state)
+
+
+
+    def _log_unsure_review(self, pair_state=None):
+        """Append/update a single record in unsure_reviews.json when in flat mode."""
+        if not getattr(self, "_flat_mode", False):
+            return
+        if not self._unsure_log_path:
+            return
+
+        # Collect metadata
+        meta = self.image_pairs.meta_at(self._flat_view_index)
+        session_path = str(meta["session_path"])
+        pair_id = int(meta["pair_id"])
+        im1_path, im2_path = map(str, self._pair_imgs_at_current())
+
+        # Get the current annotation payload
+        ann = self.annotations.get_pair_annotation(self.current_index) or {}
+        if pair_state is not None:
+            ann = {**ann, "pair_state": pair_state}
+
+        record = {
+            "session_path": session_path,
+            "pair_id": pair_id,
+            "im1_path": im1_path,
+            "im2_path": im2_path,
+            "pair_state": ann.get("pair_state"),
+            "boxes": ann.get("boxes", []),
+            # optional extras:
+            "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+        }
+
+        # Load -> upsert -> save (atomic-ish)
+        try:
+            existing = {}
+            if self._unsure_log_path.exists():
+                existing = json.loads(self._unsure_log_path.read_text())
+        except Exception:
+            existing = {}
+
+        key = f"{session_path}|{pair_id}"
+        existing[key] = record
+
+        tmp = self._unsure_log_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(existing, indent=2))
+        tmp.replace(self._unsure_log_path)
+
+
 
     def refocus_after_button(self):
         self.focus_set()  # Put focus back to main frame (not the button)
@@ -268,15 +434,27 @@ class ImagePairViewer(ttk.Frame):
 
 
     def update_global_progress(self):
+        if getattr(self, "_flat_mode", False):
+            total_pairs = len(self.image_pairs)
+            view_idx = self._flat_view_index + 1
+            meta = self.image_pairs.meta_at(self._flat_view_index)
+            session_name = Path(meta["session_path"]).name
+            pair_id = meta["pair_id"]
+            self.global_progress_label.config(
+                text=f"Unsure mode — {view_idx} / {total_pairs}  |  {session_name}  |  original pair #{pair_id}"
+            )
+            return
+
+        # Session-Anzeige (wie bisher)
         session_name = self.image_pairs.src.name
         current_session_number = self.session_index + 1
         total_sessions = len(self.session_paths)
         current_pair = self.current_index + 1
         total_pairs = len(self.image_pairs)
-
         self.global_progress_label.config(
             text=f"Session {current_session_number} / {total_sessions} — {session_name}: {current_pair} / {total_pairs}"
         )
+
 
     def find_session_paths(self, base_src):
         base = Path(base_src)
@@ -311,86 +489,52 @@ class ImagePairViewer(ttk.Frame):
         if flickering:
             self.flicker_label.pack()
         else:
-            self.skip_session_btn.pack()
+            if not getattr(self, "_flat_mode", False):
+                self.skip_session_btn.pack()
+            self.flush_btn.pack(pady=(4, 0))
 
     def toggle_flicker(self):
         if not self.flicker_running:
             self.flicker_running = True
-            self.update_flicker_ui(True)  # ✅ MOVE HERE
+            self.flicker_active = False
+            self.update_flicker_ui(True)
             self._run_flicker()
             print("Flicker started")
         else:
-            self.flicker_running = False
-            self.update_flicker_ui(False)  # ✅ ADD THIS
-            self.image2.load_image(self.image_pairs[self.current_index][1])
+            self.stop_flicker_if_running()
+            # restore right image (static)
+            _, right_img = self._pair_imgs_at_current()
+            self.image2.load_image(right_img)
             self.image2._resize_image()
             print("Flicker stopped")
-
-            # 🧠 Boxes + Masken nach Flicker neu anzeigen
-            annotation = self.annotations.get_pair_annotation(self.current_index)
-            boxes = annotation.get("boxes", [])
-
-            image1_boxes = []
-            image2_boxes = []
-
-            for box in boxes:
-                box_copy = dict(box)
-                if box["annotation_type"] == ImageAnnotation.Classes.ANNOTATION_X:
-                    image1_boxes.append(box_copy)
-                    mirror = box_copy.copy()
-                    mirror["annotation_type"] = ImageAnnotation.Classes.ANNOTATION
-                    mirror["synced_highlight"] = True
-                    image2_boxes.append(mirror)
-                elif box["annotation_type"] == ImageAnnotation.Classes.ANNOTATION:
-                    image2_boxes.append(box_copy)
-                    mirror = box_copy.copy()
-                    mirror["annotation_type"] = ImageAnnotation.Classes.ANNOTATION_X
-                    mirror["synced_highlight"] = True
-                    image1_boxes.append(mirror)
-
-            self.image1.boxes = image1_boxes
-            self.image2.boxes = image2_boxes
-
-            self.image1.display_boxes(image1_boxes)
-            self.image2.display_boxes(image2_boxes)
-
-            self.image1.display_mask()
-            self.image2.display_mask()
-
-
-            pair_state = self.annotations.get_pair_annotation(self.current_index).get("pair_state")
-            color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(pair_state)
-            if color:
-                self.image1.draw_canvas_outline(color)
-                self.image2.draw_canvas_outline(color)
-
 
     def _run_flicker(self):
         if not self.flicker_running:
             return
-        
-        self.flicker_active = not self.flicker_active
-        img = self.image_pairs[self.current_index][0] if self.flicker_active else self.image_pairs[self.current_index][1]
 
+        left_img, right_img = self._pair_imgs_at_current()
+        # toggle which one we show
+        img = left_img if not self.flicker_active else right_img
         self.image2.load_image(img)
         self.image2._resize_image()
 
-        # Re-draw the outline
+        # preserve outline color
         pair_state = self.annotations.get_pair_annotation(self.current_index).get("pair_state")
         color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(pair_state)
         if color:
             self.image1.draw_canvas_outline(color)
             self.image2.draw_canvas_outline(color)
-        self.after(100, self._run_flicker)
 
+        self.flicker_active = not self.flicker_active
+        # schedule next flip
+        self.after(200, self._run_flicker)
 
     def stop_flicker_if_running(self):
         if self.flicker_running:
-            self.update_flicker_ui(flickering=False)
-
             self.flicker_running = False
             self.flicker_active = False
-            print("Flicker automatically stopped due to navigation.")
+            self.update_flicker_ui(False)
+            print("Flicker stopped (auto)")
 
 
 
@@ -517,11 +661,13 @@ class ImagePairViewer(ttk.Frame):
         else:
             new_state = ImageAnnotation.Classes.ANNOTATED
 
-        self.annotations.save_pair_annotation(
-            image1=self.image1,
-            image2=self.image2,
-            pair_state=new_state
-        )
+        # self.annotations.save_pair_annotation(
+        #     image1=self.image1,
+        #     image2=self.image2,
+        #     pair_state=new_state
+        # )
+
+        self._maybe_save(pair_state=new_state)
 
         # Optional: Outline anpassen
         self.image1.canvas.delete("canvas_outline")
@@ -563,13 +709,15 @@ class ImagePairViewer(ttk.Frame):
             else ImageAnnotation.Classes.ANNOTATED
         )
 
-        self.annotations.save_pair_annotation(
-            # pair_id=self.current_index,  # oder dein pair_id
-            image1=self.image1,          # das ist AnnotatableImage!
-            image2=self.image2,          # AnnotatableImage!
-            pair_state=pair_state
-        )
-        
+        # self.annotations.save_pair_annotation(
+        #     # pair_id=self.current_index,  # oder dein pair_id
+        #     image1=self.image1,          # das ist AnnotatableImage!
+        #     image2=self.image2,          # AnnotatableImage!
+        #     pair_state=pair_state
+        # )
+
+        self._maybe_save(pair_state=pair_state)
+
         self.update_ui_state(pair_state=pair_state)
         print(f"Boxes cleared for pair {self.current_index}")
         if skip == True:
@@ -624,11 +772,13 @@ class ImagePairViewer(ttk.Frame):
         self.process_action()
         
         # 🧠 Save current annotation state
-        self.annotations.save_pair_annotation(
-            image1=self.image1,
-            image2=self.image2,
-            pair_state=self.state
-        )
+        # self.annotations.save_pair_annotation(
+        #     image1=self.image1,
+        #     image2=self.image2,
+        #     pair_state=self.state
+        # )
+
+        self._maybe_save(pair_state=self.state)
 
         # 🎯 CUSTOM UI UPDATE BLOCK
         if button_id in [ImageAnnotation.Classes.CHAOS, ImageAnnotation.Classes.NOTHING]:
@@ -670,11 +820,12 @@ class ImagePairViewer(ttk.Frame):
                     self.image1.canvas.delete("canvas_outline")
                     self.image2.canvas.delete("canvas_outline")
 
-                self.annotations.save_pair_annotation(
-                    image1=self.image1,
-                    image2=self.image2,
-                    pair_state=self.state
-                )
+                # self.annotations.save_pair_annotation(
+                #     image1=self.image1,
+                #     image2=self.image2,
+                #     pair_state=self.state
+                # )
+                self._maybe_save(pair_state=self.state)
 
         # 🔜 Go to next pair (skip for Annotate mode)
         if button_id != ImageAnnotation.Classes.ANNOTATION:
@@ -688,7 +839,8 @@ class ImagePairViewer(ttk.Frame):
     
     def classify(self, classification_type):
         """Save a simple classification and move to next pair"""
-        self.annotations.save_pair_annotation(self.image1, self.image2, classification_type)
+        # self.annotations.save_pair_annotation(self.image1, self.image2, classification_type)
+        self._maybe_save(pair_state=classification_type)
         self.right()
         # self.load_pair(self.current_index + 1)
     
@@ -717,10 +869,17 @@ class ImagePairViewer(ttk.Frame):
         self.image2.clear_boxes()
         self.right()
 
+
+    def _pair_imgs_at_current(self):
+        if getattr(self, "_flat_mode", False):
+            return self.image_pairs[self._flat_view_index]
+        return self.image_pairs[self.current_index]
+
     @property
     def current_id(self):
-        im1_path, im2_path = self.image_pairs[self.current_index]
-        return (im1_path, im2_path)# f"{im1_path.stem}_{im2_path.stem}"
+        im1_path, im2_path = self._pair_imgs_at_current()
+        return (im1_path, im2_path)
+
 
     def save_current_boxes(self):
         all_boxes = self.image1.get_boxes() + self.image2.get_boxes()
@@ -728,8 +887,9 @@ class ImagePairViewer(ttk.Frame):
 
         if not boxes_to_save:
             return
-        self.annotations.save_pair_annotation(self.image1, self.image2, ImageAnnotation.Classes.ANNOTATED)
+        # self.annotations.save_pair_annotation(self.image1, self.image2, ImageAnnotation.Classes.ANNOTATED)
 
+        self._maybe_save(pair_state=ImageAnnotation.Classes.ANNOTATED)
 
     def load_pair(self, index):
         print("load pair called")
@@ -739,6 +899,64 @@ class ImagePairViewer(ttk.Frame):
         if self.in_annotation_mode:
             print("Was in annotation mode, toggling off")
             self.annotation_off()
+
+        # --- Flat/Unsure-Mode? ---
+        if getattr(self, "_flat_mode", False):
+            self._flat_view_index = index
+            self.spinbox.current_index = index
+
+            meta = self.image_pairs.meta_at(index)
+            session_path = meta["session_path"]
+            original_pair_id = int(meta["pair_id"])
+
+            # Annotation-Controller auf die richtige Session schalten
+            if self.annotations is None or str(self.annotations.base_path) != str(session_path):
+                self.annotations = ImageAnnotation(base_path=session_path, total_pairs=None)
+
+            # WICHTIG: current_index = ORIGINAL pair_id der Session (für JSON)
+            self.current_index = original_pair_id
+
+            # Bilder laden
+            img1, img2 = self.image_pairs[index]
+            self.image1.canvas.delete("canvas_outline")
+            self.image2.canvas.delete("canvas_outline")
+            self.image1.clear_all(); self.image2.clear_all()
+            self.image1.load_image(img1); self.image2.load_image(img2)
+            self.image1._resize_image(); self.image2._resize_image()
+
+            # Annotation rehydrieren (gleich wie dein Session-Code)
+            annotation = self.annotations.get_pair_annotation(self.current_index)
+            boxes = annotation.get("boxes", [])
+            self.image1._original_mask_pils = []; self.image2._original_mask_pils = []
+            image1_boxes, image2_boxes = [], []
+
+            for box in boxes:
+                b = dict(box)
+                if b["annotation_type"] == ImageAnnotation.Classes.ANNOTATION_X:
+                    image1_boxes.append(b)
+                    m = b.copy(); m["annotation_type"] = ImageAnnotation.Classes.ANNOTATION; m["synced_highlight"] = True
+                    image2_boxes.append(m)
+                    if "mask_base64" in b:
+                        self.image1._original_mask_pils.append(Image.open(io.BytesIO(base64.b64decode(b["mask_base64"]))).convert("RGBA"))
+                elif b["annotation_type"] == ImageAnnotation.Classes.ANNOTATION:
+                    image2_boxes.append(b)
+                    m = b.copy(); m["annotation_type"] = ImageAnnotation.Classes.ANNOTATION_X; m["synced_highlight"] = True
+                    image1_boxes.append(m)
+                    if "mask_base64" in b:
+                        self.image2._original_mask_pils.append(Image.open(io.BytesIO(base64.b64decode(b["mask_base64"]))).convert("RGBA"))
+
+            self.image1.boxes = image1_boxes
+            self.image2.boxes = image2_boxes
+            self.image1.display_boxes(image1_boxes)
+            self.image2.display_boxes(image2_boxes)
+            self.image1.display_mask()
+            self.image2.display_mask()
+
+            pair_state = annotation.get("pair_state")
+            self.update_global_progress()
+            self.after_idle(lambda: self.update_ui_state(pair_state))
+            return  # wichtig: Session-Zweig unten überspringen
+
 
         self.current_index = index
         self.spinbox.current_index = index
@@ -858,6 +1076,8 @@ class ImagePairViewer(ttk.Frame):
 
     @property
     def end_of_set(self):
+        if getattr(self, "_flat_mode", False):
+            return self._flat_view_index == len(self.image_pairs) - 1
         return self.current_index == len(self.image_pairs) - 1
 
 
@@ -893,14 +1113,31 @@ class ImagePairViewer(ttk.Frame):
                 pair_state = ImageAnnotation.Classes.NO_ANNOTATION
             
             print(f"[AUTO] setting default state: {pair_state}")
-            self.annotations.save_pair_annotation(
-                self.image1,
-                self.image2,
-                pair_state=pair_state
-            )
+            # self.annotations.save_pair_annotation(
+            #     self.image1,
+            #     self.image2,
+            #     pair_state=pair_state
+            # )
+            self._maybe_save(pair_state=self.state)
 
             print(f"[AUTO-SAVE-RIGHT] Marked pair {self.current_index} as {pair_state}")
 
+        if getattr(self, "_flat_mode", False):
+            # Standardzustand setzen falls None
+            annotation = self.annotations.get_pair_annotation(self.current_index)
+            pair_state = annotation.get("pair_state")
+            boxes_exist = bool(self.image1.get_boxes() or self.image2.get_boxes())
+            if pair_state is None:
+                pair_state = ImageAnnotation.Classes.ANNOTATED if boxes_exist else ImageAnnotation.Classes.NO_ANNOTATION
+                # self.annotations.save_pair_annotation(self.image1, self.image2, pair_state=pair_state)
+                self._maybe_save(pair_state=pair_state)
+
+            if self._flat_view_index + 1 < len(self.image_pairs):
+                self.load_pair(self._flat_view_index + 1)
+            else:
+                messagebox.showinfo("Done", "All unsure pairs reviewed.")
+                self.quit()
+            return
 
 
         ret = self.spinbox.animate_scroll(+1)
@@ -929,13 +1166,25 @@ class ImagePairViewer(ttk.Frame):
         self.reset_buttons() 
         annotation = self.annotations.get_pair_annotation(self.current_index)
         if not annotation or not annotation.get("pair_state"):
-            self.annotations.save_pair_annotation(
-                self.image1,
-                self.image2,
-                pair_state=ImageAnnotation.Classes.NO_ANNOTATION
-            )
+            # self.annotations.save_pair_annotation(
+            #     self.image1,
+            #     self.image2,
+            #     pair_state=ImageAnnotation.Classes.NO_ANNOTATION
+            # )
+            self._maybe_save(pair_state=ImageAnnotation.Classes.NO_ANNOTATION)
+
         print(f"[AUTO-SAVE-LEFT] Marked pair {self.current_index} as NO_ANNOTATION")
 
+        if getattr(self, "_flat_mode", False):
+            annotation = self.annotations.get_pair_annotation(self.current_index)
+            if not annotation or not annotation.get("pair_state"):
+                # self.annotations.save_pair_annotation(self.image1, self.image2, pair_state=ImageAnnotation.Classes.NO_ANNOTATION)
+                self._maybe_save(pair_state=ImageAnnotation.Classes.NO_ANNOTATION)
+            if self._flat_view_index > 0:
+                self.load_pair(self._flat_view_index - 1)
+            else:
+                messagebox.showinfo("Start", "Already at first unsure pair.")
+            return
 
         ret = self.spinbox.animate_scroll(-1)
 
@@ -970,7 +1219,6 @@ class ImagePairViewer(ttk.Frame):
         self.load_pair(idx)
 
 
-app = PairViewerApp()
-
-
-app.mainloop()
+if __name__ == "__main__":
+    app = PairViewerApp()
+    app.mainloop()
