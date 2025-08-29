@@ -171,6 +171,8 @@ class ImagePairViewer(ttk.Frame):
         self._flat_mode = flat_pairs is not None
         self._flat_view_index = 0  # Position in der flachen Liste
 
+        self._current_outline_color = None
+
         # Flicker state (works in both modes)
         self.flicker_running = False
         self.flicker_active = False
@@ -386,6 +388,40 @@ class ImagePairViewer(ttk.Frame):
         tmp.write_text(json.dumps(existing, indent=2))
         tmp.replace(self._unsure_log_path)
 
+    def _shorten(self, s: str, maxlen: int = 40) -> str:
+        """shorten very long filenames in the middle"""
+        if len(s) <= maxlen:
+            return s
+        head = maxlen // 2 - 1
+        tail = maxlen - head - 1
+        return s[:head] + "…" + s[-tail:]
+
+    def _unsure_key(self, session_path, pair_id: int) -> str:
+        # Einheitlicher Key wie beim Schreiben
+        return f"{str(session_path)}|{int(pair_id)}"
+
+    def _get_unsure_entry(self, session_path, pair_id):
+        """Liest (falls vorhanden) den Eintrag aus unsure_reviews.json"""
+        if not getattr(self, "_unsure_log_path", None):
+            return None
+        try:
+            if self._unsure_log_path.exists():
+                data = json.loads(self._unsure_log_path.read_text())
+                return data.get(self._unsure_key(session_path, pair_id))
+        except Exception as e:
+            print("[WARN] failed reading unsure log:", e)
+        return None
+
+
+    def redraw_outline(self):
+        color = getattr(self, "_current_outline_color", None)
+        # clear first (idempotent)
+        self.image1.canvas.delete("canvas_outline")
+        self.image2.canvas.delete("canvas_outline")
+        if color:
+            # draw again (use after_idle so it runs after image/masks/boxes are drawn)
+            self.after_idle(lambda: self.image1.draw_canvas_outline(color))
+            self.after_idle(lambda: self.image2.draw_canvas_outline(color))
 
 
     def refocus_after_button(self):
@@ -434,26 +470,36 @@ class ImagePairViewer(ttk.Frame):
 
 
     def update_global_progress(self):
+        # get current pair image names (works for both modes)
+        try:
+            im1_path, im2_path = self._pair_imgs_at_current()
+            im1_name = self._shorten(Path(im1_path).name)
+            im2_name = self._shorten(Path(im2_path).name)
+            img_pair = f"{im1_name} → {im2_name}"
+        except Exception:
+            img_pair = ""
+
         if getattr(self, "_flat_mode", False):
             total_pairs = len(self.image_pairs)
             view_idx = self._flat_view_index + 1
             meta = self.image_pairs.meta_at(self._flat_view_index)
-            session_name = Path(meta["session_path"]).name
+            session_name = Path(meta.get("session_path") or "remote").name
             pair_id = meta["pair_id"]
             self.global_progress_label.config(
-                text=f"Unsure mode — {view_idx} / {total_pairs}  |  {session_name}  |  original pair #{pair_id}"
+                text=f"Unsure mode — {view_idx}/{total_pairs} | {session_name} | pair #{pair_id} | {img_pair}"
             )
             return
 
-        # Session-Anzeige (wie bisher)
-        session_name = self.image_pairs.src.name
+        # session mode
+        session_name = getattr(self.image_pairs, "src", Path("?")).name
         current_session_number = self.session_index + 1
         total_sessions = len(self.session_paths)
         current_pair = self.current_index + 1
         total_pairs = len(self.image_pairs)
         self.global_progress_label.config(
-            text=f"Session {current_session_number} / {total_sessions} — {session_name}: {current_pair} / {total_pairs}"
+            text=f"Session {current_session_number}/{total_sessions} — {session_name}: {current_pair}/{total_pairs} | {img_pair}"
         )
+
 
 
     def find_session_paths(self, base_src):
@@ -927,6 +973,19 @@ class ImagePairViewer(ttk.Frame):
             # Annotation rehydrieren (gleich wie dein Session-Code)
             annotation = self.annotations.get_pair_annotation(self.current_index)
             boxes = annotation.get("boxes", [])
+
+            # 🔁 Falls es in unsure_reviews.json einen neueren Eintrag gibt, priorisieren
+            unsure_entry = self._get_unsure_entry(session_path, original_pair_id)
+            if unsure_entry:
+                # Boxes & State aus globaler Datei übernehmen
+                boxes = unsure_entry.get("boxes", boxes)
+                if unsure_entry.get("pair_state") is not None:
+                    annotation["pair_state"] = unsure_entry["pair_state"]
+            else:
+                # Kein Eintrag im globalen Log → Standard 'no_annotation'
+                annotation.setdefault("pair_state", ImageAnnotation.Classes.NO_ANNOTATION)
+
+
             self.image1._original_mask_pils = []; self.image2._original_mask_pils = []
             image1_boxes, image2_boxes = [], []
 
@@ -1083,15 +1142,13 @@ class ImagePairViewer(ttk.Frame):
 
 
     def update_ui_state(self, pair_state):
-        print(f"[UI] Updating canvas outline for state: {pair_state}")
+        if pair_state is None:
+            pair_state = ImageAnnotation.Classes.NO_ANNOTATION
         color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(pair_state)
-
-        self.image1.canvas.delete("canvas_outline")
-        self.image2.canvas.delete("canvas_outline")
-
-        if color:
-            self.after_idle(lambda: self.image1.draw_canvas_outline(color))
-            self.after_idle(lambda: self.image2.draw_canvas_outline(color))
+        self._current_outline_color = color  # <<< remember current outline
+        # draw (will also be re-drawn by resize hook below)
+        self.redraw_outline()
+        print(f"[UI] Updating canvas outline for state: {pair_state}")
 
 
 

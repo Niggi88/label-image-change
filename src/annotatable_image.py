@@ -255,7 +255,7 @@ class AnnotatableImage(ttk.Frame):
         self._offset_x = (canvas_width - display_width) // 2
         self._offset_y = (canvas_height - display_height) // 2
 
-        self.canvas.delete("canvas_outline")  # make sure it's gone BEFORE drawing
+        # self.canvas.delete("canvas_outline")  # make sure it's gone BEFORE drawing
 
 
         # 3. Komplettes Canvas leeren & nur das Bild rein
@@ -272,7 +272,11 @@ class AnnotatableImage(ttk.Frame):
         # 5. Boxen drüber
         self.display_boxes(self.boxes)
 
-
+        if hasattr(self, "controller") and self.controller:
+            try:
+                self.controller.redraw_outline()
+            except Exception:
+                pass
 
     def _calculate_scaled_size(self, size, max_size):
         """Calculate new size maintaining aspect ratio"""
