@@ -588,6 +588,7 @@ class ImagePairViewer(ttk.Frame):
             def done():
                 self._merge_remote_items(items)
                 self.load_remote_btn.config(state="normal")
+                self.focus_set()
             self.after(0, done)
 
         threading.Thread(target=worker, daemon=True).start()
