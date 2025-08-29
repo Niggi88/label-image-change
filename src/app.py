@@ -16,7 +16,13 @@ import copy
 import json
 import requests
 import threading  # ensure this import exists at top of file
-import time     
+import time
+import os
+
+# Remote API (override via env variables if you want)
+API_BASE_URL = os.getenv("UNSURE_API_BASE", "http://127.0.0.1:8010")
+API_TOKEN    = os.getenv("UNSURE_API_TOKEN", "")
+API_TIMEOUT  = int(os.getenv("UNSURE_API_TIMEOUT", "20"))
 
 
 class ImagePairList(list):
@@ -67,6 +73,24 @@ class FlatPairList:
     def meta_at(self, index):
         return self._items[index]
 
+    def _key_of(self, it):
+        return f"{str(it['session_path'])}|{int(it['pair_id'])}"
+
+    def keys(self):
+        return { self._key_of(it) for it in self._items }
+
+    def extend_unique(self, items):
+        """Append only new items, skip existing keys. Return number added."""
+        existing = self.keys()
+        added = 0
+        for it in items:
+            k = self._key_of(it)
+            if k in existing:
+                continue
+            self._items.append(it)
+            existing.add(k)
+            added += 1
+        return added
 
 
 class PairViewerApp(tk.Tk):
@@ -187,6 +211,7 @@ class ImagePairViewer(ttk.Frame):
 
                 # --- Wenn Flat-Modus: keine Sessions scannen, UI wie gewohnt bauen ---
         if self._flat_mode:
+
             # Bilder/Topbar/Controls wie in deinem bestehenden Code bauen:
             self.image1 = AnnotatableImage(self, annotation_controller=None, controller=self)
             self.image1.grid(row=1, column=0, sticky="nsew")
@@ -221,6 +246,15 @@ class ImagePairViewer(ttk.Frame):
             self.flush_btn = ttk.Button(self.top_right_container, text="Flush Cache",
                                         style="Clear.TButton", command=self.flush_cache)
             self.flush_btn.pack(pady=(4, 0))
+
+            self.load_remote_btn = ttk.Button(
+                self.top_right_container,
+                text="Load Remote",
+                style="Nothing.TButton",  # reuse any of your styles
+                command=self._on_load_remote_clicked
+            )
+            self.load_remote_btn.pack(pady=(4, 0))
+
 
             # Datenquelle setzen
             self.image_pairs = FlatPairList(flat_pairs)
@@ -423,6 +457,104 @@ class ImagePairViewer(ttk.Frame):
             self.after_idle(lambda: self.image1.draw_canvas_outline(color))
             self.after_idle(lambda: self.image2.draw_canvas_outline(color))
 
+    def _remote_headers(self):
+        h = {}
+        if API_TOKEN:
+            h["Authorization"] = f"Bearer {API_TOKEN}"
+        return h
+
+    def _cache_dir(self):
+        from config import DATASET_DIR
+        p = Path(DATASET_DIR) / ".remote_cache"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    def _cache_get(self, file_url: str) -> Path:
+        """Download URL to local cache if not present, return Path."""
+        cache = self._cache_dir()
+        # if server returned relative like "/images/...", prefix with API_BASE_URL
+        if not (file_url.startswith("http://") or file_url.startswith("https://")):
+            file_url = f"{API_BASE_URL.rstrip('/')}{file_url}"
+        name = file_url.split("?")[0].split("/")[-1]
+        dst = cache / name
+        if not dst.exists():
+            rr = requests.get(file_url, headers=self._remote_headers(), timeout=API_TIMEOUT)
+            rr.raise_for_status()
+            dst.write_bytes(rr.content)
+        return dst
+
+    def _fetch_remote_unsure(self):
+        """
+        Calls GET {API_BASE_URL}/unsure and expects items like:
+        {"session_id": "...", "session_path":"...", "pair_id": 42,
+        "im1_url":"http://.../images/...", "im2_url":"http://.../images/..."}
+        Returns a flat list shaped for FlatPairList.
+        """
+        url = f"{API_BASE_URL.rstrip('/')}/unsure"
+        r = requests.get(url, headers=self._remote_headers(), timeout=API_TIMEOUT)
+        r.raise_for_status()
+        items = r.json()
+
+        flat = []
+        for it in items:
+            try:
+                im1 = self._cache_get(it["im1_url"])
+                im2 = self._cache_get(it["im2_url"])
+                flat.append({
+                    "session_path": Path(it.get("session_path") or it.get("session_id") or "remote"),
+                    "pair_id": int(it["pair_id"]),
+                    "im1_path": im1,
+                    "im2_path": im2,
+                    "unsure_by": it.get("unsure_by") or {},
+                    "source": "remote",
+                })
+            except Exception as e:
+                print("[REMOTE] skip item:", e)
+        return flat
+
+    def _merge_remote_items(self, items):
+        """UI-thread: merge new items and refresh spinner/progress."""
+        if not items:
+            messagebox.showinfo("Remote", "No remote unsure pairs found.")
+            return
+        added = self.image_pairs.extend_unique(items)
+        # refresh spinner and progress
+        self.spinbox.items = self.image_pairs.ids()
+        self.spinbox.draw_items()
+        self.update_global_progress()
+        messagebox.showinfo("Remote", f"Loaded {added} new remote pairs.")
+
+    def _on_load_remote_clicked(self):
+        """Fetch in background so UI stays responsive."""
+        if not getattr(self, "_flat_mode", False):
+            messagebox.showinfo("Remote", "Only available in Unsure mode.")
+            return
+
+        # disable during fetch
+        self.load_remote_btn.config(state="disabled")
+        self.global_progress_label.config(text="Unsure mode — loading remote…")
+
+        def worker():
+            try:
+                items = self._fetch_remote_unsure()
+            except Exception as e:
+                err = str(e)
+                def fail():
+                    self.global_progress_label.config(text="Unsure mode — remote load failed")
+                    messagebox.showerror("Remote error", err)
+                    self.load_remote_btn.config(state="normal")
+                self.after(0, fail)
+                return
+
+            def done():
+                self._merge_remote_items(items)
+                self.load_remote_btn.config(state="normal")
+            self.after(0, done)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+
+
 
     def refocus_after_button(self):
         self.focus_set()  # Put focus back to main frame (not the button)
@@ -528,16 +660,21 @@ class ImagePairViewer(ttk.Frame):
 
 
     def update_flicker_ui(self, flickering: bool):
-        # Clear current contents
         for widget in self.top_right_container.winfo_children():
             widget.pack_forget()
 
         if flickering:
             self.flicker_label.pack()
         else:
-            if not getattr(self, "_flat_mode", False):
+            if getattr(self, "_flat_mode", False):
+                # flat/unsure mode: no skip, but show flush + load remote
+                self.flush_btn.pack(pady=(4, 0))
+                if hasattr(self, "load_remote_btn"):
+                    self.load_remote_btn.pack(pady=(4, 0))
+            else:
+                # session mode: show skip + flush
                 self.skip_session_btn.pack()
-            self.flush_btn.pack(pady=(4, 0))
+                self.flush_btn.pack(pady=(4, 0))
 
     def toggle_flicker(self):
         if not self.flicker_running:
@@ -1175,7 +1312,7 @@ class ImagePairViewer(ttk.Frame):
             #     self.image2,
             #     pair_state=pair_state
             # )
-            self._maybe_save(pair_state=self.state)
+            self._maybe_save(pair_state=pair_state)
 
             print(f"[AUTO-SAVE-RIGHT] Marked pair {self.current_index} as {pair_state}")
 

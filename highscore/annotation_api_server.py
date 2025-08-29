@@ -9,6 +9,21 @@ from typing import Dict, Optional
 import os
 from pathlib import Path
 
+from pathlib import Path
+import os, io, json
+from fastapi import UploadFile, File, Form, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+# where to store things on the server (adjust if needed)
+DATA_ROOT = Path(os.getenv("ANNOTATION_DATA_ROOT", "/srv/label_data")).resolve()
+ANNOTATIONS_DIR = DATA_ROOT / "annotations"  # <session_id>.json uploaded here
+IMAGES_DIR = DATA_ROOT / "images"            # images stored by their relative_path
+
+ANNOTATIONS_DIR.mkdir(parents=True, exist_ok=True)
+IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+
+
 # ONLY CHANGE: Replace JSON import with database import
 # OLD: import json
 # NEW: Import your database module
@@ -24,6 +39,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve files under: http(s)://<host>:<port>/images/<relative_path>
+app.mount("/images", StaticFiles(directory=str(IMAGES_DIR)), name="images")
+
 
 # REMOVE: No more DATA_FILE needed!
 # OLD: DATA_FILE = "highscore_list.json"
@@ -183,6 +202,71 @@ app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 @app.get("/")
 async def read_index():
     return FileResponse('static/index.html')
+
+
+
+
+
+
+
+
+def _iter_annotation_files():
+    return sorted(ANNOTATIONS_DIR.glob("*.json"))
+
+@app.get("/unsure")
+def list_unsure_pairs(limit: int = 1000):
+    """
+    Returns items like:
+    {
+      "session_id": "...",
+      "session_path": "<meta root or session_id>",
+      "pair_id": 42,
+      "im1_url": "/images/<relative_path>",
+      "im2_url": "/images/<relative_path>"
+    }
+    """
+    out = []
+    total = 0
+    for ann_file in _iter_annotation_files():
+        session_id = ann_file.stem
+        try:
+            data = json.loads(ann_file.read_text())
+        except Exception as e:
+            print("[UNSURE] skip", ann_file, "->", e)
+            continue
+
+        meta_root = (data.get("_meta") or {}).get("root")  # optional; used for context only
+
+        for k, entry in data.items():
+            if k == "_meta":
+                continue
+            ps = entry.get("pair_state")
+            if ps not in (None, "no_annotation"):   # only unsure
+                continue
+            im1_rel = entry.get("im1_path")
+            im2_rel = entry.get("im2_path")
+            if not im1_rel or not im2_rel:
+                continue
+
+            out.append({
+                "session_id": session_id,
+                "session_path": meta_root or session_id,
+                "pair_id": int(k),
+                "im1_url": f"/images/{im1_rel}",
+                "im2_url": f"/images/{im2_rel}",
+            })
+            total += 1
+            if total >= limit:
+                return out
+    return out
+
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
     import uvicorn
