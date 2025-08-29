@@ -62,6 +62,17 @@ This will automatically search for annotations.json files in the dataset directo
         ├── <image_filename_2>.jpeg
         └── ...
 
+
+# change mode: review unsure pairs
+* run /opt/datasets/change_detection/unsure_api_server.py on m01 to start the server-side
+* to start the reviewing_mode:
+    * run src/review_unsure.py in label-image-change
+    * this automatically loads unsure labelled pairs locally based on your DATASET_DIR (config)
+    * to load image pairs from the server: press "load remote" button
+    * images will be saved to DATASET_DIR/.remote_cache
+* changes/corrections will be saved as unsure_reviews.json (in your DATASET_DIR)
+
+
 ## Options for annotating:
 * nothing changed: when no item was added/removed, basically the content of the cart did not change
 * chaos: when there is a lot going on, and its not clear whats going on (might be considered as unsure)
