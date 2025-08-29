@@ -18,9 +18,11 @@ import requests
 import threading  # ensure this import exists at top of file
 import time
 import os
+from urllib.parse import urlparse
 
 # Remote API (override via env variables if you want)
-API_BASE_URL = os.getenv("UNSURE_API_BASE", "http://127.0.0.1:8010")
+API_BASE_URL = "http://172.30.20.31:8081"
+# API_BASE_URL = os.getenv("UNSURE_API_BASE", "http://127.0.0.1:8081")
 API_TOKEN    = os.getenv("UNSURE_API_TOKEN", "")
 API_TIMEOUT  = int(os.getenv("UNSURE_API_TIMEOUT", "20"))
 
@@ -465,23 +467,46 @@ class ImagePairViewer(ttk.Frame):
 
     def _cache_dir(self):
         from config import DATASET_DIR
-        p = Path(DATASET_DIR) / ".remote_cache"
+        # one cache per server host to avoid mixing if you change servers someday
+        parsed = urlparse(API_BASE_URL)
+        host_tag = (parsed.hostname or "remote") + (f"_{parsed.port}" if parsed.port else "")
+        p = Path(DATASET_DIR) / ".remote_cache" / host_tag
         p.mkdir(parents=True, exist_ok=True)
         return p
 
     def _cache_get(self, file_url: str) -> Path:
-        """Download URL to local cache if not present, return Path."""
-        cache = self._cache_dir()
-        # if server returned relative like "/images/...", prefix with API_BASE_URL
+        """
+        Download URL to local cache if not present.
+        Preserve the original relative path after /images/.
+        Examples:
+        http://server:8081/images/store_x/session_y/000041.jpeg
+            -> .remote_cache/server_8081/store_x/session_y/000041.jpeg
+        """
+        # prefix API_BASE_URL if server returned a relative URL like "/images/..."
         if not (file_url.startswith("http://") or file_url.startswith("https://")):
             file_url = f"{API_BASE_URL.rstrip('/')}{file_url}"
-        name = file_url.split("?")[0].split("/")[-1]
-        dst = cache / name
+
+        parsed = urlparse(file_url)
+        rel = parsed.path  # e.g. "/images/store_x/session_y/000041.jpeg"
+        # strip the "/images/" prefix and keep the rest as the cache-relative path
+        prefix = "/images/"
+        if rel.startswith(prefix):
+            rel = rel[len(prefix):]  # -> "store_x/session_y/000041.jpeg"
+        else:
+            # fallback: just use the basename if the path doesn't match expectation
+            rel = rel.split("/")[-1]
+
+        # build destination under cache dir, preserving subfolders
+        dst = self._cache_dir() / Path(rel)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+
         if not dst.exists():
             rr = requests.get(file_url, headers=self._remote_headers(), timeout=API_TIMEOUT)
             rr.raise_for_status()
             dst.write_bytes(rr.content)
+
         return dst
+
 
     def _fetch_remote_unsure(self):
         """
