@@ -509,18 +509,13 @@ class ImagePairViewer(ttk.Frame):
 
 
     def _fetch_remote_unsure(self):
-        """
-        Calls GET {API_BASE_URL}/unsure and expects items like:
-        {"session_id": "...", "session_path":"...", "pair_id": 42,
-        "im1_url":"http://.../images/...", "im2_url":"http://.../images/..."}
-        Returns a flat list shaped for FlatPairList.
-        """
         url = f"{API_BASE_URL.rstrip('/')}/unsure"
         r = requests.get(url, headers=self._remote_headers(), timeout=API_TIMEOUT)
         r.raise_for_status()
         items = r.json()
 
         flat = []
+        skipped = 0
         for it in items:
             try:
                 im1 = self._cache_get(it["im1_url"])
@@ -534,20 +529,39 @@ class ImagePairViewer(ttk.Frame):
                     "source": "remote",
                 })
             except Exception as e:
+                skipped += 1
                 print("[REMOTE] skip item:", e)
+        print(f"[REMOTE] received {len(items)} items, cached {len(flat)}, skipped {skipped}")
         return flat
 
+
     def _merge_remote_items(self, items):
-        """UI-thread: merge new items and refresh spinner/progress."""
-        if not items:
-            messagebox.showinfo("Remote", "No remote unsure pairs found.")
+        """UI-thread: merge and refresh spinner/progress."""
+        if not getattr(self, "_flat_mode", False):
             return
-        added = self.image_pairs.extend_unique(items)
-        # refresh spinner and progress
+
+        # self.image_pairs is a FlatPairList in flat mode
+        prev_total = len(self.image_pairs)
+        added = self.image_pairs.extend_unique(items)  # no dupes by (session_path|pair_id)
+
+        if added == 0:
+            messagebox.showinfo("Remote", "No new remote pairs found.")
+            return
+
+        # Refresh spinner contents
         self.spinbox.items = self.image_pairs.ids()
         self.spinbox.draw_items()
-        self.update_global_progress()
+
+        # If we previously had nothing, jump to the first newly available pair
+        if prev_total == 0:
+            self._flat_view_index = 0
+            self.load_pair(0)
+        else:
+            # stay where you are, just refresh the progress text
+            self.update_global_progress()
+
         messagebox.showinfo("Remote", f"Loaded {added} new remote pairs.")
+
 
     def _on_load_remote_clicked(self):
         """Fetch in background so UI stays responsive."""
@@ -637,13 +651,13 @@ class ImagePairViewer(ttk.Frame):
             img_pair = ""
 
         if getattr(self, "_flat_mode", False):
-            total_pairs = len(self.image_pairs)
-            view_idx = self._flat_view_index + 1
-            meta = self.image_pairs.meta_at(self._flat_view_index)
-            session_name = Path(meta.get("session_path") or "remote").name
-            pair_id = meta["pair_id"]
+            total = len(self.image_pairs)
+            idx = self._flat_view_index + 1 if total else 0
+            meta = self.image_pairs.meta_at(self._flat_view_index) if total else {}
+            session_name = Path(str(meta.get("session_path", ""))).name if meta else ""
+            pair_id = meta.get("pair_id") if meta else "-"
             self.global_progress_label.config(
-                text=f"Unsure mode — {view_idx}/{total_pairs} | {session_name} | pair #{pair_id} | {img_pair}"
+                text=f"Unsure mode — {idx}/{total} | {session_name} | pair #{pair_id}"
             )
             return
 
