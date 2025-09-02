@@ -381,19 +381,49 @@ class ImagePairViewer(ttk.Frame):
 
 
     def _log_unsure_review(self, pair_state=None):
-        """Append/update a single record in unsure_reviews.json when in flat mode."""
+        """Append/update a single record in unsure_reviews.json when in flat mode.
+        Stores im1_path/im2_path relative to session_path (same as annotations.json)."""
         if not getattr(self, "_flat_mode", False):
             return
         if not self._unsure_log_path:
             return
 
+        import json
+        from pathlib import Path
+        from datetime import datetime
+        from urllib.parse import urlparse
+        import posixpath
+
         # Collect metadata
         meta = self.image_pairs.meta_at(self._flat_view_index)
         session_path = str(meta["session_path"])
         pair_id = int(meta["pair_id"])
-        im1_path, im2_path = map(str, self._pair_imgs_at_current())
 
-        # Get the current annotation payload
+        # Current sources (can be local paths or URLs)
+        src1, src2 = self._pair_imgs_at_current()
+        session_path_obj = Path(session_path)
+
+        def _to_session_rel(src, session_root: Path) -> str:
+            s = str(src)
+            # Remote source (URL): use last path component as filename
+            if s.startswith("http://") or s.startswith("https://"):
+                try:
+                    path = urlparse(s).path
+                    name = posixpath.basename(path)
+                    return name or s
+                except Exception:
+                    return s
+            # Local path: try to make it relative to the session folder; fallback to basename
+            p = Path(s)
+            try:
+                return str(p.relative_to(session_root))
+            except Exception:
+                return p.name
+
+        im1_path = _to_session_rel(src1, session_path_obj)
+        im2_path = _to_session_rel(src2, session_path_obj)
+
+        # Current annotation payload
         ann = self.annotations.get_pair_annotation(self.current_index) or {}
         if pair_state is not None:
             ann = {**ann, "pair_state": pair_state}
@@ -405,8 +435,7 @@ class ImagePairViewer(ttk.Frame):
             "im2_path": im2_path,
             "pair_state": ann.get("pair_state"),
             "boxes": ann.get("boxes", []),
-            # optional extras:
-            "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now().isoformat(),  # optional extra
         }
 
         # Load -> upsert -> save (atomic-ish)
@@ -423,6 +452,7 @@ class ImagePairViewer(ttk.Frame):
         tmp = self._unsure_log_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(existing, indent=2))
         tmp.replace(self._unsure_log_path)
+
 
     def _shorten(self, s: str, maxlen: int = 40) -> str:
         """shorten very long filenames in the middle"""
