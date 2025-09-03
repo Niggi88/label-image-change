@@ -978,8 +978,9 @@ class ImagePairViewer(ttk.Frame):
 
     def setup_controls(self):
         """Set up classification and navigation controls"""
+        controls_row = 3 if getattr(self, "_flat_mode", False) else 2  # flat = 3, annotation = 2
         controls = ttk.Frame(self)
-        controls.grid(row=3, column=0, columnspan=2, sticky="ew")
+        controls.grid(row=controls_row, column=0, columnspan=2, sticky="ew")
         
         
                 
@@ -1630,7 +1631,7 @@ class ImagePairViewer(ttk.Frame):
         # Speichern vor Verlassen
         self.reset_buttons()
         self.save_current_boxes()
-        
+
         if getattr(self, "_flat_mode", False):
             # ---- FLAT/REVIEW MODE ----
             meta = self.image_pairs.meta_at(self._flat_view_index)
