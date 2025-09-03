@@ -624,7 +624,10 @@ class AnnotatableImage(ttk.Frame):
         self.controller.update_ui_state(new_state)
         print("Deleted pair in both images & masks updated immediately.")
 
-
+    def clear_image(self):
+        """Löscht das Hintergrund-Bild"""
+        self.canvas.delete("all")
+        self._image = None
 
     def clear_mask(self):
         """Löscht nur die Maske"""
