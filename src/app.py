@@ -276,21 +276,21 @@ class ImagePairViewer(ttk.Frame):
                                         style="Clear.TButton", command=self.flush_cache)
             self.flush_btn.pack(pady=(4, 0))
 
-            self.load_remote_btn = ttk.Button(
-                self.top_right_container,
-                text="Load Remote",
-                style="Nothing.TButton",  # reuse any of your styles
-                command=self._on_load_remote_clicked
-            )
-            self.load_remote_btn.pack(pady=(4, 0))
+            # self.load_remote_btn = ttk.Button(
+            #     self.top_right_container,
+            #     text="Load Remote",
+            #     style="Nothing.TButton",  # reuse any of your styles
+            #     command=self._on_load_remote_clicked
+            # )
+            # self.load_remote_btn.pack(pady=(4, 0))
 
-            self.load_inconsistent_btn = ttk.Button(
-                self.top_right_container,
-                text="Load Inconsistent",
-                style="Nothing.TButton",
-                command=self._on_load_inconsistent_clicked
-            )
-            self.load_inconsistent_btn.pack(pady=(4, 0))
+            # self.load_inconsistent_btn = ttk.Button(
+            #     self.top_right_container,
+            #     text="Load Inconsistent",
+            #     style="Nothing.TButton",
+            #     command=self._on_load_inconsistent_clicked
+            # )
+            # self.load_inconsistent_btn.pack(pady=(4, 0))
 
 
             # Datenquelle setzen
@@ -440,15 +440,11 @@ class ImagePairViewer(ttk.Frame):
 
     def _maybe_save(self, pair_state=None):
         """Session-Mode: normal speichern.
-        Unsure-Mode (flat): nur global loggen, keine Session-Datei schreiben."""
+        Unsure-Mode (flat): in unsure_reviews.json schreiben (aktueller Canvas-Zustand)."""
         if getattr(self, "_flat_mode", False):
-            # remember we explicitly saved in this step (avoid auto-default override)
-            if pair_state is not None:
-                self._flat_last_saved_state = pair_state
-            else:
-                self._flat_last_saved_state = None
-
-            self._log_unsure_review(pair_state=pair_state)
+            # remember explicit save in this step (prevents auto-default on nav)
+            self._flat_last_saved_state = pair_state if pair_state is not None else None
+            self._log_unsure_review(pair_state=pair_state)   # <- writes current boxes (even empty)
             print("Save review_unsure.json: ", pair_state)
             return
 
@@ -459,6 +455,7 @@ class ImagePairViewer(ttk.Frame):
             pair_state=pair_state
         )
         print("Save pair annotation.json: ", pair_state)
+
 
 
 
@@ -523,10 +520,7 @@ class ImagePairViewer(ttk.Frame):
             rec["pair_state"] = pair_state
 
         # Only replace boxes if we actually have new ones; otherwise keep what was there
-        if live_boxes:
-            rec["boxes"] = live_boxes
-        else:
-            rec.setdefault("boxes", [])
+        rec["boxes"] = live_boxes
 
         rec.update({
             "store_session_path": session_path,
@@ -1057,6 +1051,8 @@ class ImagePairViewer(ttk.Frame):
 
             self.image1.selected_box_index = None
             self.image2.selected_box_index = None
+        
+
         
         # wenn NACH dem Löschen KEINE Boxen mehr existieren → setze pair_state = NO_ANNOTATION
         if not self.image1.get_boxes() and not self.image2.get_boxes():

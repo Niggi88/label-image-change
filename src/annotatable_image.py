@@ -572,72 +572,58 @@ class AnnotatableImage(ttk.Frame):
         pair_id = self.boxes[self.selected_box_index].get('pair_id')
         print(f"Deleting pair_id: {pair_id}")
 
-        # 1) Lösche alle Boxen mit dieser ID in beiden Bildern
+        # 1) Delete all boxes with this pair_id on BOTH images
         self.boxes = [b for b in self.boxes if b.get('pair_id') != pair_id]
         other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
         other_image.boxes = [b for b in other_image.boxes if b.get('pair_id') != pair_id]
 
-        # 2) Maskenlisten für beide Bilder AKTUALISIEREN
+        # 2) Rebuild mask PIL lists for BOTH images
         self._original_mask_pils = [
             Image.open(io.BytesIO(base64.b64decode(b['mask_base64']))).convert("RGBA")
             for b in self.boxes
-            if "mask_base64" in b and b["mask_image_id"] == str(self.image_path)
+            if "mask_base64" in b and b.get("mask_image_id") == str(self.image_path)
         ]
-
         other_image._original_mask_pils = [
             Image.open(io.BytesIO(base64.b64decode(b['mask_base64']))).convert("RGBA")
             for b in other_image.boxes
-            if "mask_base64" in b and b["mask_image_id"] == str(other_image.image_path)
+            if "mask_base64" in b and b.get("mask_image_id") == str(other_image.image_path)
         ]
 
-        # 3) Neu zeichnen
-        self.clear_boxes()
-        self.display_boxes(self.boxes)
-        other_image.clear_boxes()
-        other_image.display_boxes(other_image.boxes)
+        # 3) Redraw boxes
+        self.clear_boxes(); self.display_boxes(self.boxes)
+        other_image.clear_boxes(); other_image.display_boxes(other_image.boxes)
 
-        # 4) Neu zeichnen der Masken über _resize_image
+        # 4) Redraw masks via resize
         self._resize_image()
         other_image._resize_image()
-       
-        # 5) Auswahl zurücksetzen
+
+        # 5) Reset selection
         self.selected_box_index = None
         other_image.selected_box_index = None
 
-        # 6) Wenn keine Boxen mehr übrig sind → pair_state auf "no_annotation"
+        # 6) Derive new pair_state from LIVE canvas boxes (same logic as annotation mode)
         if not self.boxes and not other_image.boxes:
             new_state = ImageAnnotation.Classes.NO_ANNOTATION
         else:
             new_state = ImageAnnotation.Classes.ANNOTATED
 
-        # Save correct state!
-        self.controller.annotations.save_pair_annotation(
-            image1=self,
-            image2=other_image,
-            pair_state=new_state
-        )
+        # 7) SAVE:
+        if getattr(self.controller, "_flat_mode", False):
+            # REVIEW MODE: write to unsure_reviews.json (controller handles it)
+            # IMPORTANT: Ensure _maybe_save() mirrors current canvas boxes (even empty)
+            self.controller._maybe_save(pair_state=new_state)
+        else:
+            # ANNOTATION MODE: normal session save
+            self.controller.annotations.save_pair_annotation(
+                image1=self.controller.image1,
+                image2=self.controller.image2,
+                pair_state=new_state
+            )
 
-        # 🔄 Update UI outline & buttons
+        # 8) Update outline/buttons
         self.controller.update_ui_state(new_state)
         print("Deleted pair in both images & masks updated immediately.")
 
-    
-    def clear_image(self):
-        """Löscht das Hintergrund-Bild"""
-        self.canvas.delete("all")
-        self._image = None
-
-    def clear_boxes(self):
-        for rect in self.box_rects:
-            self.canvas.delete(rect)
-        self.box_rects = []
-
-        # 🧼 NEW: remove temp blue drawing
-        if self.current_box:
-            self.canvas.delete(self.current_box)
-            self.current_box = None
-
-        self.selected_box_index = None
 
 
     def clear_mask(self):
