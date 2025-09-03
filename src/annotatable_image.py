@@ -639,6 +639,18 @@ class AnnotatableImage(ttk.Frame):
         self._original_mask_pils = []
         self._mask_overlays = []
 
+    def clear_boxes(self):
+        for rect in self.box_rects:
+            self.canvas.delete(rect)
+        self.box_rects = []
+
+        # 🧼 NEW: remove temp blue drawing
+        if self.current_box:
+            self.canvas.delete(self.current_box)
+            self.current_box = None
+
+        self.selected_box_index = None
+        
     def clear_all(self):
         self.clear_image()
         self.clear_mask()
