@@ -81,7 +81,7 @@ class UnsureApp(tk.Tk):
             self,
             base_src=None,
             flat_pairs=flat_items,
-            unsure_log_path=LOG_PATH
+            _unsure_log_path=LOG_PATH
         )
         self.viewer.pack(fill="both", expand=True)
 
