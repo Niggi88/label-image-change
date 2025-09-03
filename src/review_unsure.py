@@ -1,94 +1,100 @@
 # review_unsure.py
+import os
 import json
-from pathlib import Path
 import tkinter as tk
+from tkinter import messagebox
+from pathlib import Path
+from urllib.parse import urljoin
+
+import requests
+
 from app import ImagePairViewer
 from config import DATASET_DIR
 
+# where we store review decisions locally (unchanged)
 LOG_PATH = Path(DATASET_DIR) / "unsure_reviews.json"
 
-def _load_unsure_log():
-    try:
-        if LOG_PATH.exists():
-            return json.loads(LOG_PATH.read_text())
-    except Exception as e:
-        print("[WARN] failed reading unsure log:", e)
-    return {}
+# server API base; override via env if you want
+API_BASE = os.environ.get("REVIEW_API_BASE", "http://ml01:8081")
 
-def _already_corrected(log, session_path: Path, pair_id: int) -> bool:
-    """
-    Return True if this pair has a non-`no_annotation` state in unsure_reviews.json.
-    Key format must match how we write it: f"{session_path}|{pair_id}"
-    """
-    key = f"{str(session_path)}|{int(pair_id)}"
-    entry = log.get(key)
-    if not entry:
-        return False
-    state = entry.get("pair_state")
-    return state is not None and state != "no_annotation"
-
-def collect_unsure_pairs(dataset_dir):
-    items = []
-    base = Path(dataset_dir)
-    unsure_log = _load_unsure_log()
-
-    for store_dir in sorted(base.glob("store_*")):
-        for session_dir in sorted(store_dir.glob("session_*")):
-            ann = session_dir / "annotations.json"
-            if not ann.exists():
-                continue
-
-            try:
-                data = json.loads(ann.read_text())
-            except json.JSONDecodeError:
-                continue
-
-            for k, entry in data.items():
-                if k == "_meta":
-                    continue
-
-                # Consider pairs that are unsure in the session (None or no_annotation)
-                ps = entry.get("pair_state")
-                if ps not in (None, "no_annotation"):
-                    continue
-
-                # Skip pairs that have been reviewed/corrected already in unsure_reviews.json
-                if _already_corrected(unsure_log, session_dir, int(k)):
-                    continue
-
-                # Resolve paths (adapt field names if yours differ)
-                im1 = session_dir / Path(entry["im1_path"]).name
-                im2 = session_dir / Path(entry["im2_path"]).name
-
-                items.append({
-                    "store_session_path": str(session_dir),
-                    "pair_id": int(k),
-                    "im1_path": str(im1),
-                    "im2_path": str(im2),
-                    "im1_name": str(im1.name),
-                    "im2_name": str(im2.name),
-                })
-
-    print("unsure pairs length:", len(items))
-    return items
 
 class UnsureApp(tk.Tk):
-    def __init__(self, flat_items):
+    def __init__(self):
         super().__init__()
         self.title("Unsure Review Mode")
-        # Pass the global log path so the viewer can read/write it
+
+        # --- Toolbar (no auto-load; user decides what to fetch) ---
+        bar = tk.Frame(self)
+        tk.Button(bar, text="Load UNSURE (server)", command=self.load_unsure).pack(side="left", padx=4, pady=4)
+        tk.Button(bar, text="Load INCONSISTENT (server)", command=self.load_inconsistent).pack(side="left", padx=4, pady=4)
+        bar.pack(side="top", fill="x")
+
+        # --- Viewer: start in flat mode with EMPTY list ---
+        # Passing [] keeps _flat_mode=True without showing local unsure pairs
         self.viewer = ImagePairViewer(
             self,
             base_src=None,
-            flat_pairs=flat_items,
-            _unsure_log_path=LOG_PATH
+            flat_pairs=[],                # <-- empty, no local auto-load
+            _unsure_log_path=LOG_PATH     # pass the log path so outlines update
         )
         self.viewer.pack(fill="both", expand=True)
 
+    # ------- helpers -------
+
+    def _fetch(self, path: str):
+        try:
+            r = requests.get(urljoin(API_BASE, path), timeout=20)
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            messagebox.showerror("Network error", f"GET {path} failed:\n{e}")
+            return []
+
+    def _merge_remote(self, items):
+        """
+        Adapt server items to the viewer's flat format and merge uniquely.
+        Viewer expects: store_session_path, pair_id, im1_url, im2_url, unsure_by (and optionally predicted/expected).
+        """
+        flat = []
+        for it in items:
+            try:
+                flat.append({
+                    "store_session_path": it["store_session_path"],
+                    "pair_id": int(it["pair_id"]),
+                    "im1_url": urljoin(API_BASE, it["im1_url"]),
+                    "im2_url": urljoin(API_BASE, it["im2_url"]),
+                    "unsure_by": it.get("unsure_by") or {},
+                    # optional extras used by banner/outline:
+                    "predicted": it.get("predicted"),
+                    "expected": it.get("expected"),
+                    "boxes_expected": it.get("boxes_expected", []),
+                    "boxes_predicted": it.get("boxes_predicted", []),
+                    "source": "remote",
+                })
+            except Exception as e:
+                print("[REMOTE] skip item:", e)
+
+        # merge into viewer
+        try:
+            added = self.viewer.image_pairs.extend_unique(flat)
+        except Exception:
+            # fallback if extend_unique isn't available
+            self.viewer.image_pairs._items = flat
+            added = len(flat)
+
+        if added:
+            self.viewer._flat_view_index = 0
+            self.viewer.load_pair(0)
+        messagebox.showinfo("Loaded", f"Added {added} pairs from server")
+
+    # ------- button actions -------
+
+    def load_unsure(self):
+        self._merge_remote(self._fetch("/unsure"))
+
+    def load_inconsistent(self):
+        self._merge_remote(self._fetch("/inconsistent"))
+
+
 if __name__ == "__main__":
-    unsure = collect_unsure_pairs(DATASET_DIR)
-    if not unsure:
-        print("No unsure annotations found (after applying unsure_reviews.json filter).")
-    else:
-        app = UnsureApp(unsure)
-        app.mainloop()
+    UnsureApp().mainloop()

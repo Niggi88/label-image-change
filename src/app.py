@@ -209,7 +209,7 @@ class ImagePairViewer(ttk.Frame):
         self._flat_mode = flat_pairs is not None
         self._flat_view_index = 0  # Position in der flachen Liste
         self._current_outline_color = None
-        self._unsure_log_path = _unsure_log_path
+        self._unsure_log_path = _unsure_log_path if self._flat_mode else None
         # --- dynamic row offset: only review/flat mode has a banner on row 0 ---
         is_flat = self._flat_mode
         r0 = 1 if is_flat else 0
@@ -235,7 +235,7 @@ class ImagePairViewer(ttk.Frame):
             pass
 
 
-                # --- Wenn Flat-Modus: keine Sessions scannen, UI wie gewohnt bauen ---
+        # --- Wenn Flat-Modus: keine Sessions scannen, UI wie gewohnt bauen ---
         if self._flat_mode:
             # Bilder/Topbar/Controls wie in deinem bestehenden Code bauen:
             self.image1 = AnnotatableImage(self, annotation_controller=None, controller=self)
@@ -306,8 +306,17 @@ class ImagePairViewer(ttk.Frame):
 
             # Tastenbelegung & erstes Bild laden
             self.setup_key_bindings()
-            self.load_pair(0)
-            return  # wichtig: Session-Init überspringen
+            if getattr(self, "_flat_mode", False):
+                try:
+                    has_items = len(self.image_pairs._items) > 0
+                except Exception:
+                    has_items = False
+                if has_items:
+                    self.load_pair(0)
+                else:
+                    # kein Pair laden, nur UI leer anzeigen
+                    self.global_progress_label.config(text="Unsure mode — no pairs loaded yet")
+                return
         
 
         self.session_paths = self.find_session_paths(base_src)
@@ -395,6 +404,39 @@ class ImagePairViewer(ttk.Frame):
         self._flicker_stop = threading.Event()
 
         self.reset(self.session_paths[self.session_index], initial=True)
+
+    def _flat_get_pair_state(self, store_session_path, pair_id):
+        """Return pair_state from unsure_reviews.json or None."""
+        if not getattr(self, "unsure_log_path", None):
+            return None
+        try:
+            data = json.loads(Path(self.unsure_log_path).read_text())
+        except Exception:
+            return None
+        rec = data.get(f"{str(store_session_path)}|{int(pair_id)}") or {}
+        return rec.get("pair_state")
+
+    def _flat_get_pair_annotation(self, store_session_path: str, pair_id: int):
+        """
+        Liesst den Eintrag aus unsure_reviews.json und liefert wie im Annotation-Mode:
+        {"pair_state": <str|None>, "boxes": <list> }
+        """
+        if not self._unsure_log_path:
+            return {"pair_state": None, "boxes": []}
+
+        try:
+            data = json.loads(Path(self._unsure_log_path).read_text())
+        except Exception:
+            return {"pair_state": None, "boxes": []}
+
+        rec = data.get(f"{str(store_session_path)}|{int(pair_id)}") or {}
+        boxes = (rec.get("boxes")
+                or rec.get("boxes_corrected")
+                or rec.get("boxes_expected")
+                or rec.get("boxes_predicted")
+                or [])
+        return {"pair_state": rec.get("pair_state"), "boxes": boxes}
+
 
     def _maybe_save(self, pair_state=None):
         """Session-Mode: normal speichern.
@@ -867,7 +909,13 @@ class ImagePairViewer(ttk.Frame):
         self.image2._resize_image()
 
         # preserve outline color
-        pair_state = self.annotations.get_pair_annotation(self.current_index).get("pair_state")
+        if getattr(self, "_flat_mode", False):
+            meta = self.image_pairs.meta_at(self._flat_view_index)
+            ann = self._flat_get_pair_annotation(meta["store_session_path"], meta["pair_id"])
+        else:
+            ann = self.annotations.get_pair_annotation(self.current_index)
+
+        pair_state = ann.get("pair_state")
         color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(pair_state)
         if color:
             self.image1.draw_canvas_outline(color)
@@ -1311,7 +1359,11 @@ class ImagePairViewer(ttk.Frame):
 
 
             # Annotation rehydrieren (gleich wie dein Session-Code)
-            annotation = self.annotations.get_pair_annotation(self.current_index)
+            meta = self.image_pairs.meta_at(index)  # hast du meist eh oben in load_pair
+            if self._flat_mode:
+                annotation = self._flat_get_pair_annotation(meta["store_session_path"], meta["pair_id"])
+            else:
+                annotation = self.annotations.get_pair_annotation(self.current_index)
             boxes = annotation.get("boxes", [])
 
             # 🔁 Falls es in unsure_reviews.json einen neueren Eintrag gibt, priorisieren
@@ -1380,7 +1432,10 @@ class ImagePairViewer(ttk.Frame):
             self.image1._resize_image(); self.image2._resize_image()
 
             # 3) Annotation laden
-            annotation = self.annotations.get_pair_annotation(index)
+            if self._flat_mode:
+                annotation = self._flat_get_pair_annotation(meta["store_session_path"], meta["pair_id"])
+            else:
+                annotation = self.annotations.get_pair_annotation(self.current_index)
             print("annotation pair_state:", annotation.get("pair_state"))
             # print("annotation object:", annotation)
             short_annotation = copy.deepcopy(annotation)
@@ -1500,8 +1555,11 @@ class ImagePairViewer(ttk.Frame):
 
         # ---- FLAT/REVIEW MODE FIRST ----
         if getattr(self, "_flat_mode", False):
-            # If we didn't just save an explicit state, set a sensible default once
-            if getattr(self, "_flat_last_saved_state", None) is None:
+            meta = self.image_pairs.meta_at(self._flat_view_index)
+            already = self._flat_get_pair_state(meta["store_session_path"], meta["pair_id"])
+
+            if getattr(self, "_flat_last_saved_state", None) is None and already is None:
+                # only default if we didn't just save AND nothing exists in unsure_reviews yet
                 boxes_exist = bool(self.image1.get_boxes() or self.image2.get_boxes())
                 default_state = (ImageAnnotation.Classes.ANNOTATED
                                 if boxes_exist else ImageAnnotation.Classes.NO_ANNOTATION)
@@ -1567,15 +1625,33 @@ class ImagePairViewer(ttk.Frame):
         self.reset_buttons()
 
         if getattr(self, "_flat_mode", False):
-            annotation = self.annotations.get_pair_annotation(self.current_index)
-            if not annotation or not annotation.get("pair_state"):
-                # self.annotations.save_pair_annotation(self.image1, self.image2, pair_state=ImageAnnotation.Classes.NO_ANNOTATION)
+            # ---- FLAT/REVIEW MODE ----
+            meta = self.image_pairs.meta_at(self._flat_view_index)
+
+            # read current state from unsure_reviews.json (fresh)
+            try:
+                import json
+                from pathlib import Path
+                data = json.loads(Path(self._unsure_log_path).read_text()) if self._unsure_log_path else {}
+            except Exception:
+                data = {}
+            key = f"{str(meta['store_session_path'])}|{int(meta['pair_id'])}"
+            already = (data.get(key) or {}).get("pair_state")
+
+            # only auto-default if we didn't just save AND nothing is saved yet
+            if getattr(self, "_flat_last_saved_state", None) is None and already is None:
                 self._maybe_save(pair_state=ImageAnnotation.Classes.NO_ANNOTATION)
+            else:
+                # consume the flag so next pair can auto-default if needed
+                self._flat_last_saved_state = None
+
+            # navigate left
             if self._flat_view_index > 0:
                 self.load_pair(self._flat_view_index - 1)
             else:
                 messagebox.showinfo("Start", "Already at first unsure pair.")
-            return 
+            return
+
         
         annotation = self.annotations.get_pair_annotation(self.current_index)
         if not annotation or not annotation.get("pair_state"):
@@ -1586,7 +1662,7 @@ class ImagePairViewer(ttk.Frame):
             # )
             self._maybe_save(pair_state=ImageAnnotation.Classes.NO_ANNOTATION)
 
-        print(f"[AUTO-SAVE-LEFT] Marked pair {self.current_index} as NO_ANNOTATION")
+            print(f"[AUTO-SAVE-LEFT] Marked pair {self.current_index} as NO_ANNOTATION")
 
 
         ret = self.spinbox.animate_scroll(-1)
