@@ -18,7 +18,7 @@ import requests
 import threading  # ensure this import exists at top of file
 import time
 import os
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 
 # Remote API (override via env variables if you want)
 API_BASE_URL = "http://172.30.20.31:8081"
@@ -64,7 +64,10 @@ class FlatPairList:
 
     def __getitem__(self, index):
         it = self._items[index]
-        return (it["im1_path"], it["im2_path"])
+        # bevorzugt URLs (remote), fallback auf lokale Pfade
+        im1 = it.get("im1_url") or it.get("im1_path")
+        im2 = it.get("im2_url") or it.get("im2_path")
+        return (im1, im2)
 
     def __len__(self):
         return len(self._items)
@@ -73,10 +76,18 @@ class FlatPairList:
         return list(range(len(self._items)))
 
     def meta_at(self, index):
-        return self._items[index]
+        it = self._items[index]
+        return {
+            "store_session_path": it["store_session_path"],
+            "pair_id": it["pair_id"],
+            "im1": it.get("im1_url") or it.get("im1_path"),
+            "im2": it.get("im2_url") or it.get("im2_path"),
+            "unsure_by": it.get("unsure_by"),
+            "source": it.get("source"),
+        }
 
     def _key_of(self, it):
-        return f"{str(it['session_path'])}|{int(it['pair_id'])}"
+        return f"{str(it['store_session_path'])}|{int(it['pair_id'])}"
 
     def keys(self):
         return { self._key_of(it) for it in self._items }
@@ -257,6 +268,14 @@ class ImagePairViewer(ttk.Frame):
             )
             self.load_remote_btn.pack(pady=(4, 0))
 
+            self.load_inconsistent_btn = ttk.Button(
+                self.top_right_container,
+                text="Load Inconsistent",
+                style="Nothing.TButton",
+                command=self._on_load_inconsistent_clicked
+            )
+            self.load_inconsistent_btn.pack(pady=(4, 0))
+
 
             # Datenquelle setzen
             self.image_pairs = FlatPairList(flat_pairs)
@@ -396,7 +415,7 @@ class ImagePairViewer(ttk.Frame):
 
         # Collect metadata
         meta = self.image_pairs.meta_at(self._flat_view_index)
-        session_path = str(meta["session_path"])
+        session_path = str(meta["store_session_path"])
         pair_id = int(meta["pair_id"])
 
         # Current sources (can be local paths or URLs)
@@ -429,7 +448,7 @@ class ImagePairViewer(ttk.Frame):
             ann = {**ann, "pair_state": pair_state}
 
         record = {
-            "session_path": session_path,
+            "store_session_path": session_path,
             "pair_id": pair_id,
             "im1_path": im1_path,
             "im2_path": im2_path,
@@ -538,30 +557,57 @@ class ImagePairViewer(ttk.Frame):
         return dst
 
 
-    def _fetch_remote_unsure(self):
-        url = f"{API_BASE_URL.rstrip('/')}/unsure"
-        r = requests.get(url, headers=self._remote_headers(), timeout=API_TIMEOUT)
-        r.raise_for_status()
-        items = r.json()
+    def _fetch_remote_unsure(self, limit=2000):
+        """Fetch unsure items from remote API (unsure_api_server)."""
+        url = f"{API_BASE_URL}/unsure?limit={limit}"
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        items = resp.json()
 
         flat = []
-        skipped = 0
         for it in items:
             try:
-                im1 = self._cache_get(it["im1_url"])
-                im2 = self._cache_get(it["im2_url"])
                 flat.append({
-                    "session_path": Path(it.get("session_path") or it.get("session_id") or "remote"),
+                    "store_session_path": it["store_session_path"],
                     "pair_id": int(it["pair_id"]),
-                    "im1_path": im1,
-                    "im2_path": im2,
+                    # hier bewusst URLs mitgeben
+                    "im1_url": urljoin(API_BASE_URL, it["im1_url"]),
+                    "im2_url": urljoin(API_BASE_URL, it["im2_url"]),
                     "unsure_by": it.get("unsure_by") or {},
                     "source": "remote",
                 })
             except Exception as e:
-                skipped += 1
                 print("[REMOTE] skip item:", e)
-        print(f"[REMOTE] received {len(items)} items, cached {len(flat)}, skipped {skipped}")
+        return flat
+
+    def _fetch_image_bytes(self, file_url: str) -> bytes:
+        rr = requests.get(file_url, timeout=10)
+        rr.raise_for_status()
+        return rr.content
+
+    def _fetch_remote_inconsistent(self, limit=999999):
+        url = f"{API_BASE_URL}/inconsistent?limit={limit}"
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        items = resp.json()
+
+        flat = []
+        for it in items:
+            try:
+                flat.append({
+                    "store_session_path": it["store_session_path"],
+                    "pair_id": int(it["pair_id"]),
+                    "im1_url": urljoin(API_BASE_URL, it["im1_url"]),
+                    "im2_url": urljoin(API_BASE_URL, it["im2_url"]),
+                    "unsure_by": it.get("unsure_by") or {},
+                    "predicted": it.get("predicted"),
+                    "expected": it.get("expected"),
+                    "boxes_expected": it.get("boxes_expected", []),
+                    "boxes_predicted": it.get("boxes_predicted", []),
+                    "source": "remote",
+                })
+            except Exception as e:
+                print("[REMOTE] skip inconsistent item:", e)
         return flat
 
 
@@ -624,6 +670,33 @@ class ImagePairViewer(ttk.Frame):
         threading.Thread(target=worker, daemon=True).start()
 
 
+    def _on_load_inconsistent_clicked(self):
+        if not getattr(self, "_flat_mode", False):
+            messagebox.showinfo("Remote", "Only available in flat/unsure mode.")
+            return
+
+        self.load_inconsistent_btn.config(state="disabled")
+        self.global_progress_label.config(text="Loading inconsistent from remote…")
+
+        def worker():
+            try:
+                items = self._fetch_remote_inconsistent()
+            except Exception as e:
+                err = str(e)
+                def fail():
+                    self.global_progress_label.config(text="Remote inconsistent load failed")
+                    messagebox.showerror("Remote error", err)
+                    self.load_inconsistent_btn.config(state="normal")
+                self.after(0, fail)
+                return
+
+            def done():
+                self._merge_remote_items(items)
+                self.load_inconsistent_btn.config(state="normal")
+                self.focus_set()
+            self.after(0, done)
+
+        threading.Thread(target=worker, daemon=True).start()
 
 
     def refocus_after_button(self):
@@ -1159,7 +1232,7 @@ class ImagePairViewer(ttk.Frame):
             self.spinbox.current_index = index
 
             meta = self.image_pairs.meta_at(index)
-            session_path = meta["session_path"]
+            session_path = meta["store_session_path"]
             original_pair_id = int(meta["pair_id"])
 
             # Annotation-Controller auf die richtige Session schalten
@@ -1170,12 +1243,28 @@ class ImagePairViewer(ttk.Frame):
             self.current_index = original_pair_id
 
             # Bilder laden
-            img1, img2 = self.image_pairs[index]
+            src1, src2 = self.image_pairs[index]
+
+            def _resolve_image(src):
+                if isinstance(src, str) and src.startswith("http"):
+                    data = self._fetch_image_bytes(src)
+                    return data, src  # (image_source, image_id)
+                else:
+                    return Path(src), str(src)
+
+            im1_src, im1_id = _resolve_image(src1)
+            im2_src, im2_id = _resolve_image(src2)
+
             self.image1.canvas.delete("canvas_outline")
             self.image2.canvas.delete("canvas_outline")
-            self.image1.clear_all(); self.image2.clear_all()
-            self.image1.load_image(img1); self.image2.load_image(img2)
-            self.image1._resize_image(); self.image2._resize_image()
+            self.image1.clear_all()
+            self.image2.clear_all()
+
+            self.image1.load_image(im1_src, image_id=im1_id)
+            self.image2.load_image(im2_src, image_id=im2_id)
+            self.image1._resize_image()
+            self.image2._resize_image()
+
 
             # Annotation rehydrieren (gleich wie dein Session-Code)
             annotation = self.annotations.get_pair_annotation(self.current_index)
@@ -1229,7 +1318,8 @@ class ImagePairViewer(ttk.Frame):
 
         if 0 <= index < len(self.image_pairs):
             self.current_index = index
-            img1, img2 = self.image_pairs[index]
+            # img1, img2 = self.image_pairs[index]
+            src1, src2 = self.image_pairs[index]
 
             self.image1.canvas.delete("canvas_outline")
             self.image2.canvas.delete("canvas_outline")
@@ -1238,13 +1328,12 @@ class ImagePairViewer(ttk.Frame):
             self.image1.clear_all()
             self.image2.clear_all()
 
-            # 2) Bilder neu laden
-            self.image1.load_image(img1)
-            self.image2.load_image(img2)
+            im1_src, im1_id = _resolve_image(src1)
+            im2_src, im2_id = _resolve_image(src2)
 
-
-            self.image1._resize_image()
-            self.image2._resize_image()
+            self.image1.load_image(im1_src, image_id=im1_id)
+            self.image2.load_image(im2_src, image_id=im2_id)
+            self.image1._resize_image(); self.image2._resize_image()
 
             # 3) Annotation laden
             annotation = self.annotations.get_pair_annotation(index)

@@ -208,29 +208,59 @@ class AnnotatableImage(ttk.Frame):
 
 
 
-    def load_image(self, image_path, boxes=None):
-        self.image_path = image_path
-        pil_image = Image.open(image_path)
+    def load_image(self, image_source, boxes=None, image_id=None):
+        """
+        Lädt ein Bild für Annotation (Session-Mode) oder Review (Unsure-Mode).
+        - image_source: Pfad (str/Path) oder Bytes
+        - boxes: optionale Box-Liste
+        - image_id: optionale eindeutige ID (z.B. URL oder Dateiname); 
+                    wird im Unsure-Mode genutzt
+        """
+        import io
+        from pathlib import Path
+        from PIL import Image
+        import base64
+
+        # PIL öffnen je nach Quelle
+        if isinstance(image_source, (bytes, bytearray)):
+            pil_image = Image.open(io.BytesIO(image_source)).convert("RGB")
+            self.image_path = None  # kein echter Dateipfad
+        else:
+            self.image_path = Path(image_source)
+            pil_image = Image.open(self.image_path).convert("RGB")
+
         self.image_size = pil_image.size
         self._original_pil_image = pil_image
 
-        self._original_mask_pils = []  # <--- WICHTIG: Liste leeren!
+        # image_id setzen
+        self.image_id = image_id or (str(self.image_path) if self.image_path else None)
+
+        # Reset Masken & Boxen
+        self._original_mask_pils = []
         self.boxes = boxes or []
 
-        
+        # Masken wiederherstellen (nur wenn wir einen Pfad haben und es matcht)
         for box in self.boxes:
             from image_annotation import make_absolute_path
-
             annotations_meta = self.controller.annotations.annotations.get("_meta", {})
             box_abs_path = make_absolute_path(box.get("mask_image_id"), annotations_meta)
 
-            if 'mask_base64' in box and box_abs_path == str(self.image_path):
-                mask_bytes = base64.b64decode(box['mask_base64'])
-                mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
-                self._original_mask_pils.append(mask_pil)
+            if 'mask_base64' in box:
+                # check: wenn wir im session mode sind → Pfad vergleichen
+                if self.image_path and box_abs_path == str(self.image_path):
+                    mask_bytes = base64.b64decode(box['mask_base64'])
+                    mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
+                    self._original_mask_pils.append(mask_pil)
+                # im review mode: nur image_id vergleichen
+                elif not self.image_path and image_id and box.get("mask_image_id") == image_id:
+                    mask_bytes = base64.b64decode(box['mask_base64'])
+                    mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
+                    self._original_mask_pils.append(mask_pil)
 
+        # Anzeige vorbereiten (wie im Original)
         if self.canvas.winfo_width() > 1 and self.canvas.winfo_height() > 1:
             self._resize_image()
+
 
 
 

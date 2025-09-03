@@ -61,10 +61,12 @@ def collect_unsure_pairs(dataset_dir):
                 im2 = session_dir / Path(entry["im2_path"]).name
 
                 items.append({
-                    "session_path": session_dir,
+                    "store_session_path": str(session_dir),
                     "pair_id": int(k),
-                    "im1_path": im1,
-                    "im2_path": im2,
+                    "im1_path": str(im1),
+                    "im2_path": str(im2),
+                    "im1_name": str(im1.name),
+                    "im2_name": str(im2.name),
                 })
 
     print("unsure pairs length:", len(items))
