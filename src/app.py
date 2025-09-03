@@ -82,6 +82,8 @@ class FlatPairList:
             "pair_id": it["pair_id"],
             "im1": it.get("im1_url") or it.get("im1_path"),
             "im2": it.get("im2_url") or it.get("im2_path"),
+            "predicted": it.get("predicted"),
+            "expected": it.get("expected"),
             "unsure_by": it.get("unsure_by"),
             "source": it.get("source"),
         }
@@ -203,7 +205,7 @@ class ImagePairViewer(ttk.Frame):
         super().__init__(container)
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
-        self.rowconfigure(1, weight=1)
+        self.rowconfigure(2, weight=1)
 
         self._flat_mode = flat_pairs is not None
         self._flat_view_index = 0  # Position in der flachen Liste
@@ -215,6 +217,12 @@ class ImagePairViewer(ttk.Frame):
         self.flicker_active = False
 
         self._unsure_log_path = unsure_log_path  # None in session mode
+        self.banner = tk.Label(
+            self, text="", anchor="w",
+            font=("TkDefaultFont", 10, "bold"),
+            bg="#f7f7f7", padx=8, pady=4
+        )
+        self.banner.grid(row=0, column=0, columnspan=2, sticky="ew")
 
         def _build_scaffold():
             # (du hast das bereits in __init__ inline – wir nutzen weiter DEINE Widgets,
@@ -224,21 +232,20 @@ class ImagePairViewer(ttk.Frame):
 
                 # --- Wenn Flat-Modus: keine Sessions scannen, UI wie gewohnt bauen ---
         if self._flat_mode:
-
             # Bilder/Topbar/Controls wie in deinem bestehenden Code bauen:
             self.image1 = AnnotatableImage(self, annotation_controller=None, controller=self)
-            self.image1.grid(row=1, column=0, sticky="nsew")
+            self.image1.grid(row=2, column=0, sticky="nsew")
             self.image2 = AnnotatableImage(self, annotation_controller=None, controller=self)
-            self.image2.grid(row=1, column=1, sticky="nsew")
+            self.image2.grid(row=2, column=1, sticky="nsew")
 
             self.setup_controls()
 
             self.spinbox = HorizontalSpinner(self, [], self.set_images)
-            self.spinbox.grid(row=3, column=0, columnspan=2)
+            self.spinbox.grid(row=4, column=0, columnspan=2)
 
             # ─ Top Bar (wie bei dir) ─
             top_bar = ttk.Frame(self)
-            top_bar.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(8, 4))
+            top_bar.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=(8, 4))
             top_bar.columnconfigure(0, weight=1)
 
             self.global_progress_label = ttk.Label(top_bar, anchor="w")
@@ -758,7 +765,7 @@ class ImagePairViewer(ttk.Frame):
             total = len(self.image_pairs)
             idx = self._flat_view_index + 1 if total else 0
             meta = self.image_pairs.meta_at(self._flat_view_index) if total else {}
-            session_name = Path(str(meta.get("session_path", ""))).name if meta else ""
+            session_name = Path(str(meta.get("store_session_path", ""))).name if meta else ""
             pair_id = meta.get("pair_id") if meta else "-"
             self.global_progress_label.config(
                 text=f"Unsure mode — {idx}/{total} | {session_name} | pair #{pair_id}"
@@ -903,7 +910,7 @@ class ImagePairViewer(ttk.Frame):
     def setup_controls(self):
         """Set up classification and navigation controls"""
         controls = ttk.Frame(self)
-        controls.grid(row=2, column=0, columnspan=2, sticky="ew")
+        controls.grid(row=3, column=0, columnspan=2, sticky="ew")
         
         
                 
@@ -1217,6 +1224,13 @@ class ImagePairViewer(ttk.Frame):
 
         self._maybe_save(pair_state=ImageAnnotation.Classes.ANNOTATED)
 
+    def _resolve_image(self, src):
+        if isinstance(src, str) and src.startswith("http"):
+            data = self._fetch_image_bytes(src)
+            return data, src  # (image_source, image_id)
+        else:
+            return Path(src), str(src)
+        
     def load_pair(self, index):
         print("load pair called")
 
@@ -1232,6 +1246,22 @@ class ImagePairViewer(ttk.Frame):
             self.spinbox.current_index = index
 
             meta = self.image_pairs.meta_at(index)
+
+            author = (meta.get("unsure_by") or {}).get("name", "unbekannt")
+            expected = meta.get("expected")
+            predicted = meta.get("predicted")
+
+            if expected or predicted:
+                # Variante B wording, compact, German:
+                # e.g. "Ursprünglich (Sarah): chaos  •  Modell: nothing"
+                left = f"Expected by ({author}): {expected or '—'}"
+                right = f"Predicted: {predicted or '—'}"
+                self.banner.config(text=f"{left}  •  {right}")
+            else:
+                # Unsure-only case (no model info)
+                self.banner.config(
+                    text=f"Unsure: {meta['store_session_path']} | {meta['pair_id']}"
+                )
             session_path = meta["store_session_path"]
             original_pair_id = int(meta["pair_id"])
 
@@ -1245,15 +1275,8 @@ class ImagePairViewer(ttk.Frame):
             # Bilder laden
             src1, src2 = self.image_pairs[index]
 
-            def _resolve_image(src):
-                if isinstance(src, str) and src.startswith("http"):
-                    data = self._fetch_image_bytes(src)
-                    return data, src  # (image_source, image_id)
-                else:
-                    return Path(src), str(src)
-
-            im1_src, im1_id = _resolve_image(src1)
-            im2_src, im2_id = _resolve_image(src2)
+            im1_src, im1_id = self._resolve_image(src1)
+            im2_src, im2_id = self._resolve_image(src2)
 
             self.image1.canvas.delete("canvas_outline")
             self.image2.canvas.delete("canvas_outline")
@@ -1328,8 +1351,8 @@ class ImagePairViewer(ttk.Frame):
             self.image1.clear_all()
             self.image2.clear_all()
 
-            im1_src, im1_id = _resolve_image(src1)
-            im2_src, im2_id = _resolve_image(src2)
+            im1_src, im1_id = self._resolve_image(src1)
+            im2_src, im2_id = self._resolve_image(src2)
 
             self.image1.load_image(im1_src, image_id=im1_id)
             self.image2.load_image(im2_src, image_id=im2_id)
