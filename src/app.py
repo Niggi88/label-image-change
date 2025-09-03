@@ -407,10 +407,10 @@ class ImagePairViewer(ttk.Frame):
 
     def _flat_get_pair_state(self, store_session_path, pair_id):
         """Return pair_state from unsure_reviews.json or None."""
-        if not getattr(self, "unsure_log_path", None):
+        if not getattr(self, "_unsure_log_path", None):
             return None
         try:
-            data = json.loads(Path(self.unsure_log_path).read_text())
+            data = json.loads(Path(self._unsure_log_path).read_text())
         except Exception:
             return None
         rec = data.get(f"{str(store_session_path)}|{int(pair_id)}") or {}
@@ -464,8 +464,6 @@ class ImagePairViewer(ttk.Frame):
 
 
     def _log_unsure_review(self, pair_state=None):
-        """Append/update a single record in unsure_reviews.json when in flat mode.
-        Stores im1_path/im2_path relative to session_path (same as annotations.json)."""
         if not getattr(self, "_flat_mode", False):
             return
         if not self._unsure_log_path:
@@ -477,64 +475,72 @@ class ImagePairViewer(ttk.Frame):
         from urllib.parse import urlparse
         import posixpath
 
-        # Collect metadata
         meta = self.image_pairs.meta_at(self._flat_view_index)
         session_path = str(meta["store_session_path"])
         pair_id = int(meta["pair_id"])
-
-        # Current sources (can be local paths or URLs)
-        src1, src2 = self._pair_imgs_at_current()
         session_path_obj = Path(session_path)
+
+        # current sources (can be local paths or URLs)
+        src1, src2 = self._pair_imgs_at_current()
 
         def _to_session_rel(src, session_root: Path) -> str:
             s = str(src)
-            # Remote source (URL): use last path component as filename
-            if s.startswith("http://") or s.startswith("https://"):
+            if s.startswith(("http://", "https://")):
                 try:
-                    path = urlparse(s).path
-                    name = posixpath.basename(path)
+                    p = urlparse(s).path
+                    name = posixpath.basename(p)
                     return name or s
                 except Exception:
                     return s
-            # Local path: try to make it relative to the session folder; fallback to basename
-            p = Path(s)
             try:
-                return str(p.relative_to(session_root))
+                return str(Path(s).relative_to(session_root))
             except Exception:
-                return p.name
+                return Path(s).name
 
         im1_path = _to_session_rel(src1, session_path_obj)
         im2_path = _to_session_rel(src2, session_path_obj)
 
-        # Current annotation payload
-        ann = self.annotations.get_pair_annotation(self.current_index) or {}
-        if pair_state is not None:
-            ann = {**ann, "pair_state": pair_state}
+        # --- NEW: collect live boxes from the canvases (not from session annotations) ---
+        live_boxes = []
+        for b in (self.image1.get_boxes() or []):
+            if not b.get("synced_highlight"):
+                live_boxes.append(dict(b))
+        for b in (self.image2.get_boxes() or []):
+            if not b.get("synced_highlight"):
+                live_boxes.append(dict(b))
 
-        record = {
-            "store_session_path": session_path,
-            "pair_id": pair_id,
-            "im1_path": im1_path,
-            "im2_path": im2_path,
-            "pair_state": ann.get("pair_state"),
-            "boxes": ann.get("boxes", []),
-            "timestamp": datetime.now().isoformat(),  # optional extra
-        }
-
-        # Load -> upsert -> save (atomic-ish)
+        # Upsert into unsure_reviews.json
         try:
-            existing = {}
-            if self._unsure_log_path.exists():
-                existing = json.loads(self._unsure_log_path.read_text())
+            existing = json.loads(self._unsure_log_path.read_text()) if self._unsure_log_path.exists() else {}
         except Exception:
             existing = {}
 
         key = f"{session_path}|{pair_id}"
-        existing[key] = record
+        rec = existing.get(key) or {}
 
+        # Only update pair_state if provided (don’t wipe on a plain skip)
+        if pair_state is not None:
+            rec["pair_state"] = pair_state
+
+        # Only replace boxes if we actually have new ones; otherwise keep what was there
+        if live_boxes:
+            rec["boxes"] = live_boxes
+        else:
+            rec.setdefault("boxes", [])
+
+        rec.update({
+            "store_session_path": session_path,
+            "pair_id": pair_id,
+            "im1_path": im1_path,
+            "im2_path": im2_path,
+            "timestamp": datetime.now().isoformat(),
+        })
+
+        existing[key] = rec
         tmp = self._unsure_log_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(existing, indent=2))
         tmp.replace(self._unsure_log_path)
+
 
 
     def _shorten(self, s: str, maxlen: int = 40) -> str:
@@ -1623,7 +1629,8 @@ class ImagePairViewer(ttk.Frame):
         print(f"[LEFT] current_index = {self.current_index}")
         # Speichern vor Verlassen
         self.reset_buttons()
-
+        self.save_current_boxes()
+        
         if getattr(self, "_flat_mode", False):
             # ---- FLAT/REVIEW MODE ----
             meta = self.image_pairs.meta_at(self._flat_view_index)
@@ -1636,7 +1643,7 @@ class ImagePairViewer(ttk.Frame):
             except Exception:
                 data = {}
             key = f"{str(meta['store_session_path'])}|{int(meta['pair_id'])}"
-            already = (data.get(key) or {}).get("pair_state")
+            already = self._flat_get_pair_state(meta["store_session_path"], meta["pair_id"])
 
             # only auto-default if we didn't just save AND nothing is saved yet
             if getattr(self, "_flat_last_saved_state", None) is None and already is None:
