@@ -19,6 +19,7 @@ import threading  # ensure this import exists at top of file
 import time
 import os
 from urllib.parse import urlparse, urljoin
+from ui_styles import init_ttk_styles
 
 # Remote API (override via env variables if you want)
 API_BASE_URL = "http://172.30.20.31:8081"
@@ -111,6 +112,7 @@ class FlatPairList:
 class PairViewerApp(tk.Tk):
     def __init__(self):
         super().__init__()
+        init_ttk_styles(self) 
 
         from tkinter import font
 
@@ -123,75 +125,8 @@ class PairViewerApp(tk.Tk):
         default_font.configure(size=int(default_font['size'] * FONT_SCALING))
 
         # Define a consistent layout for all button styles
-        style = ttk.Style()
-        style.theme_use("default")
-
-        # Klassifikationsfarben für Grundzustand
-        button_colors = {
-            "Nothing": "#ADD8E6",       # hellblau
-            "Chaos": "#FFD700",         # gelb
-            "NoAnnotation": "#B497B8"   # grau
-        }
-
-        for name, color in button_colors.items():
-            style.configure(f"{name}.TButton",
-                            background=color,
-                            relief="flat",
-                            borderwidth=1,
-                            padding=(8, 6),
-                            anchor="center")
-
-            style.map(f"{name}.TButton",
-                    background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
-                    relief=[("pressed", "sunken"), ("!pressed", "flat")])
-
-        # ✅ Annotate = grün
-        style.configure("Annotate.TButton",
-                        background="#66CC66",  # soft green
-                        relief="flat",
-                        borderwidth=1,
-                        padding=(8, 6),
-                        anchor="center")
-
-        style.map("Annotate.TButton",
-                background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
-                relief=[("pressed", "sunken"), ("!pressed", "flat")])
-
-
-        # 🗑️ Delete Selected Box = helleres rot
-        style.configure("Delete.TButton",
-                        background="#FF9999",  # ✅ korrektes Format
-                        relief="flat",
-                        borderwidth=1,
-                        padding=(8, 6),
-                        anchor="center")
-
-        style.map("Delete.TButton",
-                    background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
-                    relief=[("pressed", "sunken"), ("!pressed", "flat")])
-
-        # ❌ Clear All = rot
-        style.configure("Clear.TButton",
-                        background="#FF6666",  # soft red
-                        relief="flat",
-                        borderwidth=1,
-                        padding=(8, 6),
-                        anchor="center")
-
-        style.map("Clear.TButton",
-                background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
-                relief=[("pressed", "sunken"), ("!pressed", "flat")])
-
-
-        style.configure("Unsure.TButton",
-                                background="#B497B8",
-                                relief="flat",
-                                borderwidth=1,
-                                padding=(8, 6),
-                                anchor="center")
-        style.map("Unsure.TButton",
-                background=[("active", "#CCCCCC"), ("pressed", "#CCCCCC")],
-                relief=[("pressed", "sunken"), ("!pressed", "flat")])
+        # style = ttk.Style()
+        # style.theme_use("default")
 
             # Create the pair viewer with required arguments
         self.pair_viewer = ImagePairViewer(self, DATASET_DIR)

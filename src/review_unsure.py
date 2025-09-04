@@ -10,6 +10,7 @@ import requests
 
 from app import ImagePairViewer
 from config import DATASET_DIR
+from ui_styles import init_ttk_styles
 
 # where we store review decisions locally (unchanged)
 LOG_PATH = Path(DATASET_DIR) / "unsure_reviews.json"
@@ -21,6 +22,8 @@ API_BASE = os.environ.get("REVIEW_API_BASE", "http://ml01:8081")
 class UnsureApp(tk.Tk):
     def __init__(self):
         super().__init__()
+        init_ttk_styles(self)
+
         self.title("Unsure Review Mode")
 
         # --- Toolbar (no auto-load; user decides what to fetch) ---
