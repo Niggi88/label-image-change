@@ -902,28 +902,45 @@ class ImagePairViewer(ttk.Frame):
         if not self.flicker_running:
             return
 
-        left_img, right_img = self._pair_imgs_at_current()
-        # toggle which one we show
-        img = left_img if not self.flicker_active else right_img
-        self.image2.load_image(img)
+        left_src, right_src = self._pair_imgs_at_current()
+        src = left_src if not self.flicker_active else right_src
+
+        # preserve the boxes currently shown on the right canvas
+        # (strip mask fields so we don't re-render masks on every flip)
+        boxes2_live = [
+            {k: v for k, v in b.items() if k not in ("mask_base64", "mask_image_id")}
+            for b in (self.image2.get_boxes() or [])
+        ]
+
+        # resolve URL/local to a loadable src (Path or bytes)
+        img_src, _ = self._resolve_image(src)
+
+        # flip the right image
+        self.image2.load_image(img_src)
         self.image2._resize_image()
 
-        # preserve outline color
+        # 🔁 re-apply the live boxes so they don't disappear during flicker
+        self.image2.clear_boxes()
+        if boxes2_live:
+            self.image2.display_boxes(boxes2_live)
+
+        # keep outline color stable
         if getattr(self, "_flat_mode", False):
             meta = self.image_pairs.meta_at(self._flat_view_index)
-            ann = self._flat_get_pair_annotation(meta["store_session_path"], meta["pair_id"])
+            ann  = self._flat_get_pair_annotation(meta["store_session_path"], meta["pair_id"])
         else:
-            ann = self.annotations.get_pair_annotation(self.current_index)
+            ann  = self.annotations.get_pair_annotation(self.current_index)
 
-        pair_state = ann.get("pair_state")
-        color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(pair_state)
+        color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(ann.get("pair_state"))
         if color:
             self.image1.draw_canvas_outline(color)
             self.image2.draw_canvas_outline(color)
 
         self.flicker_active = not self.flicker_active
-        # schedule next flip
         self.after(200, self._run_flicker)
+
+
+
 
     def stop_flicker_if_running(self):
         if self.flicker_running:
@@ -1295,13 +1312,19 @@ class ImagePairViewer(ttk.Frame):
             return None, None
         s = str(src)
 
-        # Only in review/flat mode do we fetch URLs
+        # Review/flat mode: resolve URLs to a cached local file (fast)
         if getattr(self, "_flat_mode", False) and s.startswith(("http://", "https://")):
-            data = self._fetch_image_bytes(s)
-            return (data, s) if data is not None else (s, s)
+            try:
+                cached = self._cache_get(s)         # -> Path under .remote_cache/...
+                return cached, str(cached)          # return a Path + id
+            except Exception:
+                # fallback: bytes if caching fails
+                data = self._fetch_image_bytes(s)
+                return (data, s) if data is not None else (s, s)
 
-        # Annotation mode: always return a local Path (no bytes, no HTTP)
+        # Annotation mode: always a local Path
         return Path(s), s
+
         
     def load_pair(self, index):
         print("load pair called")
