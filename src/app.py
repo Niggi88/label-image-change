@@ -867,87 +867,119 @@ class ImagePairViewer(ttk.Frame):
 
 
     def update_flicker_ui(self, flickering: bool):
-        for widget in self.top_right_container.winfo_children():
-            widget.pack_forget()
+            # Clear current contents
+            for widget in self.top_right_container.winfo_children():
+                widget.pack_forget()
 
-        if flickering:
-            self.flicker_label.pack()
-        else:
-            if getattr(self, "_flat_mode", False):
-                # flat/unsure mode: no skip, but show flush + load remote
-                self.flush_btn.pack(pady=(4, 0))
-                if hasattr(self, "load_remote_btn"):
-                    self.load_remote_btn.pack(pady=(4, 0))
+            if flickering:
+                self.flicker_label.pack()
             else:
-                # session mode: show skip + flush
                 self.skip_session_btn.pack()
-                self.flush_btn.pack(pady=(4, 0))
 
     def toggle_flicker(self):
         if not self.flicker_running:
             self.flicker_running = True
-            self.flicker_active = False
             self.update_flicker_ui(True)
+            self.flicker_active = False  # start from left→right
             self._run_flicker()
             print("Flicker started")
         else:
-            self.stop_flicker_if_running()
-            # restore right image (static)
-            _, right_img = self._pair_imgs_at_current()
-            self.image2.load_image(right_img)
+            self.flicker_running = False
+            self.update_flicker_ui(False)
+
+            # Restore the *right* image of the current pair
+            _, right_src = self._current_pair_srcs()
+            right_src, right_id = self._resolve_image(right_src)
+            self.image2.load_image(right_src, image_id=right_id)
             self.image2._resize_image()
             print("Flicker stopped")
+
+            # Re-apply boxes/masks/outline from the current annotation (works in both modes)
+            ann = self._get_current_annotation() or {}
+            boxes = ann.get("boxes", [])
+
+            image1_boxes, image2_boxes = [], []
+            self.image1._original_mask_pils = []
+            self.image2._original_mask_pils = []
+
+            for box in boxes:
+                b = dict(box)
+                if b["annotation_type"] == ImageAnnotation.Classes.ANNOTATION_X:
+                    image1_boxes.append(b)
+                    mirror = b.copy()
+                    mirror["annotation_type"] = ImageAnnotation.Classes.ANNOTATION
+                    mirror["synced_highlight"] = True
+                    image2_boxes.append(mirror)
+                    if "mask_base64" in b:
+                        self.image1._original_mask_pils.append(
+                            Image.open(io.BytesIO(base64.b64decode(b["mask_base64"]))).convert("RGBA")
+                        )
+                elif b["annotation_type"] == ImageAnnotation.Classes.ANNOTATION:
+                    image2_boxes.append(b)
+                    mirror = b.copy()
+                    mirror["annotation_type"] = ImageAnnotation.Classes.ANNOTATION_X
+                    mirror["synced_highlight"] = True
+                    image1_boxes.append(mirror)
+                    if "mask_base64" in b:
+                        self.image2._original_mask_pils.append(
+                            Image.open(io.BytesIO(base64.b64decode(b["mask_base64"]))).convert("RGBA")
+                        )
+
+            self.image1.boxes = image1_boxes
+            self.image2.boxes = image2_boxes
+            self.image1.display_boxes(image1_boxes)
+            self.image2.display_boxes(image2_boxes)
+            self.image1.display_mask()
+            self.image2.display_mask()
+
+            pair_state = ann.get("pair_state")
+            color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(pair_state)
+            if color:
+                self.image1.draw_canvas_outline(color)
+                self.image2.draw_canvas_outline(color)
+
+
 
     def _run_flicker(self):
         if not self.flicker_running:
             return
 
-        left_src, right_src = self._pair_imgs_at_current()
-        src = left_src if not self.flicker_active else right_src
+        # get current left/right sources in the active mode
+        left_src, right_src = self._current_pair_srcs()
+        flip_src = left_src if not self.flicker_active else right_src
 
-        # preserve the boxes currently shown on the right canvas
-        # (strip mask fields so we don't re-render masks on every flip)
-        boxes2_live = [
-            {k: v for k, v in b.items() if k not in ("mask_base64", "mask_image_id")}
-            for b in (self.image2.get_boxes() or [])
-        ]
+        # resolve URL→cached file in review mode, or pass through path in annotation mode
+        flip_src, flip_id = self._resolve_image(flip_src)
 
-        # resolve URL/local to a loadable src (Path or bytes)
-        img_src, _ = self._resolve_image(src)
-
-        # flip the right image
-        self.image2.load_image(img_src)
+        # only reload the right canvas (your working behavior)
+        self.image2.load_image(flip_src, image_id=flip_id)
         self.image2._resize_image()
 
-        # 🔁 re-apply the live boxes so they don't disappear during flicker
-        self.image2.clear_boxes()
-        if boxes2_live:
-            self.image2.display_boxes(boxes2_live)
+        # Repaint what's already on screen (so boxes/masks don't vanish while flickering)
+        self.image1.display_boxes(self.image1.boxes)
+        self.image2.display_boxes(self.image2.boxes)
+        self.image1.display_mask()
+        self.image2.display_mask()
 
-        # keep outline color stable
-        if getattr(self, "_flat_mode", False):
-            meta = self.image_pairs.meta_at(self._flat_view_index)
-            ann  = self._flat_get_pair_annotation(meta["store_session_path"], meta["pair_id"])
-        else:
-            ann  = self.annotations.get_pair_annotation(self.current_index)
-
+        # keep outline consistent
+        ann = self._get_current_annotation() or {}
         color = ImageAnnotation.Classes.PAIR_STATE_COLORS.get(ann.get("pair_state"))
         if color:
             self.image1.draw_canvas_outline(color)
             self.image2.draw_canvas_outline(color)
 
+        # flip and schedule next tick
         self.flicker_active = not self.flicker_active
-        self.after(200, self._run_flicker)
-
-
+        self.after(100, self._run_flicker)
 
 
     def stop_flicker_if_running(self):
         if self.flicker_running:
+            self.update_flicker_ui(flickering=False)
+
             self.flicker_running = False
             self.flicker_active = False
-            self.update_flicker_ui(False)
-            print("Flicker stopped (auto)")
+            print("Flicker automatically stopped due to navigation.")
 
 
 
@@ -1290,6 +1322,23 @@ class ImagePairViewer(ttk.Frame):
         if getattr(self, "_flat_mode", False):
             return self.image_pairs[self._flat_view_index]
         return self.image_pairs[self.current_index]
+
+    def _current_pair_srcs(self):
+        """Return (left_src, right_src) for the current pair in the active mode."""
+        if getattr(self, "_flat_mode", False):
+            # flat/review mode provides URLs
+            return self._pair_imgs_at_current()
+        else:
+            # annotation mode uses local paths
+            return self.image_pairs[self.current_index]
+
+    def _get_current_annotation(self):
+        """Return current pair annotation for the active mode."""
+        if getattr(self, "_flat_mode", False):
+            meta = self.image_pairs.meta_at(self._flat_view_index)
+            return self._flat_get_pair_annotation(meta["store_session_path"], meta["pair_id"])
+        else:
+            return self.annotations.get_pair_annotation(self.current_index)
 
     @property
     def current_id(self):
