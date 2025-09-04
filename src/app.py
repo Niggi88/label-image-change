@@ -124,10 +124,6 @@ class PairViewerApp(tk.Tk):
 
         default_font.configure(size=int(default_font['size'] * FONT_SCALING))
 
-        # Define a consistent layout for all button styles
-        # style = ttk.Style()
-        # style.theme_use("default")
-
             # Create the pair viewer with required arguments
         self.pair_viewer = ImagePairViewer(self, DATASET_DIR)
             
