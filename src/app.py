@@ -140,7 +140,10 @@ class ImagePairViewer(ttk.Frame):
         self._flat_mode = flat_pairs is not None
         self._flat_view_index = 0  # Position in der flachen Liste
         self._current_outline_color = None
+
         self._unsure_log_path = _unsure_log_path if self._flat_mode else None
+        self._last_saved_sig = None
+
         # --- dynamic row offset: only review/flat mode has a banner on row 0 ---
         is_flat = self._flat_mode
         r0 = 1 if is_flat else 0
@@ -369,13 +372,28 @@ class ImagePairViewer(ttk.Frame):
         return {"pair_state": rec.get("pair_state"), "boxes": boxes}
 
 
+    def _boxes_signature(self):
+        def norm(b):
+            return (int(b.get("x1",0)), int(b.get("y1",0)),
+                    int(b.get("x2",0)), int(b.get("y2",0)),
+                    b.get("pair_id"), b.get("mask_image_id"))
+        left  = tuple(sorted(map(norm, self.image1.get_boxes())))
+        right = tuple(sorted(map(norm, self.image2.get_boxes())))
+        return hash((left, right))
+
     def _maybe_save(self, pair_state=None):
         """Session-Mode: normal speichern.
         Unsure-Mode (flat): in unsure_reviews.json schreiben (aktueller Canvas-Zustand)."""
+        pair_id = self.current_index  # or your pair id resolver
+        sig = (pair_id, pair_state, self._boxes_signature())
+        if sig == self._last_saved_sig:
+            print("[DEBUG] SKipped saving because we just did")
+            return
         if getattr(self, "_flat_mode", False):
             # remember explicit save in this step (prevents auto-default on nav)
             self._flat_last_saved_state = pair_state if pair_state is not None else None
             self._log_unsure_review(pair_state=pair_state)   # <- writes current boxes (even empty)
+            self._last_saved_sig = sig     
             print("Save review_unsure.json: ", pair_state)
             return
 
@@ -385,6 +403,7 @@ class ImagePairViewer(ttk.Frame):
             image2=self.image2,
             pair_state=pair_state
         )
+        self._last_saved_sig = sig
         print("Save pair annotation.json: ", pair_state)
 
 
@@ -1410,9 +1429,10 @@ class ImagePairViewer(ttk.Frame):
             self.image2.display_mask()
 
             pair_state = annotation.get("pair_state")
+            self._last_saved_sig = (self.current_index, pair_state, self._boxes_signature())
             self.update_global_progress()
             self.after_idle(lambda: self.update_ui_state(pair_state))
-            return  # wichtig: Session-Zweig unten überspringen
+            return
 
 
         self.current_index = index
@@ -1510,6 +1530,11 @@ class ImagePairViewer(ttk.Frame):
 
             self.image1.display_mask()
             self.image2.display_mask()
+
+            pair_state = annotation.get("pair_state")
+            current_state = pair_state
+            self._last_saved_sig = (self.current_index, current_state, self._boxes_signature())
+
 
             pair_state = annotation.get("pair_state")
 

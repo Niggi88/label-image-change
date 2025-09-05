@@ -28,9 +28,9 @@ elif HOSTNAME == "niklas-XPS-15-9530":
     USERNAME = "niklas"
 elif HOSTNAME == "sarah-XPS-15-9530":
     USERNAME = "sarah"
-    DATASET_NAME = "small_relevant_sessions"
-    # DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
+    DATASET_NAME = "small_relevant_sessions" # "sarah_20250801-20250816"
     DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
+    # DATASET_DIR = f"/home/sarah/Documents/data/{DATASET_NAME}"
 
 elif HOSTNAME == "NB-ENDRES":
     USERNAME = "sarah_windoof"

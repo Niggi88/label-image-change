@@ -68,6 +68,7 @@ class AnnotatableImage(ttk.Frame):
         self._mask_ids = []
         self.image_id = None
 
+
         # Drawing state
         self.drawing = False
         self.start_x = None
@@ -429,11 +430,7 @@ class AnnotatableImage(ttk.Frame):
             )
 
         # 🧠 2. Save new annotation state (also saves boxes + pair_state)
-        self.controller.annotations.save_pair_annotation(
-            image1=self,
-            image2=other_image,
-            pair_state=ImageAnnotation.Classes.ANNOTATED
-        )
+        self.controller._maybe_save(pair_state=ImageAnnotation.Classes.ANNOTATED)
 
         # 🧠 3. Generate mask
         self.generate_mask_from_bbox()
@@ -608,17 +605,8 @@ class AnnotatableImage(ttk.Frame):
             new_state = ImageAnnotation.Classes.ANNOTATED
 
         # 7) SAVE:
-        if getattr(self.controller, "_flat_mode", False):
-            # REVIEW MODE: write to unsure_reviews.json (controller handles it)
-            # IMPORTANT: Ensure _maybe_save() mirrors current canvas boxes (even empty)
-            self.controller._maybe_save(pair_state=new_state)
-        else:
-            # ANNOTATION MODE: normal session save
-            self.controller.annotations.save_pair_annotation(
-                image1=self.controller.image1,
-                image2=self.controller.image2,
-                pair_state=new_state
-            )
+        self.controller._maybe_save(pair_state=new_state)
+
 
         # 8) Update outline/buttons
         self.controller.update_ui_state(new_state)
