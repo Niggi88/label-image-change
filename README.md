@@ -19,6 +19,7 @@ A simple tool for annotating changes between consecutive images. Created to labe
 * source sam_venv/bin/activate
 * open tmux window: tmux new-session -s masks
 *  run: python3  backend/cart_SAMbackend/src/main.py
+* set SEGMENTATION_PATH in config (TODO: upload to server)
 
 # 2: Adjust config
 *  set DATASET_DIR and DATASET_NAME (folder where all stores and sessions lie)
@@ -71,6 +72,14 @@ This will automatically search for annotations.json files in the dataset directo
     * to load image pairs from the server: press "load remote" button
     * images will be saved to DATASET_DIR/.remote_cache
 * changes/corrections will be saved as unsure_reviews.json (in your DATASET_DIR)
+
+
+# review inconsistent pairs
+
+* run /opt/datasets/change_detection/unsure_api_server_batch.py on m01 to start the server-side
+* to start the reviewing_mode:
+    * run src/review_unsure.py in label-image-change
+
 
 
 ## Options for annotating:

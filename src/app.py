@@ -36,7 +36,7 @@ class ImagePairList(list):
         self.images = sorted(self.src.glob("*.jpeg"), key=lambda file: int(file.name.split("-")[0]))
         assert len(self.images) > 0, f"no images found at {src}"
         self.image_pairs = list(zip(self.images[:-1], self.images[1:]))
-
+        self.model_name = None
     def __getitem__(self, index):
         # Allow indexing into image_pairs
         return self.image_pairs[index]
@@ -1349,7 +1349,7 @@ class ImagePairViewer(ttk.Frame):
                 # Variante B wording, compact, German:
                 # e.g. "Ursprünglich (Sarah): chaos  •  Modell: nothing"
                 left = f"Expected by ({author}): {expected or '—'}"
-                right = f"Predicted: {predicted or '—'}"
+                right = f"Predicted by ({self.model_name}): {predicted or '—'}"
                 self.banner.config(text=f"{left}  •  {right}")
             else:
                 # Unsure-only case (no model info)

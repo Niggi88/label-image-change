@@ -10,7 +10,7 @@ import io
 import base64
 from image_annotation import ImageAnnotation
 import uuid
-
+from pathlib import Path
 
 
 def mask_pil_to_base64(pil_image):
@@ -47,6 +47,59 @@ def combine_masks(mask_list):
         base = Image.alpha_composite(base, mask)
     return base
 
+def apply_mask_and_blur(image, mask, border_size=10, blur_radius=5):
+        
+        # sicherstellen, dass Maske grau ist
+        if mask.ndim == 3:   # z.B. (H, W, 3)
+            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+        elif mask.ndim == 4: # z.B. (H, W, 4)
+            mask = cv2.cvtColor(mask, cv2.COLOR_BGRA2GRAY)
+            
+        # Ensure that the mask is binary (0 or 255)
+        _, mask_binary = cv2.threshold(mask, 128, 255, cv2.THRESH_BINARY)
+
+
+
+        # Create an empty result image with 4 channels (RGBA)
+        result = np.zeros((image.shape[0], image.shape[1], 4), dtype=np.uint8)
+
+
+
+        # Copy the image content to the result
+        result[..., :3] = image
+
+
+
+        # Set the alpha channel to the binary mask
+        result[..., 3] = mask_binary
+        
+        # Find the bounding rectangle of the unmasked part
+        contours, _ = cv2.findContours(mask_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        x, y, w, h = cv2.boundingRect(contours[0])
+
+
+
+        # Add the border size to the bounding rectangle
+        x = max(0, x - border_size)
+        y = max(0, y - border_size)
+        w = min(result.shape[1] - x, w + 2 * border_size)
+        h = min(result.shape[0] - y, h + 2 * border_size)
+
+
+
+        # Crop the result image using the adjusted bounding rectangle
+        cropped_result = result[y:y+h, x:x+w]
+        
+        # Create a blurred version of the alpha channel
+        blurred_alpha = cv2.GaussianBlur(cropped_result[..., 3], (blur_radius, blur_radius), 0)
+        
+        # Replace the original alpha channel with the blurred version
+        cropped_result[..., 3] = blurred_alpha
+
+
+
+        return cropped_result
+    
 class AnnotationTypeState():
     POSITIVE = "green"
     NEGATIVE = "red"
@@ -673,7 +726,6 @@ class AnnotatableImage(ttk.Frame):
 
 
     def generate_mask_from_bbox(self):
-        """Nimmt die zuletzt gezeichnete BBox, ruft FastAPI, speichert Maske & aktualisiert Anzeige"""
         if not self.boxes:
             print("No BBoxes available for segmentation!")
             return
@@ -682,51 +734,30 @@ class AnnotatableImage(ttk.Frame):
         box = np.array([bbox['x1'], bbox['y1'], bbox['x2'], bbox['y2']])
         image_np = np.array(self._original_pil_image)
 
-        # 1) 🛰️ API-Call
+        # segmentation
         mask_pil, details = segment(image_np, box)
-        # print("Segmentation done:", details)
-
-        short_details = details.copy()
-        if "mask" in short_details:
-            short_details["mask"] = short_details["mask"][:10] + "..."
-        print("Segmentation done:", short_details)
-
         if mask_pil is None:
             print("Segmentation failed — no mask to show.")
             return
 
         result_mask = np.array(mask_pil)
-        binary_mask = (result_mask > 128).astype(np.uint8)
-        new_mask = create_transparent_overlay(binary_mask)
+        binary_mask = (result_mask > 128).astype(np.uint8) * 255  # ensure 0/255
 
-        bbox['mask_base64'] = mask_pil_to_base64(new_mask)
-        bbox['mask_image_id'] = str(self.image_path)
+        # --- use apply_mask_and_blur ---
+        extracted = apply_mask_and_blur(image_np, binary_mask)
 
-    
+        # save result
+        mask_dir = Path(SEGMENTATION_PATH)
+        mask_dir.mkdir(parents=True, exist_ok=True)
+        base_name = Path(self.image_path).stem
+        cutout_filename = mask_dir / f"{base_name}_bbox{len(self.boxes)}.png"
 
-        # 2) Maskenliste neu bauen für dieses Bild
-        self._original_mask_pils = []
-        for box in self.boxes:
-            if "mask_base64" in box and "mask_image_id" in box and box["mask_image_id"] == str(self.image_path):
-                mask_bytes = base64.b64decode(box["mask_base64"])
-                mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
-                self._original_mask_pils.append(mask_pil)
+        Image.fromarray(extracted).save(cutout_filename)
+        print(f"Saved extracted object with blur: {cutout_filename}")
 
-
-        
-        # 3) Andere Seite nur synchronisieren (keine API, keine neue Maske)
-        other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
-        other_image._original_mask_pils = []
-        for box in other_image.boxes:
-            if "mask_base64" in box and "mask_image_id" in box and box["mask_image_id"] == str(other_image.image_path):
-                mask_bytes = base64.b64decode(box["mask_base64"])
-                mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
-                other_image._original_mask_pils.append(mask_pil)
-
-
-        # 5) Anzeige aktualisieren
+        # optional UI update
         self._resize_image()
+        other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
         other_image._resize_image()
-        print("Mask displayed.")
 
 
