@@ -68,19 +68,27 @@ def upload_images_from_annotation(annotation_path: Path):
         print(f"💥 Failed to read {annotation_path}: {e}")
         return
 
-    root = Path(data["_meta"]["root"])
+    # root = Path(data["_meta"]["root"])
+    if data["_meta"].get("root") is not None:
+        root = Path(data["_meta"]["root"])
+        # do work
+    else:
+        print("skipped, no root")
+        return
 
     for key, value in data.items():
         if key == "_meta":
             continue
-
-        for img_key in ["im1_path", "im2_path"]:
-            rel_path = value[img_key]
-            img_full_path = root / rel_path
-            if img_full_path.exists():
-                upload_image(img_full_path, rel_path)
-            else:
-                print(f"⚠️ Missing image: {img_full_path}")
+        if root is None:
+            return
+        else: 
+            for img_key in ["im1_path", "im2_path"]:
+                rel_path = value[img_key]
+                img_full_path = root / rel_path
+                if img_full_path.exists():
+                    upload_image(img_full_path, rel_path)
+                else:
+                    print(f"⚠️ Missing image: {img_full_path}")
 
 def main():
     annotation_files = find_annotation_files(DATASET_DIR)
@@ -98,8 +106,8 @@ def main():
             print(f"💥 Failed to read {annotation_path}: {e}")
             continue
 
-        if not data.get("_meta", {}).get("completed", False):
-            print(f"⏭️ Skipping {annotation_path} (not completed)")
+        if not data.get("_meta", {}).get("completed", False) or not data.get("_meta", {}).get("usable", True):
+            print(f"⏭️ Skipping {annotation_path} (not completed or unusable)")
             continue
 
         session_id = build_session_id(annotation_path)
