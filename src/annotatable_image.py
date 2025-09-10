@@ -54,7 +54,7 @@ def apply_mask_and_blur(image, mask, border_size=10, blur_radius=5):
             mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
         elif mask.ndim == 4: # z.B. (H, W, 4)
             mask = cv2.cvtColor(mask, cv2.COLOR_BGRA2GRAY)
-            
+
         # Ensure that the mask is binary (0 or 255)
         _, mask_binary = cv2.threshold(mask, 128, 255, cv2.THRESH_BINARY)
 
@@ -76,6 +76,7 @@ def apply_mask_and_blur(image, mask, border_size=10, blur_radius=5):
         # Find the bounding rectangle of the unmasked part
         contours, _ = cv2.findContours(mask_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         x, y, w, h = cv2.boundingRect(contours[0])
+
 
 
 
