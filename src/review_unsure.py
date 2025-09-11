@@ -43,7 +43,7 @@ class UnsureApp(tk.Tk):
         bar = tk.Frame(self)
         tk.Button(bar, text="Load UNSURE (server)", command=self.load_unsure).pack(side="left", padx=4, pady=4)
         tk.Button(bar, text="Load INCONSISTENT (server)", command=self.load_inconsistent).pack(side="left", padx=4, pady=4)
-        tk.Button(bar, text="Load NEXT BATCH (server)", command=self.load_next_batch).pack(side="left", padx=4, pady=4)
+        tk.Button(bar, text="Load NEXT BATCH (server)", command=self.load_next_inconsistent_batch).pack(side="left", padx=4, pady=4)
         tk.Button(bar, text="Upload Batch Results (server)", command=self.upload_batch_results).pack(side="left", padx=4, pady=4)
         bar.pack(side="top", fill="x")
 
@@ -104,6 +104,7 @@ class UnsureApp(tk.Tk):
                     "im1_url": urljoin(API_BASE, it["im1_url"]),
                     "im2_url": urljoin(API_BASE, it["im2_url"]),
                     "unsure_by": it.get("unsure_by") or {},
+                    "annotated_by": it.get("annotated_by") or {},
                     "predicted": it.get("predicted"),
                     "expected": it.get("expected"),
                     "boxes_expected": it.get("boxes_expected", []),
@@ -139,7 +140,7 @@ class UnsureApp(tk.Tk):
         if data is not None:
             self._merge_remote(data)
 
-    def load_next_batch(self, size: int = 100):
+    def load_next_inconsistent_batch(self, size: int = 100):
         """
         Reserve or reuse a unique batch for this reviewer.
         Server: GET /inconsistent/batch?user=<USER>&size=100

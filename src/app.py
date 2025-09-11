@@ -86,6 +86,8 @@ class FlatPairList:
             "predicted": it.get("predicted"),
             "expected": it.get("expected"),
             "unsure_by": it.get("unsure_by"),
+            "annotated_by": it.get("annotated_by"),
+            "model_name": it.get("model_name"),   
             "source": it.get("source"),
         }
 
@@ -392,6 +394,7 @@ class ImagePairViewer(ttk.Frame):
         if getattr(self, "_flat_mode", False):
             # remember explicit save in this step (prevents auto-default on nav)
             self._flat_last_saved_state = pair_state if pair_state is not None else None
+            print(f"[DEBUG] _maybe_save → logging to {self._unsure_log_path}")
             self._log_unsure_review(pair_state=pair_state)   # <- writes current boxes (even empty)
             self._last_saved_sig = sig     
             print("Save review_unsure.json: ", pair_state)
@@ -417,37 +420,12 @@ class ImagePairViewer(ttk.Frame):
             return
 
         import json
-        from pathlib import Path
         from datetime import datetime
-        from urllib.parse import urlparse
-        import posixpath
 
         meta = self.image_pairs.meta_at(self._flat_view_index)
-        session_path = str(meta["store_session_path"])
-        pair_id = int(meta["pair_id"])
-        session_path_obj = Path(session_path)
+        key = f"{meta['store_session_path']}|{int(meta['pair_id'])}"
 
-        # current sources (can be local paths or URLs)
-        src1, src2 = self._pair_imgs_at_current()
-
-        def _to_session_rel(src, session_root: Path) -> str:
-            s = str(src)
-            if s.startswith(("http://", "https://")):
-                try:
-                    p = urlparse(s).path
-                    name = posixpath.basename(p)
-                    return name or s
-                except Exception:
-                    return s
-            try:
-                return str(Path(s).relative_to(session_root))
-            except Exception:
-                return Path(s).name
-
-        im1_path = _to_session_rel(src1, session_path_obj)
-        im2_path = _to_session_rel(src2, session_path_obj)
-
-        # --- NEW: collect live boxes from the canvases (not from session annotations) ---
+        # collect current boxes from canvases
         live_boxes = []
         for b in (self.image1.get_boxes() or []):
             if not b.get("synced_highlight"):
@@ -456,27 +434,28 @@ class ImagePairViewer(ttk.Frame):
             if not b.get("synced_highlight"):
                 live_boxes.append(dict(b))
 
-        # Upsert into unsure_reviews.json
+        # load existing local log
         try:
             existing = json.loads(self._unsure_log_path.read_text()) if self._unsure_log_path.exists() else {}
         except Exception:
             existing = {}
 
-        key = f"{session_path}|{pair_id}"
         rec = existing.get(key) or {}
 
-        # Only update pair_state if provided (don’t wipe on a plain skip)
         if pair_state is not None:
             rec["pair_state"] = pair_state
 
-        # Only replace boxes if we actually have new ones; otherwise keep what was there
-        rec["boxes"] = live_boxes
-
         rec.update({
-            "store_session_path": session_path,
-            "pair_id": pair_id,
-            "im1_path": im1_path,
-            "im2_path": im2_path,
+            "store_session_path": meta["store_session_path"],
+            "pair_id": meta["pair_id"],
+            "im1_url": meta.get("im1"),
+            "im2_url": meta.get("im2"),
+            "expected": meta.get("expected"),
+            "predicted": meta.get("predicted"),
+            "annotated_by": meta.get("annotated_by"),
+            "unsure_by": meta.get("unsure_by"),
+            "model_name": meta.get("model_name"),
+            "boxes": live_boxes,
             "timestamp": datetime.now().isoformat(),
         })
 
@@ -485,6 +464,7 @@ class ImagePairViewer(ttk.Frame):
         tmp.write_text(json.dumps(existing, indent=2))
         tmp.replace(self._unsure_log_path)
 
+        print(f"[REVIEW SAVE] Wrote pair {key} with state={rec.get('pair_state')} to {self._unsure_log_path}")
 
 
     def _shorten(self, s: str, maxlen: int = 40) -> str:
@@ -587,6 +567,7 @@ class ImagePairViewer(ttk.Frame):
                     # hier bewusst URLs mitgeben
                     "im1_url": urljoin(API_BASE_URL, it["im1_url"]),
                     "im2_url": urljoin(API_BASE_URL, it["im2_url"]),
+                    "annotated_by": it.get("annotated_by") or {},
                     "unsure_by": it.get("unsure_by") or {},
                     "source": "remote",
                 })
@@ -614,6 +595,7 @@ class ImagePairViewer(ttk.Frame):
                     "im1_url": urljoin(API_BASE_URL, it["im1_url"]),
                     "im2_url": urljoin(API_BASE_URL, it["im2_url"]),
                     "unsure_by": it.get("unsure_by") or {},
+                    "annotated_by": it.get("annotated_by") or {},
                     "predicted": it.get("predicted"),
                     "expected": it.get("expected"),
                     "boxes_expected": it.get("boxes_expected", []),
@@ -1340,28 +1322,32 @@ class ImagePairViewer(ttk.Frame):
             self.spinbox.current_index = index
 
             meta = self.image_pairs.meta_at(index)
+            print("[DEBUG] meta:", meta)
+            print("[DEBUG] annotated_by:", meta.get("annotated_by"))
+            print("[DEBUG] unsure_by:", meta.get("unsure_by"))
 
-            author = (meta.get("unsure_by") or {}).get("name", "unbekannt")
-            expected = meta.get("expected")
-            predicted = meta.get("predicted")
+            annotated = meta.get("annotated_by")
+            unsure    = meta.get("unsure_by")
 
-            if expected or predicted:
-                # Variante B wording, compact, German:
-                # e.g. "Ursprünglich (Sarah): chaos  •  Modell: nothing"
-                left = f"Expected by ({author}): {expected or '—'}"
-                right = f"Predicted by ({self.model_name}): {predicted or '—'}"
-                self.banner.config(text=f"{left}  •  {right}")
-            else:
-                # Unsure-only case (no model info)
+            if annotated and isinstance(annotated, dict):
+                author = annotated.get("name", "unbekannt")
+                expected = meta.get("expected")
+                predicted = meta.get("predicted")
+                model = meta.get("model_name") or self.model_name or "?"
+                if expected or predicted:
+                    left = f"Expected ({author}): {expected or '—'}"
+                    right = f"Predicted ({model}): {predicted or '—'}"
+                    self.banner.config(text=f"{left}  •  {right}")
+
+            elif unsure and isinstance(unsure, dict):
+                user = unsure.get("name", "unknown")
                 self.banner.config(
-                    text=f"Unsure: {meta['store_session_path']} | {meta['pair_id']}"
+                    text=f"Unsure by {user} | {meta['store_session_path']} | pair #{meta['pair_id']}"
                 )
+
             session_path = meta["store_session_path"]
             original_pair_id = int(meta["pair_id"])
 
-            # Annotation-Controller auf die richtige Session schalten
-            if self.annotations is None or str(self.annotations.base_path) != str(session_path):
-                self.annotations = ImageAnnotation(base_path=session_path, total_pairs=None)
 
             # WICHTIG: current_index = ORIGINAL pair_id der Session (für JSON)
             self.current_index = original_pair_id
