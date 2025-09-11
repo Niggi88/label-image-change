@@ -41,8 +41,8 @@ class UnsureApp(tk.Tk):
 
         # --- Toolbar ---
         bar = tk.Frame(self)
-        tk.Button(bar, text="Load UNSURE (server)", command=self.load_unsure).pack(side="left", padx=4, pady=4)
-        tk.Button(bar, text="Load INCONSISTENT (server)", command=self.load_inconsistent).pack(side="left", padx=4, pady=4)
+        tk.Button(bar, text="Load UNSURE (server)", command=self.load_next_unsure_batch).pack(side="left", padx=4, pady=4)
+        # tk.Button(bar, text="Load INCONSISTENT (server)", command=self.load_inconsistent).pack(side="left", padx=4, pady=4)
         tk.Button(bar, text="Load NEXT BATCH (server)", command=self.load_next_inconsistent_batch).pack(side="left", padx=4, pady=4)
         tk.Button(bar, text="Upload Batch Results (server)", command=self.upload_batch_results).pack(side="left", padx=4, pady=4)
         bar.pack(side="top", fill="x")
@@ -86,15 +86,9 @@ class UnsureApp(tk.Tk):
             suffix += f" — model: {self.model_name}"
         self.title("Unsure Review Mode" + suffix)
 
-    def _merge_remote(self, items):
-        """
-        Adapt server items to the viewer's flat format and merge uniquely.
-        Viewer expects: store_session_path, pair_id, im1_url, im2_url, unsure_by (and optionally predicted/expected).
-        """
-        if not items:
-            messagebox.showinfo("Loaded", "No items returned")
-            return
 
+    def _set_batch_items(self, items: list[dict]):
+        """Replace viewer items completely with this batch."""
         flat = []
         for it in items:
             try:
@@ -109,36 +103,68 @@ class UnsureApp(tk.Tk):
                     "expected": it.get("expected"),
                     "boxes_expected": it.get("boxes_expected", []),
                     "boxes_predicted": it.get("boxes_predicted", []),
+                    "model_name": it.get("model_name"),
                     "source": "remote",
-                    "model_name": it.get("model_name")
                 })
             except Exception as e:
-                print("[REMOTE] skip item:", e)
+                print("[BATCH] skip item:", e)
 
-        # merge into viewer
-        try:
-            added = self.viewer.image_pairs.extend_unique(flat)
-        except Exception:
-            # fallback if extend_unique isn't available
-            self.viewer.image_pairs._items = flat
-            added = len(flat)
+        # ⚡ Wichtig: statt extend_unique → direkt ersetzen
+        self.viewer.image_pairs._items = flat
+        self.viewer._flat_view_index = 0
 
-        if added:
-            self.viewer._flat_view_index = 0
+        if flat:
             self.viewer.load_pair(0)
-        messagebox.showinfo("Loaded", f"Added {added} pairs from server")
+
+
 
     # ---------------- button actions ----------------
 
-    def load_unsure(self):
-        data = self._get("/unsure")
-        if data is not None:
-            self._merge_remote(data)
 
-    def load_inconsistent(self):
-        data = self._get("/inconsistent")
-        if data is not None:
-            self._merge_remote(data)
+    def load_next_unsure_batch(self, size: int = 100):
+        """
+        Reserve or reuse a unique batch of UNSURE pairs for this reviewer.
+        Server: GET /unsure/batch?user=<USER>&size=100
+        """
+        resp = self._get("/unsure/batch", params={"user": REVIEW_USER, "size": size})
+        if not resp:
+            return
+        if "items" not in resp:
+            messagebox.showerror("Batch error", f"Unexpected response:\n{resp}")
+            return
+
+        self.model_name = None  # unsure-batches haben kein model_name
+        self.current_batch_id = resp.get("batch_id")
+        if self.current_batch_id:
+            self.current_log_path = LOCAL_LOG_DIR / f"unsure_batch_{self.current_batch_id}.json"
+        else:
+            self.current_log_path = LOCAL_LOG_DIR / "unsure_batch_none.json"
+
+        # ensure the viewer writes to this per-batch file
+        try:
+            self.viewer._unsure_log_path = self.current_log_path
+        except Exception:
+            self.viewer.destroy()
+            self.viewer = ImagePairViewer(
+                self, base_src=None, flat_pairs=[], _unsure_log_path=self.current_log_path
+            )
+            self.viewer.pack(fill="both", expand=True)
+
+        # merge items
+        self._set_batch_items(resp.get("items", []))
+        self._set_title()
+
+        cnt = resp.get("count", len(resp.get("items", [])))
+        if self.current_batch_id:
+            messagebox.showinfo(
+                "Batch loaded",
+                f"Unsure batch {self.current_batch_id} for '{REVIEW_USER}' with {cnt} items.\n"
+                f"Local save: {self.current_log_path}"
+            )
+        else:
+            messagebox.showinfo("Batch", resp.get("message", "No items"))
+
+
 
     def load_next_inconsistent_batch(self, size: int = 100):
         """
@@ -176,7 +202,7 @@ class UnsureApp(tk.Tk):
             self.viewer.pack(fill="both", expand=True)
 
         # merge items
-        self._merge_remote(resp.get("items", []))
+        self._set_batch_items(resp.get("items", []))
         self._set_title()
 
         cnt = resp.get("count", len(resp.get("items", [])))

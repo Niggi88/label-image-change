@@ -445,15 +445,29 @@ class ImagePairViewer(ttk.Frame):
         if pair_state is not None:
             rec["pair_state"] = pair_state
 
+        def _rel_path(url_or_path: str) -> str:
+            """Return path relative to /images/, or basename as fallback."""
+            if not url_or_path:
+                return None
+            try:
+                parsed = urlparse(url_or_path)
+                path = parsed.path if parsed.scheme else str(Path(url_or_path))
+                if "/images/" in path:
+                    return path.split("/images/")[-1].lstrip("/")
+                return Path(path).name
+            except Exception:
+                return str(url_or_path)
+
         rec.update({
             "store_session_path": meta["store_session_path"],
             "pair_id": meta["pair_id"],
-            "im1_url": meta.get("im1"),
-            "im2_url": meta.get("im2"),
+            "im1_path": _rel_path(meta.get("im1")),
+            "im2_path": _rel_path(meta.get("im2")),
             "expected": meta.get("expected"),
             "predicted": meta.get("predicted"),
             "annotated_by": meta.get("annotated_by"),
             "unsure_by": meta.get("unsure_by"),
+            "review_by": {"name": USERNAME},
             "model_name": meta.get("model_name"),
             "boxes": live_boxes,
             "timestamp": datetime.now().isoformat(),
@@ -1330,7 +1344,7 @@ class ImagePairViewer(ttk.Frame):
             unsure    = meta.get("unsure_by")
 
             if annotated and isinstance(annotated, dict):
-                author = annotated.get("name", "unbekannt")
+                author = annotated.get("name", "unknown")
                 expected = meta.get("expected")
                 predicted = meta.get("predicted")
                 model = meta.get("model_name") or self.model_name or "?"
