@@ -170,7 +170,7 @@ class UnsureApp(tk.Tk):
         """
         Reserve or reuse a unique batch for this reviewer.
         Server: GET /inconsistent/batch?user=<USER>&size=100
-        Creates/returns review_batch_<id>.json server-side and we mirror a local file with the same id.
+        Creates/returns inconsistent_batch_<id>.json server-side and we mirror a local file with the same id.
         """
         resp = self._get("/inconsistent/batch", params={"user": REVIEW_USER, "size": size})
 
@@ -185,10 +185,10 @@ class UnsureApp(tk.Tk):
         self.viewer.model_name = model_name
         self.current_batch_id = resp.get("batch_id")
         if self.current_batch_id:
-            self.current_log_path = LOCAL_LOG_DIR / f"review_batch_{self.current_batch_id}.json"
+            self.current_log_path = LOCAL_LOG_DIR / f"inconsistent_batch_{self.current_batch_id}.json"
         else:
             # server might reply with {message: "...", items: [], count: 0}
-            self.current_log_path = LOCAL_LOG_DIR / "review_batch_none.json"
+            self.current_log_path = LOCAL_LOG_DIR / "inconsistent_none.json"
 
         # ensure the viewer writes to this per-batch file
         try:
