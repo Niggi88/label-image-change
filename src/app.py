@@ -342,36 +342,72 @@ class ImagePairViewer(ttk.Frame):
         self.reset(self.session_paths[self.session_index], initial=True)
 
     def _flat_get_pair_state(self, store_session_path, pair_id):
-        """Return pair_state from unsure_reviews.json or None."""
+        """Return saved pair_state from local per-batch file (items/results/legacy)."""
         if not getattr(self, "_unsure_log_path", None):
             return None
         try:
             data = json.loads(Path(self._unsure_log_path).read_text())
         except Exception:
             return None
-        rec = data.get(f"{str(store_session_path)}|{int(pair_id)}") or {}
-        return rec.get("pair_state")
+
+        key = f"{str(store_session_path)}|{int(pair_id)}"
+        rec = None
+
+        if isinstance(data, dict):
+            if "results" in data and isinstance(data["results"], dict):
+                rec = data["results"].get(key)
+            elif "items" in data and isinstance(data["items"], list):
+                rec = next(
+                    (
+                        it for it in data["items"]
+                        if it.get("key") == key
+                        or (
+                            it.get("store_session_path") == store_session_path
+                            and int(it.get("pair_id", -1)) == int(pair_id)
+                        )
+                    ),
+                    None
+                )
+            else:
+                # legacy keyed dict
+                rec = data.get(key)
+
+        return rec.get("pair_state") if rec else None
+
 
     def _flat_get_pair_annotation(self, store_session_path: str, pair_id: int):
-        """
-        Liesst den Eintrag aus unsure_reviews.json und liefert wie im Annotation-Mode:
-        {"pair_state": <str|None>, "boxes": <list> }
-        """
-        if not self._unsure_log_path:
-            return {"pair_state": None, "boxes": []}
+        default = {"pair_state": None, "boxes": []}
+        if not getattr(self, "_unsure_log_path", None):
+            return default
 
         try:
             data = json.loads(Path(self._unsure_log_path).read_text())
         except Exception:
-            return {"pair_state": None, "boxes": []}
+            return default
 
-        rec = data.get(f"{str(store_session_path)}|{int(pair_id)}") or {}
-        boxes = (rec.get("boxes")
-                or rec.get("boxes_corrected")
-                or rec.get("boxes_expected")
-                or rec.get("boxes_predicted")
-                or [])
-        return {"pair_state": rec.get("pair_state"), "boxes": boxes}
+        key = f"{store_session_path}|{int(pair_id)}"
+        rec = None
+
+        if isinstance(data, dict):
+            # ✅ neuer Format: items-Liste
+            if "items" in data:
+                for it in data["items"]:
+                    if it.get("key") == key:
+                        rec = it
+                        break
+            # Fallbacks: alte Formate
+            elif "results" in data:
+                rec = data["results"].get(key)
+            else:
+                rec = data.get(key)
+
+        if not rec:
+            return default
+
+        return {
+            "pair_state": rec.get("pair_state"),
+            "boxes": rec.get("boxes", [])
+        }
 
 
     def _boxes_signature(self):
@@ -551,17 +587,25 @@ class ImagePairViewer(ttk.Frame):
         # Einheitlicher Key wie beim Schreiben
         return f"{str(session_path)}|{int(pair_id)}"
 
-    def _get_unsure_entry(self, session_path, pair_id):
-        """Liest (falls vorhanden) den Eintrag aus unsure_reviews.json"""
+    def _get_unsure_entry(self, store_session_path: str, pair_id: int):
         if not getattr(self, "_unsure_log_path", None):
             return None
+
         try:
-            if self._unsure_log_path.exists():
-                data = json.loads(self._unsure_log_path.read_text())
-                return data.get(self._unsure_key(session_path, pair_id))
-        except Exception as e:
-            print("[WARN] failed reading unsure log:", e)
-        return None
+            data = json.loads(Path(self._unsure_log_path).read_text())
+        except Exception:
+            return None
+
+        key = f"{store_session_path}|{int(pair_id)}"
+
+        if "items" in data:
+            for it in data["items"]:
+                if it.get("key") == key:
+                    return it
+        elif "results" in data:
+            return data["results"].get(key)
+        else:
+            return data.get(key)
 
 
     def redraw_outline(self):
@@ -1144,38 +1188,37 @@ class ImagePairViewer(ttk.Frame):
         # Daten leeren
         self.image1.boxes = []
         self.image2.boxes = []
-
         self.image1.clear_mask()
         self.image2.clear_mask()
-
         self.image1._original_mask_pils = []
-
         self.image2._original_mask_pils = []
-        # Auch in der Annotation leeren & speichern
-        boxes1 = self.image1.get_boxes()
-        boxes2 = self.image2.get_boxes()
 
-        pair_state = (
-            ImageAnnotation.Classes.NO_ANNOTATION
-            if not boxes1 and not boxes2
-            else ImageAnnotation.Classes.ANNOTATED
-        )
+        # Aktuellen State holen
+        if getattr(self, "_flat_mode", False):
+            meta = self.image_pairs.meta_at(self._flat_view_index)
+            existing_state = self._flat_get_pair_state(meta["store_session_path"], meta["pair_id"])
+        else:
+            ann = self.annotations.get_pair_annotation(self.current_index) or {}
+            existing_state = ann.get("pair_state")
 
-        # self.annotations.save_pair_annotation(
-        #     # pair_id=self.current_index,  # oder dein pair_id
-        #     image1=self.image1,          # das ist AnnotatableImage!
-        #     image2=self.image2,          # AnnotatableImage!
-        #     pair_state=pair_state
-        # )
+        # Nur auf NO_ANNOTATION setzen, wenn es noch keinen State gibt
+        if existing_state:
+            new_state = existing_state
+        else:
+            new_state = ImageAnnotation.Classes.NO_ANNOTATION
 
-        self._maybe_save(pair_state=pair_state)
+        # Speichern
+        self._maybe_save(pair_state=new_state)
+        self.update_ui_state(pair_state=new_state)
 
-        self.update_ui_state(pair_state=pair_state)
-        print(f"Boxes cleared for pair {self.current_index}")
-        if skip == True:
+        print(f"Boxes cleared for pair {self.current_index} (state={new_state})")
+
+        # Falls wir im Skip-Modus sind → weiterblättern
+        if skip:
             self.right()
 
         self.refocus_after_button()
+
 
     def delete_selected_box(self):
         if self.selected_box_index is None:
@@ -1452,13 +1495,13 @@ class ImagePairViewer(ttk.Frame):
             # 🔁 Falls es in unsure_reviews.json einen neueren Eintrag gibt, priorisieren
             unsure_entry = self._get_unsure_entry(session_path, original_pair_id)
             if unsure_entry:
-                # Boxes & State aus globaler Datei übernehmen
                 boxes = unsure_entry.get("boxes", boxes)
                 if unsure_entry.get("pair_state") is not None:
                     annotation["pair_state"] = unsure_entry["pair_state"]
-            else:
-                # Kein Eintrag im globalen Log → Standard 'no_annotation'
-                annotation.setdefault("pair_state", ImageAnnotation.Classes.NO_ANNOTATION)
+
+            # ⬇️ change this part:
+            if not annotation.get("pair_state"):
+                annotation["pair_state"] = ImageAnnotation.Classes.NO_ANNOTATION
 
 
             self.image1._original_mask_pils = []; self.image2._original_mask_pils = []
