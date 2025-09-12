@@ -425,23 +425,20 @@ class ImagePairViewer(ttk.Frame):
         meta = self.image_pairs.meta_at(self._flat_view_index)
         key = f"{meta['store_session_path']}|{int(meta['pair_id'])}"
 
-
-
         def _rel_path(url_or_path: str) -> str:
-                    """Return path relative to /images/, or basename as fallback."""
-                    if not url_or_path:
-                        return None
-                    try:
-                        parsed = urlparse(url_or_path)
-                        path = parsed.path if parsed.scheme else str(Path(url_or_path))
-                        if "/images/" in path:
-                            return path.split("/images/")[-1].lstrip("/")
-                        return Path(path).name
-                    except Exception:
-                        return str(url_or_path)
-            
+            """Return path relative to /images/, or basename as fallback."""
+            if not url_or_path:
+                return None
+            try:
+                parsed = urlparse(url_or_path)
+                path = parsed.path if parsed.scheme else str(Path(url_or_path))
+                if "/images/" in path:
+                    return path.split("/images/")[-1].lstrip("/")
+                return Path(path).name
+            except Exception:
+                return str(url_or_path)
 
-        # collect current boxes from canvases
+        # collect current boxes
         live_boxes = []
         for b in (self.image1.get_boxes() or []):
             if not b.get("synced_highlight"):
@@ -456,10 +453,21 @@ class ImagePairViewer(ttk.Frame):
         except Exception:
             existing = {}
 
+
+        if not getattr(self, "_current_batch_id", None):
+            # Erst aus JSON-Meta probieren
+            batch_id = (existing.get("_meta") or {}).get("batch_id")
+            if not batch_id and self._unsure_log_path:
+                # Fallback: Dateiname ohne Endung
+                batch_id = self._unsure_log_path.stem
+            self._current_batch_id = batch_id
+
+
+        # initialize structure if needed
         if "items" not in existing:
             existing = {
                 "_meta": {
-                    "batch_id": getattr(self, "_current_batch_id", None),
+                    "batch_id": self._current_batch_id,
                     "batch_type": "unsure" if meta.get("unsure_by") else "inconsistent",
                     "reviewer": USERNAME,
                     "model_name": meta.get("model_name"),
@@ -469,7 +477,7 @@ class ImagePairViewer(ttk.Frame):
                 "items": []
             }
 
-
+        # build record
         rec = {
             "key": key,
             "pair_state": pair_state,
@@ -487,6 +495,7 @@ class ImagePairViewer(ttk.Frame):
             "timestamp": datetime.now().isoformat(),
         }
 
+        # upsert
         items = existing["items"]
         for i, old in enumerate(items):
             if old.get("key") == key:
@@ -495,13 +504,39 @@ class ImagePairViewer(ttk.Frame):
         else:
             items.append(rec)
 
-    
+        # auto-complete check
+        total_expected = existing.get("_meta", {}).get("count")
+        num_reviewed = sum(
+            1 for item in items if item.get("pair_state") not in (None, "", "no_annotation")
+        )
+
+        all_done = total_expected and num_reviewed >= total_expected
+        existing["_meta"]["batch_completed"] = bool(all_done)
+
+        # save
         tmp = self._unsure_log_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(existing, indent=2))
         tmp.replace(self._unsure_log_path)
 
+        print(
+            f"[REVIEW SAVE] Wrote pair {key} with state={rec.get('pair_state')} "
+            f"to {self._unsure_log_path} | batch_completed={existing['_meta']['batch_completed']}"
+        )
 
-        print(f"[REVIEW SAVE] Wrote pair {key} with state={rec.get('pair_state')} to {self._unsure_log_path}")
+        # auto-upload if completed
+        if all_done:
+            # Schedule upload on UI thread
+            def _do_upload():
+                try:
+                    print(f"[UPLOAD] Auto-uploading completed batch {existing['_meta'].get('batch_id')}")
+                    # assumes your review app has .upload_batch_results()
+                    if hasattr(self.master, "upload_batch_results"):
+                        self.master.upload_batch_results()
+                except Exception as e:
+                    print("[UPLOAD ERROR]", e)
+
+            self.after_idle(_do_upload)
+
 
 
     def _shorten(self, s: str, maxlen: int = 40) -> str:
@@ -1627,7 +1662,9 @@ class ImagePairViewer(ttk.Frame):
             if self._flat_view_index + 1 < len(self.image_pairs):
                 self.load_pair(self._flat_view_index + 1)
             else:
-                messagebox.showinfo("Done", "All unsure pairs reviewed.")
+                # messagebox.showinfo("Done", "All unsure pairs reviewed.")
+                print("[INFO] All unsure pairs reviewed — batch uploaded ✅")
+                self.global_progress_label.config(text="All pairs reviewed — uploaded ✅")
                 self.quit()
             return
         

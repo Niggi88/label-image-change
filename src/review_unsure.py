@@ -121,7 +121,7 @@ class UnsureApp(tk.Tk):
     # ---------------- button actions ----------------
 
 
-    def load_next_unsure_batch(self, size: int = 100):
+    def load_next_unsure_batch(self, size: int = 5):
         """
         Reserve or reuse a unique batch of UNSURE pairs for this reviewer.
         Server: GET /unsure/batch?user=<USER>&size=100
@@ -166,7 +166,7 @@ class UnsureApp(tk.Tk):
 
 
 
-    def load_next_inconsistent_batch(self, size: int = 100):
+    def load_next_inconsistent_batch(self, size: int = 5):
         """
         Reserve or reuse a unique batch for this reviewer.
         Server: GET /inconsistent/batch?user=<USER>&size=100
@@ -234,30 +234,34 @@ class UnsureApp(tk.Tk):
             messagebox.showerror("Read error", f"Cannot parse {self.current_log_path}:\n{e}")
             return
 
-        # Normalize into { "store_session_path|pair_id": entry }
-        normalized: dict[str, dict] = {}
-        meta_root = (local_results.get("_meta") or {}).get("root") if isinstance(local_results, dict) else ""
+        # # Normalize into { "store_session_path|pair_id": entry }
+        # normalized: dict[str, dict] = {}
+        # meta_root = (local_results.get("_meta") or {}).get("root") if isinstance(local_results, dict) else ""
 
-        if isinstance(local_results, dict):
-            for k, v in local_results.items():
-                if k == "_meta":
-                    continue
-                try:
-                    store = v.get("store_session_path") or meta_root or ""
-                    key = f"{store}|{int(k)}"
-                    normalized[key] = v
-                except Exception:
-                    # accept already-composite keys
-                    if isinstance(v, dict) and "|" in k:
-                        normalized[k] = v
+        # if isinstance(local_results, dict):
+        #             if "items" in local_results:  # new format
+        #                 for item in local_results["items"]:
+        #                     key = item.get("key") or f"{item['store_session_path']}|{item['pair_id']}"
+        #                     normalized[key] = item
+        #             else:  # old flat dict format
+        #                 for k, v in local_results.items():
+        #                     if k == "_meta":
+        #                         continue
+        #                     if isinstance(v, dict):
+        #                         key = v.get("key") or k
+        #                         normalized[key] = v
 
-        if not normalized:
-            messagebox.showwarning("Nothing to upload", "No review items found in the local batch file.")
-            return
+        # if not normalized:
+        #     messagebox.showwarning("Nothing to upload", "No review items found in the local batch file.")
+        #     return
 
-        resp = self._post(f"/batches/{self.current_batch_id}/results", json_payload=normalized)
+        resp = self._post(f"/batches/{self.current_batch_id}/results", json_payload=local_results)
         if resp:
-            messagebox.showinfo("Upload", f"Server: {resp}")
+            print(f"[UPLOAD OK] Server response: {resp}")
+            # optional ins UI schreiben:
+            if hasattr(self, "global_progress_label"):
+                self.global_progress_label.config(text=f"Uploaded batch {self.current_batch_id} ({resp.get('status')})")
+
 
 
 if __name__ == "__main__":
