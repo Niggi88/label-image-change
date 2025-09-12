@@ -425,6 +425,22 @@ class ImagePairViewer(ttk.Frame):
         meta = self.image_pairs.meta_at(self._flat_view_index)
         key = f"{meta['store_session_path']}|{int(meta['pair_id'])}"
 
+
+
+        def _rel_path(url_or_path: str) -> str:
+                    """Return path relative to /images/, or basename as fallback."""
+                    if not url_or_path:
+                        return None
+                    try:
+                        parsed = urlparse(url_or_path)
+                        path = parsed.path if parsed.scheme else str(Path(url_or_path))
+                        if "/images/" in path:
+                            return path.split("/images/")[-1].lstrip("/")
+                        return Path(path).name
+                    except Exception:
+                        return str(url_or_path)
+            
+
         # collect current boxes from canvases
         live_boxes = []
         for b in (self.image1.get_boxes() or []):
@@ -440,25 +456,23 @@ class ImagePairViewer(ttk.Frame):
         except Exception:
             existing = {}
 
-        rec = existing.get(key) or {}
+        if "items" not in existing:
+            existing = {
+                "_meta": {
+                    "batch_id": getattr(self, "_current_batch_id", None),
+                    "batch_type": "unsure" if meta.get("unsure_by") else "inconsistent",
+                    "reviewer": USERNAME,
+                    "model_name": meta.get("model_name"),
+                    "created": datetime.now().isoformat(),
+                    "batch_completed": False
+                },
+                "items": []
+            }
 
-        if pair_state is not None:
-            rec["pair_state"] = pair_state
 
-        def _rel_path(url_or_path: str) -> str:
-            """Return path relative to /images/, or basename as fallback."""
-            if not url_or_path:
-                return None
-            try:
-                parsed = urlparse(url_or_path)
-                path = parsed.path if parsed.scheme else str(Path(url_or_path))
-                if "/images/" in path:
-                    return path.split("/images/")[-1].lstrip("/")
-                return Path(path).name
-            except Exception:
-                return str(url_or_path)
-
-        rec.update({
+        rec = {
+            "key": key,
+            "pair_state": pair_state,
             "store_session_path": meta["store_session_path"],
             "pair_id": meta["pair_id"],
             "im1_path": _rel_path(meta.get("im1")),
@@ -471,12 +485,21 @@ class ImagePairViewer(ttk.Frame):
             "model_name": meta.get("model_name"),
             "boxes": live_boxes,
             "timestamp": datetime.now().isoformat(),
-        })
+        }
 
-        existing[key] = rec
+        items = existing["items"]
+        for i, old in enumerate(items):
+            if old.get("key") == key:
+                items[i] = rec
+                break
+        else:
+            items.append(rec)
+
+    
         tmp = self._unsure_log_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(existing, indent=2))
         tmp.replace(self._unsure_log_path)
+
 
         print(f"[REVIEW SAVE] Wrote pair {key} with state={rec.get('pair_state')} to {self._unsure_log_path}")
 
