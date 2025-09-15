@@ -5,6 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from itertools import chain
 from config import DATASET_DIR
+from data_handling import data_config as config
 
 class YoloPaths:
     def __init__(self, split_dir):
@@ -123,10 +124,8 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
 if __name__ == "__main__":
     
     # === CONFIG ===
-    yolo_splitted_paths = YoloPathsSplit(Path("/media/fast/dataset/bildunterschied/real_data/v7_medium"))
-    # IMAGES1_DIR = EXPORT_DIR / "images"
-    # IMAGES2_DIR = EXPORT_DIR / "images2"
-    # LABELS_DIR = EXPORT_DIR / "labels"
+    yolo_splitted_paths = YoloPathsSplit(config.out_datasets_dir)
+
 
     # Create output folders
     for yolo_paths in [yolo_splitted_paths.val, yolo_splitted_paths.train]:
@@ -134,43 +133,30 @@ if __name__ == "__main__":
             p.mkdir(parents=True, exist_ok=True)
 
     #  = SESSION_PATH / "converted_data.json"
-    # SRC_DATA_PATH = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one")
-    # dataset_small_set = Path("/media/fast/dataset/bildunterschied/test_mini/small_set").glob("**/converted_data.json")
-    # dataset_small_set2 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set2").glob("**/converted_data.json")
-    # dataset_small_set3 = Path("/media/fast/dataset/bildunterschied/test_mini/small_set3").glob("**/converted_data.json")
-    # dataset_small_set4 = Path("/media/fast/dataset/bildunterschied/labeling/gemuese_netz_sub").glob("**/annotations.json")
-    dataset_small_set_santiago = Path("/media/fast/dataset/bildunterschied/change_data/santiago").glob("*.json")
-    dataset_small_set_nik = Path("/media/fast/dataset/bildunterschied/change_data/niklas").glob("*.json")
-
-    # dataset_small_set4 = Path("/media/fast/dataset/bildunterschied/real_data/test_sarah/sarah").glob("*.json")
-
-    # dataset_one = Path("/media/fast/dataset/bildunterschied/test_mini/new_label_tool/one").glob("**/annotations.json")
-    # dataset_sarah = Path("/home/sarah/Documents/background_segmentation/small_relevant_sessions").glob("**/annotations.json")
-    
-    dataset_config = Path(DATASET_DIR)
+    in_dataset_files = (config.raw_data / config._src_data_name).glob("*.json")
     
     annotation_files = list(chain(
         # dataset_small_set,
         # dataset_small_set2,
-        dataset_small_set_santiago,
-        dataset_small_set_nik,
+        in_dataset_files,
+        # dataset_small_set2,
         # dataset_small_set3,
         # folder_path.glob("**/*.json")
         # dataset_config
     ))
     
-    override_root = "/media/fast/dataset/bildunterschied/change_data/images"
+    
     index = 0
     for f in annotation_files:
         # index = export_session(f, index, yolo_splitted_paths)
-        index = export_session(f, index, yolo_splitted_paths, override_root=override_root)
+        index = export_session(f, index, yolo_splitted_paths, override_root=config.override_root)
     print(len(annotation_files))
     from yolo_config import generate_dataset_config
     
     class_names = [
-        "nothing",  # 0
+        "nothing",          # 0
         "chaos",            # 1
-        "annotated",       # 2
+        "annotated",        # 2
     ]
     
     generate_dataset_config(

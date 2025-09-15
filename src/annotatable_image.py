@@ -10,7 +10,7 @@ import io
 import base64
 from image_annotation import ImageAnnotation
 import uuid
-
+from pathlib import Path
 
 
 def mask_pil_to_base64(pil_image):
@@ -47,6 +47,60 @@ def combine_masks(mask_list):
         base = Image.alpha_composite(base, mask)
     return base
 
+def apply_mask_and_blur(image, mask, border_size=10, blur_radius=5):
+        
+        # sicherstellen, dass Maske grau ist
+        if mask.ndim == 3:   # z.B. (H, W, 3)
+            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+        elif mask.ndim == 4: # z.B. (H, W, 4)
+            mask = cv2.cvtColor(mask, cv2.COLOR_BGRA2GRAY)
+
+        # Ensure that the mask is binary (0 or 255)
+        _, mask_binary = cv2.threshold(mask, 128, 255, cv2.THRESH_BINARY)
+
+
+
+        # Create an empty result image with 4 channels (RGBA)
+        result = np.zeros((image.shape[0], image.shape[1], 4), dtype=np.uint8)
+
+
+
+        # Copy the image content to the result
+        result[..., :3] = image
+
+
+
+        # Set the alpha channel to the binary mask
+        result[..., 3] = mask_binary
+        
+        # Find the bounding rectangle of the unmasked part
+        contours, _ = cv2.findContours(mask_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        x, y, w, h = cv2.boundingRect(contours[0])
+
+
+
+
+        # Add the border size to the bounding rectangle
+        x = max(0, x - border_size)
+        y = max(0, y - border_size)
+        w = min(result.shape[1] - x, w + 2 * border_size)
+        h = min(result.shape[0] - y, h + 2 * border_size)
+
+
+
+        # Crop the result image using the adjusted bounding rectangle
+        cropped_result = result[y:y+h, x:x+w]
+        
+        # Create a blurred version of the alpha channel
+        blurred_alpha = cv2.GaussianBlur(cropped_result[..., 3], (blur_radius, blur_radius), 0)
+        
+        # Replace the original alpha channel with the blurred version
+        cropped_result[..., 3] = blurred_alpha
+
+
+
+        return cropped_result
+    
 class AnnotationTypeState():
     POSITIVE = "green"
     NEGATIVE = "red"
@@ -67,6 +121,7 @@ class AnnotatableImage(ttk.Frame):
         
         self._mask_ids = []
         self.image_id = None
+
 
         # Drawing state
         self.drawing = False
@@ -208,29 +263,59 @@ class AnnotatableImage(ttk.Frame):
 
 
 
-    def load_image(self, image_path, boxes=None):
-        self.image_path = image_path
-        pil_image = Image.open(image_path)
+    def load_image(self, image_source, boxes=None, image_id=None):
+        """
+        Lädt ein Bild für Annotation (Session-Mode) oder Review (Unsure-Mode).
+        - image_source: Pfad (str/Path) oder Bytes
+        - boxes: optionale Box-Liste
+        - image_id: optionale eindeutige ID (z.B. URL oder Dateiname); 
+                    wird im Unsure-Mode genutzt
+        """
+        import io
+        from pathlib import Path
+        from PIL import Image
+        import base64
+
+        # PIL öffnen je nach Quelle
+        if isinstance(image_source, (bytes, bytearray)):
+            pil_image = Image.open(io.BytesIO(image_source)).convert("RGB")
+            self.image_path = None  # kein echter Dateipfad
+        else:
+            self.image_path = Path(image_source)
+            pil_image = Image.open(self.image_path).convert("RGB")
+
         self.image_size = pil_image.size
         self._original_pil_image = pil_image
 
-        self._original_mask_pils = []  # <--- WICHTIG: Liste leeren!
+        # image_id setzen
+        self.image_id = image_id or (str(self.image_path) if self.image_path else None)
+
+        # Reset Masken & Boxen
+        self._original_mask_pils = []
         self.boxes = boxes or []
 
-        
+        # Masken wiederherstellen (nur wenn wir einen Pfad haben und es matcht)
         for box in self.boxes:
             from image_annotation import make_absolute_path
-
             annotations_meta = self.controller.annotations.annotations.get("_meta", {})
             box_abs_path = make_absolute_path(box.get("mask_image_id"), annotations_meta)
 
-            if 'mask_base64' in box and box_abs_path == str(self.image_path):
-                mask_bytes = base64.b64decode(box['mask_base64'])
-                mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
-                self._original_mask_pils.append(mask_pil)
+            if 'mask_base64' in box:
+                # check: wenn wir im session mode sind → Pfad vergleichen
+                if self.image_path and box_abs_path == str(self.image_path):
+                    mask_bytes = base64.b64decode(box['mask_base64'])
+                    mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
+                    self._original_mask_pils.append(mask_pil)
+                # im review mode: nur image_id vergleichen
+                elif not self.image_path and image_id and box.get("mask_image_id") == image_id:
+                    mask_bytes = base64.b64decode(box['mask_base64'])
+                    mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
+                    self._original_mask_pils.append(mask_pil)
 
+        # Anzeige vorbereiten (wie im Original)
         if self.canvas.winfo_width() > 1 and self.canvas.winfo_height() > 1:
             self._resize_image()
+
 
 
 
@@ -255,7 +340,7 @@ class AnnotatableImage(ttk.Frame):
         self._offset_x = (canvas_width - display_width) // 2
         self._offset_y = (canvas_height - display_height) // 2
 
-        self.canvas.delete("canvas_outline")  # make sure it's gone BEFORE drawing
+        # self.canvas.delete("canvas_outline")  # make sure it's gone BEFORE drawing
 
 
         # 3. Komplettes Canvas leeren & nur das Bild rein
@@ -272,7 +357,11 @@ class AnnotatableImage(ttk.Frame):
         # 5. Boxen drüber
         self.display_boxes(self.boxes)
 
-
+        if hasattr(self, "controller") and self.controller:
+            try:
+                self.controller.redraw_outline()
+            except Exception:
+                pass
 
     def _calculate_scaled_size(self, size, max_size):
         """Calculate new size maintaining aspect ratio"""
@@ -395,11 +484,7 @@ class AnnotatableImage(ttk.Frame):
             )
 
         # 🧠 2. Save new annotation state (also saves boxes + pair_state)
-        self.controller.annotations.save_pair_annotation(
-            image1=self,
-            image2=other_image,
-            pair_state=ImageAnnotation.Classes.ANNOTATED
-        )
+        self.controller._maybe_save(pair_state=ImageAnnotation.Classes.ANNOTATED)
 
         # 🧠 3. Generate mask
         self.generate_mask_from_bbox()
@@ -464,13 +549,20 @@ class AnnotatableImage(ttk.Frame):
             is_selected = (self.selected_box_index is not None and idx == self.selected_box_index)
             is_synced = box.get("synced_highlight", False)
 
-            # 🎨 Color purely based on annotation_type
-            if annotation_type == ImageAnnotation.Classes.ANNOTATION:
-                outline = "green"
-            elif annotation_type == ImageAnnotation.Classes.ANNOTATION_X:
+            # # 🎨 Color purely based on annotation_type
+            # if annotation_type == ImageAnnotation.Classes.ANNOTATION:
+            #     outline = "green"
+            # elif annotation_type == ImageAnnotation.Classes.ANNOTATION_X:
+            #     outline = "red"
+            # else:
+            #     outline = "#B497B8"
+
+
+            if is_synced:
                 outline = "red"
             else:
-                outline = "#B497B8"
+                outline = "green"
+
 
             # Highlight selected box
             if is_selected:
@@ -531,60 +623,63 @@ class AnnotatableImage(ttk.Frame):
         pair_id = self.boxes[self.selected_box_index].get('pair_id')
         print(f"Deleting pair_id: {pair_id}")
 
-        # 1) Lösche alle Boxen mit dieser ID in beiden Bildern
+        # 1) Delete all boxes with this pair_id on BOTH images
         self.boxes = [b for b in self.boxes if b.get('pair_id') != pair_id]
         other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
         other_image.boxes = [b for b in other_image.boxes if b.get('pair_id') != pair_id]
 
-        # 2) Maskenlisten für beide Bilder AKTUALISIEREN
+        # 2) Rebuild mask PIL lists for BOTH images
         self._original_mask_pils = [
             Image.open(io.BytesIO(base64.b64decode(b['mask_base64']))).convert("RGBA")
             for b in self.boxes
-            if "mask_base64" in b and b["mask_image_id"] == str(self.image_path)
+            if "mask_base64" in b and b.get("mask_image_id") == str(self.image_path)
         ]
-
         other_image._original_mask_pils = [
             Image.open(io.BytesIO(base64.b64decode(b['mask_base64']))).convert("RGBA")
             for b in other_image.boxes
-            if "mask_base64" in b and b["mask_image_id"] == str(other_image.image_path)
+            if "mask_base64" in b and b.get("mask_image_id") == str(other_image.image_path)
         ]
 
-        # 3) Neu zeichnen
-        self.clear_boxes()
-        self.display_boxes(self.boxes)
-        other_image.clear_boxes()
-        other_image.display_boxes(other_image.boxes)
+        # 3) Redraw boxes
+        self.clear_boxes(); self.display_boxes(self.boxes)
+        other_image.clear_boxes(); other_image.display_boxes(other_image.boxes)
 
-        # 4) Neu zeichnen der Masken über _resize_image
+        # 4) Redraw masks via resize
         self._resize_image()
         other_image._resize_image()
-       
-        # 5) Auswahl zurücksetzen
+
+        # 5) Reset selection
         self.selected_box_index = None
         other_image.selected_box_index = None
 
-        # 6) Wenn keine Boxen mehr übrig sind → pair_state auf "no_annotation"
+        # 6) Derive new pair_state from LIVE canvas boxes (same logic as annotation mode)
         if not self.boxes and not other_image.boxes:
             new_state = ImageAnnotation.Classes.NO_ANNOTATION
         else:
             new_state = ImageAnnotation.Classes.ANNOTATED
 
-        # Save correct state!
-        self.controller.annotations.save_pair_annotation(
-            image1=self,
-            image2=other_image,
-            pair_state=new_state
-        )
+        # 7) SAVE:
+        self.controller._maybe_save(pair_state=new_state)
 
-        # 🔄 Update UI outline & buttons
+
+        # 8) Update outline/buttons
         self.controller.update_ui_state(new_state)
         print("Deleted pair in both images & masks updated immediately.")
 
-    
     def clear_image(self):
         """Löscht das Hintergrund-Bild"""
         self.canvas.delete("all")
         self._image = None
+
+    def clear_mask(self):
+        """Löscht nur die Maske"""
+        if hasattr(self, '_mask_ids'):
+            for mid in self._mask_ids:
+                self.canvas.delete(mid)
+            self._mask_ids = []
+        
+        self._original_mask_pils = []
+        self._mask_overlays = []
 
     def clear_boxes(self):
         for rect in self.box_rects:
@@ -597,18 +692,7 @@ class AnnotatableImage(ttk.Frame):
             self.current_box = None
 
         self.selected_box_index = None
-
-
-    def clear_mask(self):
-        """Löscht nur die Maske"""
-        if hasattr(self, '_mask_ids'):
-            for mid in self._mask_ids:
-                self.canvas.delete(mid)
-            self._mask_ids = []
         
-        self._original_mask_pils = []
-        self._mask_overlays = []
-
     def clear_all(self):
         self.clear_image()
         self.clear_mask()
@@ -643,7 +727,6 @@ class AnnotatableImage(ttk.Frame):
 
 
     def generate_mask_from_bbox(self):
-        """Nimmt die zuletzt gezeichnete BBox, ruft FastAPI, speichert Maske & aktualisiert Anzeige"""
         if not self.boxes:
             print("No BBoxes available for segmentation!")
             return
@@ -652,51 +735,30 @@ class AnnotatableImage(ttk.Frame):
         box = np.array([bbox['x1'], bbox['y1'], bbox['x2'], bbox['y2']])
         image_np = np.array(self._original_pil_image)
 
-        # 1) 🛰️ API-Call
+        # segmentation
         mask_pil, details = segment(image_np, box)
-        # print("Segmentation done:", details)
-
-        short_details = details.copy()
-        if "mask" in short_details:
-            short_details["mask"] = short_details["mask"][:10] + "..."
-        print("Segmentation done:", short_details)
-
         if mask_pil is None:
             print("Segmentation failed — no mask to show.")
             return
 
         result_mask = np.array(mask_pil)
-        binary_mask = (result_mask > 128).astype(np.uint8)
-        new_mask = create_transparent_overlay(binary_mask)
+        binary_mask = (result_mask > 128).astype(np.uint8) * 255  # ensure 0/255
 
-        bbox['mask_base64'] = mask_pil_to_base64(new_mask)
-        bbox['mask_image_id'] = str(self.image_path)
+        # --- use apply_mask_and_blur ---
+        extracted = apply_mask_and_blur(image_np, binary_mask)
 
-    
+        # save result
+        mask_dir = Path(SEGMENTATION_PATH)
+        mask_dir.mkdir(parents=True, exist_ok=True)
+        base_name = Path(self.image_path).stem
+        cutout_filename = mask_dir / f"{base_name}_bbox{len(self.boxes)}.png"
 
-        # 2) Maskenliste neu bauen für dieses Bild
-        self._original_mask_pils = []
-        for box in self.boxes:
-            if "mask_base64" in box and "mask_image_id" in box and box["mask_image_id"] == str(self.image_path):
-                mask_bytes = base64.b64decode(box["mask_base64"])
-                mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
-                self._original_mask_pils.append(mask_pil)
+        Image.fromarray(extracted).save(cutout_filename)
+        print(f"Saved extracted object with blur: {cutout_filename}")
 
-
-        
-        # 3) Andere Seite nur synchronisieren (keine API, keine neue Maske)
-        other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
-        other_image._original_mask_pils = []
-        for box in other_image.boxes:
-            if "mask_base64" in box and "mask_image_id" in box and box["mask_image_id"] == str(other_image.image_path):
-                mask_bytes = base64.b64decode(box["mask_base64"])
-                mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
-                other_image._original_mask_pils.append(mask_pil)
-
-
-        # 5) Anzeige aktualisieren
+        # optional UI update
         self._resize_image()
+        other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
         other_image._resize_image()
-        print("Mask displayed.")
 
 

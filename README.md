@@ -6,11 +6,9 @@ A simple tool for annotating changes between consecutive images. Created to labe
 
 # 0: start highscore counter
 * log into user sam
-* navigate to: cd backend/cart_SAMbackend
-* activate environment: source sam_venv/bin/activate
-* navigate to backend/cart_SAMbackend/highscore
+* navigate to: ~/backend/cart_SAMbackend/highscore/label-image-change/highscore
 * open tmux window: tmux new-session -s highscore
-* run: uvicorn annotation_api_server:app --host 0.0.0.0 --port 8010 --reload
+* run: python3 annotation_api_server.py
 
 * open http://172.30.20.31:8010/ in your browser to see the leaderboard
 
@@ -21,6 +19,7 @@ A simple tool for annotating changes between consecutive images. Created to labe
 * source sam_venv/bin/activate
 * open tmux window: tmux new-session -s masks
 *  run: python3  backend/cart_SAMbackend/src/main.py
+* set SEGMENTATION_PATH in config (TODO: upload to server)
 
 # 2: Adjust config
 *  set DATASET_DIR and DATASET_NAME (folder where all stores and sessions lie)
@@ -63,6 +62,25 @@ This will automatically search for annotations.json files in the dataset directo
         ├── <image_filename_1>.jpeg
         ├── <image_filename_2>.jpeg
         └── ...
+
+
+# change mode: review unsure pairs
+* run /opt/datasets/change_detection/unsure_api_server.py on m01 to start the server-side
+* to start the reviewing_mode:
+    * run src/review_unsure.py in label-image-change
+    * this automatically loads unsure labelled pairs locally based on your DATASET_DIR (config)
+    * to load image pairs from the server: press "load remote" button
+    * images will be saved to DATASET_DIR/.remote_cache
+* changes/corrections will be saved as unsure_reviews.json (in your DATASET_DIR)
+
+
+# review inconsistent pairs
+
+* run /opt/datasets/change_detection/unsure_api_server_batch.py on m01 to start the server-side
+* to start the reviewing_mode:
+    * run src/review_unsure.py in label-image-change
+
+
 
 ## Options for annotating:
 * nothing changed: when no item was added/removed, basically the content of the cart did not change

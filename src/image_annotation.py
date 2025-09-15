@@ -19,7 +19,7 @@ def make_relative_path(abs_path):
 
 def make_absolute_path(relative_path, annotations_meta):
     """Reconstruct absolute path from POSIX-style relative path and meta root"""
-    root = Path(annotations_meta.get("root", DATASET_DIR))
+    root = Path(annotations_meta.get("root", DATASET_DIR)).as_posix()
     return (root / Path(relative_path)).resolve()
 
 
@@ -83,13 +83,13 @@ class ImageAnnotation:
             self.annotations["_meta"] = {
                 "completed": True,
                 "timestamp": datetime.now().isoformat(),
-                "root": str(Path(DATASET_DIR).resolve())
+                "root": str(Path(DATASET_DIR).as_posix())
             }
         else:
             self.annotations["_meta"] = {
                 "completed": False,
                 "timestamp": datetime.now().isoformat(),
-                "root": str(Path(DATASET_DIR).resolve())
+                "root": str(Path(DATASET_DIR).as_posix())
             }
             
         with open(self.annotations_file, 'w') as f:
@@ -129,9 +129,7 @@ class ImageAnnotation:
                 "annotation_type": box["annotation_type"],
                 "pair_id": box.get("pair_id")
             }
-            if "mask_base64" in box:
-                entry["mask_base64"] = box["mask_base64"]
-                entry["mask_image_id"] = make_relative_path(box.get("mask_image_id"))
+
 
             final_boxes.append(entry)
 
