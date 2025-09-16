@@ -9,7 +9,7 @@ from urllib.parse import urljoin
 
 import requests
 
-from app import ImagePairViewer
+from app_annotation import ImagePairViewer
 from config import DATASET_DIR, USERNAME, LOCAL_LOG_DIR
 from ui_styles import init_ttk_styles
 

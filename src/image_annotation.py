@@ -7,14 +7,19 @@ from datetime import datetime
 from utils import report_annotation, already_annotated_on_server
 
 if TYPE_CHECKING:
-    from app import ImagePairViewer
+    from app_annotation import ImagePairViewer
     from image_annotation import ImageAnnotation
 
 
 
-def make_relative_path(abs_path):
-    """Convert an absolute image path to POSIX-style relative based on the dataset root"""
-    return Path(abs_path).resolve().relative_to(Path(DATASET_DIR).resolve()).as_posix()
+def make_relative_path(abs_path, dataset_root=None):
+    """
+    Return a path relative to the dataset root.
+    If dataset_root is None, falls back to config.DATASET_DIR.
+    """
+    from config import DATASET_DIR  # local import to avoid stale globals
+    root = Path(dataset_root or DATASET_DIR).resolve()
+    return Path(abs_path).resolve().relative_to(root).as_posix()
 
 
 def make_absolute_path(relative_path, annotations_meta):
@@ -50,11 +55,14 @@ class ImageAnnotation:
             NO_ANNOTATION: "#333333",   # dark grey
         }
     """Handles loading, saving, and managing annotations for image pairs"""
-    def __init__(self, base_path, total_pairs=None):
-        self.annotations_file = base_path
+    def __init__(self, base_path, total_pairs=None, dataset_root=None):
+        self.base_path = Path(base_path)
+        self.dataset_root = Path(dataset_root or self.base_path.parents[2])  # fallback if not passed
+        self.annotations_file = self.base_path / "annotations.json"
         self.annotations = {}
-        self.total_pairs = total_pairs  # 👈 THIS LINE IS CRITICAL
-        self.reset(base_path)
+        self.total_pairs = total_pairs
+        self.reset(self.base_path)
+
     
     def reset(self, base_path):
         self.base_path = Path(base_path)
@@ -83,13 +91,13 @@ class ImageAnnotation:
             self.annotations["_meta"] = {
                 "completed": True,
                 "timestamp": datetime.now().isoformat(),
-                "root": str(Path(DATASET_DIR).as_posix())
+                "root": str(self.dataset_root.as_posix())
             }
         else:
             self.annotations["_meta"] = {
                 "completed": False,
                 "timestamp": datetime.now().isoformat(),
-                "root": str(Path(DATASET_DIR).as_posix())
+                "root": str(self.dataset_root.as_posix())
             }
             
         with open(self.annotations_file, 'w') as f:
@@ -104,7 +112,7 @@ class ImageAnnotation:
 
 
     def _relative_path(self, abs_path):
-        return str(Path(abs_path).resolve().relative_to(DATASET_DIR))
+        return make_relative_path(abs_path, self.dataset_root)
     
     
     def save_pair_annotation(self, image1, image2, pair_state, boxes=None):
@@ -137,14 +145,14 @@ class ImageAnnotation:
 
         self.annotations[f"{pair_id}"] = {
             "pair_state": pair_state,
-            "im1_path": make_relative_path(image1.image_path),
-            "im2_path": make_relative_path(image2.image_path),
+            "im1_path": make_relative_path(image1.image_path, self.dataset_root),
+            "im2_path": make_relative_path(image2.image_path, self.dataset_root),
             "image1_size": image1.image_size,
             "image2_size": image2.image_size,
             "boxes": final_boxes
         }
 
-        session_path = Path(make_relative_path(image1.image_path)).parent
+        session_path = Path(make_relative_path(image1.image_path, self.dataset_root)).parent
         session_id = str(session_path).replace(os.sep, "_")
         pair_id_unique = f"{session_id}_{image1.controller.current_index}"
 
