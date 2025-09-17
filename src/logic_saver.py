@@ -63,3 +63,22 @@ class AnnotationSaver:
 
         self._flush()
 
+    def save_delete_box(self, pair, box_id):
+        """
+        Delete a box from annotations.json by its pair_id.
+        """
+        pid = str(pair.pair_id)
+        if pid not in self.annotations:
+            return False  # nothing to delete
+
+        before = len(self.annotations[pid]["boxes"])
+        self.annotations[pid]["boxes"] = [
+            b for b in self.annotations[pid]["boxes"]
+            if b["pair_id"] != box_id
+        ]
+        after = len(self.annotations[pid]["boxes"])
+
+        if before != after:
+            self._flush()
+            return True  # deleted something
+        return False

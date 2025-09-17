@@ -122,15 +122,10 @@ class BoxHandler:
         # self.display_boxes(self.selected_canvas, self.selected_image.boxes)
 
         # update annotations.json (remove box by pair_id)
-        pid = str(self.pair.pair_id)
-        if pid in self.saver.annotations:
-            self.saver.annotations[pid]["boxes"] = [
-                b for b in self.saver.annotations[pid]["boxes"]
-                if b["pair_id"] != removed_box["pair_id"]
-            ]
-            self.saver._flush()
+        self.saver.save_delete_box(self.pair, removed_box["pair_id"])
 
         # reset selection
         self.selected_box_index = None
         self.selected_canvas = None
         self.selected_image = None
+
