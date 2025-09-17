@@ -43,6 +43,7 @@ class UIElements(tk.Frame):
         self.refresh()
 
     def refresh(self):
+        print("refreshing")
         pair = self.loader.current_pair()
 
         root = self.winfo_toplevel()
@@ -62,7 +63,7 @@ class UIElements(tk.Frame):
         self.handler.selected_box_index = None
         self.handler.selected_canvas = None
         self.handler.selected_image = None
-        
+
         self.status.update_status(self.loader.current_index, len(self.loader))
 
     def prev_pair(self):
@@ -100,6 +101,7 @@ class UIElements(tk.Frame):
 class CanvasFrame(tk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
+        self.parent = parent
         self._images = []
 
         self.canvas_left = tk.Canvas(self, bg="gray", highlightthickness=0)
@@ -118,14 +120,8 @@ class CanvasFrame(tk.Frame):
         """Attach existing handler to canvases and redraw boxes."""
         handler.attach_to_canvas(self.canvas_left, pair.image1)
         handler.attach_to_canvas(self.canvas_right, pair.image2)
-
-
-        # Allow selecting boxes on click
-        self.canvas_left.bind("<Button-3>", lambda e: handler.select_box(e, self.canvas_left, pair.image1))
-        self.canvas_right.bind("<Button-3>", lambda e: handler.select_box(e, self.canvas_right, pair.image2))
+        self.parent.refresh()
         
-        # handler.display_boxes(self.canvas_left, pair.image1.boxes)
-        # handler.display_boxes(self.canvas_right, pair.image2.boxes)
 
 
 class NavigationFrame(tk.Frame):

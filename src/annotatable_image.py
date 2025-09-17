@@ -12,94 +12,6 @@ from image_annotation import ImageAnnotation
 import uuid
 from pathlib import Path
 
-
-def mask_pil_to_base64(pil_image):
-    buffer = io.BytesIO()
-    pil_image.save(buffer, format="PNG")
-    return base64.b64encode(buffer.getvalue()).decode()
-
-def create_transparent_overlay(mask_array, color=(30, 144, 255), alpha=120):
-    """
-    Baut ein RGBA-Overlay:
-    - color: RGB Farbe (Blau standardmäßig)
-    - alpha: Transparenz (0–255)
-    Nur Vordergrund (mask==1) wird eingefärbt.
-    """
-    # 👉 Single-Channel sicherstellen
-    if mask_array.ndim == 3:
-        print("Mask had multiple channels — using first channel only!")
-        mask_array = mask_array[..., 0]
-
-    print("Mask unique values:", np.unique(mask_array))
-    h, w = mask_array.shape
-
-    rgba = np.zeros((h, w, 4), dtype=np.uint8)
-    rgba[..., :3] = color
-    rgba[..., 3] = (mask_array > 0).astype(np.uint8) * alpha
-
-    return Image.fromarray(rgba)
-
-def combine_masks(mask_list):
-    if not mask_list:
-        return None
-    base = mask_list[0].copy()
-    for mask in mask_list[1:]:
-        base = Image.alpha_composite(base, mask)
-    return base
-
-def apply_mask_and_blur(image, mask, border_size=10, blur_radius=5):
-        
-        # sicherstellen, dass Maske grau ist
-        if mask.ndim == 3:   # z.B. (H, W, 3)
-            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-        elif mask.ndim == 4: # z.B. (H, W, 4)
-            mask = cv2.cvtColor(mask, cv2.COLOR_BGRA2GRAY)
-
-        # Ensure that the mask is binary (0 or 255)
-        _, mask_binary = cv2.threshold(mask, 128, 255, cv2.THRESH_BINARY)
-
-
-
-        # Create an empty result image with 4 channels (RGBA)
-        result = np.zeros((image.shape[0], image.shape[1], 4), dtype=np.uint8)
-
-
-
-        # Copy the image content to the result
-        result[..., :3] = image
-
-
-
-        # Set the alpha channel to the binary mask
-        result[..., 3] = mask_binary
-        
-        # Find the bounding rectangle of the unmasked part
-        contours, _ = cv2.findContours(mask_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        x, y, w, h = cv2.boundingRect(contours[0])
-
-
-
-
-        # Add the border size to the bounding rectangle
-        x = max(0, x - border_size)
-        y = max(0, y - border_size)
-        w = min(result.shape[1] - x, w + 2 * border_size)
-        h = min(result.shape[0] - y, h + 2 * border_size)
-
-
-
-        # Crop the result image using the adjusted bounding rectangle
-        cropped_result = result[y:y+h, x:x+w]
-        
-        # Create a blurred version of the alpha channel
-        blurred_alpha = cv2.GaussianBlur(cropped_result[..., 3], (blur_radius, blur_radius), 0)
-        
-        # Replace the original alpha channel with the blurred version
-        cropped_result[..., 3] = blurred_alpha
-
-
-
-        return cropped_result
     
 class AnnotationTypeState():
     POSITIVE = "green"
@@ -119,7 +31,6 @@ class AnnotatableImage(ttk.Frame):
 
         _id = 1 if str(self).endswith("e") else 2
         
-        self._mask_ids = []
         self.image_id = None
 
 
@@ -127,12 +38,8 @@ class AnnotatableImage(ttk.Frame):
         self.drawing = False
         self.start_x = None
         self.start_y = None
-        self.current_box = None
-        self.boxes = []
-        self.box_rects = []
+
         # self.selected_box_index = None
-        self._original_mask_pil = None
-        self._original_mask_pils = []
 
         self.annotation_type_state = (
             ImageAnnotation.Classes.ANNOTATION_X if _id == 1 else ImageAnnotation.Classes.ANNOTATION
@@ -141,9 +48,12 @@ class AnnotatableImage(ttk.Frame):
         self.annotation_controller = annotation_controller
         self.controller = controller
 
-        self.canvas.bind('<Button-1>', self.start_box)
-        self.canvas.bind('<B1-Motion>', self.draw_box)
-        self.canvas.bind('<ButtonRelease-1>', self.end_box)
+
+        self.box_handler = BoxHandler(self, self.canvas)
+
+        self.canvas.bind('<Button-1>', self.box_handler.start_box)
+        self.canvas.bind('<B1-Motion>', self.box_handler.draw_box)
+        self.canvas.bind('<ButtonRelease-1>', self.box_handler.end_box)
         
         self._image = None  # Keep reference to avoid garbage collection
         self._scale_factor = 1.0
@@ -155,9 +65,9 @@ class AnnotatableImage(ttk.Frame):
         self.move_start_coords = None
 
 
-        self.canvas.bind("<Button-3>", self.on_right_click)
-        self.canvas.bind("<B3-Motion>", self.on_right_drag)
-        self.canvas.bind("<ButtonRelease-3>", self.on_right_release)
+        self.canvas.bind("<Button-3>", self.box_handler.on_right_click)
+        self.canvas.bind("<B3-Motion>", self.box_handler.on_right_drag)
+        self.canvas.bind("<ButtonRelease-3>", self.box_handler.on_right_release)
 
 
         self.crosshair_lines = []
@@ -180,87 +90,6 @@ class AnnotatableImage(ttk.Frame):
         for line in self.crosshair_lines:
             self.canvas.delete(line)
         self.crosshair_lines = []
-
-    def on_right_click(self, event):
-        x = self.canvas.canvasx(event.x)
-        y = self.canvas.canvasy(event.y)
-
-        # Get index of the box at the clicked location
-        index = self.get_box_at(x, y)  # ✅ this returns an integer index
-
-        if index is not None:
-            self.moving_box_index = index
-            self.move_start_coords = (x, y)
-            print(f"[MOVE] Selected box {index} for moving")
-        else:
-            print("[MOVE] No box at clicked position")
-
-    def get_box_at(self, x, y):
-        """Return index of box that contains (canvas-x, canvas-y) by converting to image-space"""
-        image_x = int((x - self._offset_x) / self._scale_factor)
-        image_y = int((y - self._offset_y) / self._scale_factor)
-
-        for i, box in enumerate(self.boxes):
-            if box["x1"] <= image_x <= box["x2"] and box["y1"] <= image_y <= box["y2"]:
-                return i
-        return None
-
-
-    def on_right_drag(self, event):
-        if self.moving_box_index is None:
-            return
-
-        new_x = self.canvas.canvasx(event.x)
-        new_y = self.canvas.canvasy(event.y)
-
-        dx = new_x - self.move_start_coords[0]
-        dy = new_y - self.move_start_coords[1]
-
-        box = self.boxes[self.moving_box_index]
-        box["x1"] += dx
-        box["y1"] += dy
-        box["x2"] += dx
-        box["y2"] += dy
-
-        self.move_start_coords = (new_x, new_y)
-
-        self.display_boxes(self.boxes)
-
-    def on_right_release(self, event):
-        if self.moving_box_index is not None:
-            print(f"[MOVE] Finished moving box {self.moving_box_index}")
-
-            moved_box = self.boxes[self.moving_box_index]
-            pair_id = moved_box.get("pair_id")
-            if not pair_id:
-                print("[WARN] Moved box has no pair_id.")
-                return
-
-            # Get the mirrored box in the other image
-            other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
-            for box in other_image.boxes:
-                if box.get("pair_id") == pair_id:
-                    # Update position
-                    box["x1"] = moved_box["x1"]
-                    box["y1"] = moved_box["y1"]
-                    box["x2"] = moved_box["x2"]
-                    box["y2"] = moved_box["y2"]
-                    break
-            else:
-                print("[WARN] No mirrored box found.")
-
-            # Redraw boxes in both views
-            self.display_boxes(self.boxes)
-            other_image.display_boxes(other_image.boxes)
-
-            # Auto-save
-            if self.controller:
-                self.controller.save_current_boxes()
-
-            # Reset state
-            self.moving_box_index = None
-            self.move_start_coords = None
-
 
 
     def load_image(self, image_source, boxes=None, image_id=None):
@@ -290,33 +119,11 @@ class AnnotatableImage(ttk.Frame):
         # image_id setzen
         self.image_id = image_id or (str(self.image_path) if self.image_path else None)
 
-        # Reset Masken & Boxen
-        self._original_mask_pils = []
-        self.boxes = boxes or []
-
-        # Masken wiederherstellen (nur wenn wir einen Pfad haben und es matcht)
-        for box in self.boxes:
-            from image_annotation import make_absolute_path
-            annotations_meta = self.controller.annotations.annotations.get("_meta", {})
-            box_abs_path = make_absolute_path(box.get("mask_image_id"), annotations_meta)
-
-            if 'mask_base64' in box:
-                # check: wenn wir im session mode sind → Pfad vergleichen
-                if self.image_path and box_abs_path == str(self.image_path):
-                    mask_bytes = base64.b64decode(box['mask_base64'])
-                    mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
-                    self._original_mask_pils.append(mask_pil)
-                # im review mode: nur image_id vergleichen
-                elif not self.image_path and image_id and box.get("mask_image_id") == image_id:
-                    mask_bytes = base64.b64decode(box['mask_base64'])
-                    mask_pil = Image.open(io.BytesIO(mask_bytes)).convert("RGBA")
-                    self._original_mask_pils.append(mask_pil)
+        self.box_handler.boxes = boxes or []
 
         # Anzeige vorbereiten (wie im Original)
         if self.canvas.winfo_width() > 1 and self.canvas.winfo_height() > 1:
             self._resize_image()
-
-
 
 
 
@@ -351,11 +158,9 @@ class AnnotatableImage(ttk.Frame):
             anchor="center",
             image=self._image
         )
-        # 4. Maske drüber, wenn vorhanden
-        self.display_mask()
 
         # 5. Boxen drüber
-        self.display_boxes(self.boxes)
+        self.box_handler.display_boxes(self.box_handler.boxes)
 
         if hasattr(self, "controller") and self.controller:
             try:
@@ -368,35 +173,83 @@ class AnnotatableImage(ttk.Frame):
         ratio = min(max_size[0] / size[0], max_size[1] / size[1])
         return (int(size[0] * ratio), int(size[1] * ratio))
     
-    def start_box(self, event):
-        x = self.canvas.canvasx(event.x)
-        y = self.canvas.canvasy(event.y)
-        box_index = self.get_box_at(x, y)
-        if box_index is not None:
-            print(f"[SELECT] Box {box_index} selected by click.")
-            self.select_box(box_index)
-            return
-        
-        print("No box found, start_box")
-        if not self.drawing:
-            return
-        # Clamp innerhalb Bild-Bereich:
-        img_left = self._offset_x
-        img_right = self._offset_x + self._original_pil_image.width * self._scale_factor
-        img_top = self._offset_y
-        img_bottom = self._offset_y + self._original_pil_image.height * self._scale_factor
-
-        self.start_x = max(img_left, min(event.x, img_right))
-        self.start_y = max(img_top, min(event.y, img_bottom))
     
+    def clear_image(self):
+        """Löscht das Hintergrund-Bild"""
+        self.canvas.delete("all")
+        self._image = None
+
+        
+    def clear_all(self):
+        self.clear_image()
+        self.box_handler.clear_boxes()
+        self.box_handler.boxes = []
+        self._original_pil_image = None
+
+
+
+    def set_drawing_mode(self, enabled):
+        """Enable or disable box drawing"""
+        self.drawing = enabled
+        
+
+
+    def draw_canvas_outline(self, color):
+        """Zieht eine farbige Umrandung um das gesamte Bild/Canvas"""
+        self.canvas.delete("canvas_outline")
+        width = self.canvas.winfo_width()
+        height = self.canvas.winfo_height()
+        self.canvas.create_rectangle(
+            1, 1, width - 1, height - 1,
+            outline=color,
+            width=20,
+            tags="canvas_outline"
+        )
+
+
+
+
+
+class BoxHandler():
+    def __init__(self, annot_img, canvas):
+        self.annot_img = annot_img
+        self.canvas = canvas
+        self.current_box = None
+        self.boxes = []
+        self.box_rects = []
+        self.selected_box_index = None
+        self.start_x = None
+        self.start_y = None
+
+    def start_box(self, event):
+            x = self.canvas.canvasx(event.x)
+            y = self.canvas.canvasy(event.y)
+            box_index = self.get_box_at(x, y)
+            if box_index is not None:
+                print(f"[SELECT] Box {box_index} selected by click.")
+                self.select_box(box_index)
+                return
+            
+            print("No box found, start_box")
+            if not self.annot_img.drawing:
+                return
+            # Clamp innerhalb Bild-Bereich:
+            img_left = self.annot_img._offset_x
+            img_right = self.annot_img._offset_x + self.annot_img._original_pil_image.width * self.annot_img._scale_factor
+            img_top = self.annot_img._offset_y
+            img_bottom = self.annot_img._offset_y + self.annot_img._original_pil_image.height * self.annot_img._scale_factor
+
+            self.start_x = max(img_left, min(event.x, img_right))
+            self.start_y = max(img_top, min(event.y, img_bottom))
+        
     def draw_box(self, event):
-        if not self.drawing or self.start_x is None:
+        if not self.annot_img.drawing or self.start_x is None:
             return
 
-        img_left = self._offset_x
-        img_right = self._offset_x + self._original_pil_image.width * self._scale_factor
-        img_top = self._offset_y
-        img_bottom = self._offset_y + self._original_pil_image.height * self._scale_factor
+        img_left = self.annot_img._offset_x
+        img_right = self.annot_img._offset_x + self.annot_img._original_pil_image.width * self.annot_img._scale_factor
+        img_top = self.annot_img._offset_y
+        img_bottom = self.annot_img._offset_y + self.annot_img._original_pil_image.height * self.annot_img._scale_factor
 
         # Clamp Maus innerhalb Bild
         x = max(img_left, min(event.x, img_right))
@@ -414,14 +267,14 @@ class AnnotatableImage(ttk.Frame):
 
     
     def end_box(self, event):
-        if not self.drawing or self.start_x is None:
+        if not self.annot_img.drawing or self.start_x is None:
             return
 
         # Begrenze Endpunkt INNERHALB Bildbereich
-        img_left = self._offset_x
-        img_right = self._offset_x + self._original_pil_image.width * self._scale_factor
-        img_top = self._offset_y
-        img_bottom = self._offset_y + self._original_pil_image.height * self._scale_factor
+        img_left = self.annot_img._offset_x
+        img_right = self.annot_img._offset_x + self.annot_img._original_pil_image.width * self.annot_img._scale_factor
+        img_top = self.annot_img._offset_y
+        img_bottom = self.annot_img._offset_y + self.annot_img._original_pil_image.height * self.annot_img._scale_factor
 
         x = max(img_left, min(event.x, img_right))
         y = max(img_top, min(event.y, img_bottom))
@@ -430,10 +283,10 @@ class AnnotatableImage(ttk.Frame):
 
         box = {
             'annotation_type': self.annotation_type_state,
-            'x1': int((min(self.start_x, x) - self._offset_x) / self._scale_factor),
-            'y1': int((min(self.start_y, y) - self._offset_y) / self._scale_factor),
-            'x2': int((max(self.start_x, x) - self._offset_x) / self._scale_factor),
-            'y2': int((max(self.start_y, y) - self._offset_y) / self._scale_factor),
+            'x1': int((min(self.start_x, x) - self.annot_img._offset_x) / self.annot_img._scale_factor),
+            'y1': int((min(self.start_y, y) - self.annot_img._offset_y) / self.annot_img._scale_factor),
+            'x2': int((max(self.start_x, x) - self.annot_img._offset_x) / self.annot_img._scale_factor),
+            'y2': int((max(self.start_y, y) - self.annot_img._offset_y) / self.annot_img._scale_factor),
             'pair_id': pair_id,
         }
 
@@ -446,8 +299,8 @@ class AnnotatableImage(ttk.Frame):
 
         self.boxes.append(box)
 
-        # 👉 Gegenstück synchronisieren (ohne Maske!)
-        other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
+        # Gegenstück synchronisieren (ohne Maske!)
+        other_image = self.annot_img.controller.image2 if self is self.annot_img.controller.image1 else self.annot_img.controller.image1
         other_box = box.copy()
         # Explicitly set inverse annotation type
         other_box['annotation_type'] = (
@@ -469,7 +322,7 @@ class AnnotatableImage(ttk.Frame):
         self.start_y = None
         self.current_box = None
 
-        # 🧠 1. Check & correct pair_state
+        # 1. Check & correct pair_state
         current_annotation = self.controller.annotations.get_pair_annotation(self.controller.current_index)
         if current_annotation.get("pair_state") in [
             ImageAnnotation.Classes.CHAOS,
@@ -483,61 +336,18 @@ class AnnotatableImage(ttk.Frame):
                 ImageAnnotation.Classes.ANNOTATED
             )
 
-        # 🧠 2. Save new annotation state (also saves boxes + pair_state)
-        self.controller._maybe_save(pair_state=ImageAnnotation.Classes.ANNOTATED)
+        # 2. Save new annotation state (also saves boxes + pair_state)
+        self.annot_img.controller._maybe_save(pair_state=ImageAnnotation.Classes.ANNOTATED)
 
-        # 🧠 3. Generate mask
-        self.generate_mask_from_bbox()
 
         if self.current_box:
             self.canvas.delete(self.current_box)
             self.current_box = None
 
-        # 🧠 4. UI update (outline + button highlight)
-        self.controller.update_ui_state(ImageAnnotation.Classes.ANNOTATED)
+        # 4. UI update (outline + button highlight)
+        self.annot_img.controller.update_ui_state(ImageAnnotation.Classes.ANNOTATED)
 
 
-
-
-    def display_mask(self):
-        if not self._original_mask_pils:
-            return
-
-        if not self._original_mask_pils:
-            return
-
-        canvas_width = self.canvas.winfo_width()
-        canvas_height = self.canvas.winfo_height()
-
-        if canvas_width <= 1 or canvas_height <= 1:
-            print("Canvas not ready yet, skipping mask display.")
-            return  # Avoid crashing on app start
-
-    # proceed to resize masks
-
-        # Alte Masken-Canvas-IDs löschen:
-        if hasattr(self, '_mask_ids'):
-            for mid in self._mask_ids:
-                self.canvas.delete(mid)
-        self._mask_ids = []
-        self._mask_overlays = []
-
-        for mask_pil in self._original_mask_pils:
-            resized_mask = resize_with_aspect_ratio(
-                mask_pil,
-                self.canvas.winfo_width(),
-                self.canvas.winfo_height()
-            )
-            mask_overlay = ImageTk.PhotoImage(resized_mask)
-            mask_id = self.canvas.create_image(
-                self.canvas.winfo_width() // 2,
-                self.canvas.winfo_height() // 2,
-                anchor="center",
-                image=mask_overlay
-            )
-            self.canvas.tag_raise(mask_id, self._background_id)
-            self._mask_ids.append(mask_id)
-            self._mask_overlays.append(mask_overlay)
 
 
     def display_boxes(self, boxes, color="green"):
@@ -575,10 +385,10 @@ class AnnotatableImage(ttk.Frame):
 
             # Scaled position
             scaled_box = {
-                'x1': box['x1'] * self._scale_factor + self._offset_x,
-                'y1': box['y1'] * self._scale_factor + self._offset_y,
-                'x2': box['x2'] * self._scale_factor + self._offset_x,
-                'y2': box['y2'] * self._scale_factor + self._offset_y
+                'x1': box['x1'] * self.annot_img._scale_factor + self.annot_img._offset_x,
+                'y1': box['y1'] * self.annot_img._scale_factor + self.annot_img._offset_y,
+                'x2': box['x2'] * self.annot_img._scale_factor + self.annot_img._offset_x,
+                'y2': box['y2'] * self.annot_img._scale_factor + self.annot_img._offset_y
             }
 
             # 📐 Visual styles
@@ -595,8 +405,6 @@ class AnnotatableImage(ttk.Frame):
             )
             self.box_rects.append(rect_id)
             # self.canvas.tag_bind(rect_id, "<Button-1>", lambda e, i=idx: self.select_box(i))
-
-        self.display_mask()
 
 
 
@@ -625,20 +433,9 @@ class AnnotatableImage(ttk.Frame):
 
         # 1) Delete all boxes with this pair_id on BOTH images
         self.boxes = [b for b in self.boxes if b.get('pair_id') != pair_id]
-        other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
+        other_image = self.annot_img.controller.image2 if self is self.annot_img.controller.image1 else self.annot_img.controller.image1
         other_image.boxes = [b for b in other_image.boxes if b.get('pair_id') != pair_id]
 
-        # 2) Rebuild mask PIL lists for BOTH images
-        self._original_mask_pils = [
-            Image.open(io.BytesIO(base64.b64decode(b['mask_base64']))).convert("RGBA")
-            for b in self.boxes
-            if "mask_base64" in b and b.get("mask_image_id") == str(self.image_path)
-        ]
-        other_image._original_mask_pils = [
-            Image.open(io.BytesIO(base64.b64decode(b['mask_base64']))).convert("RGBA")
-            for b in other_image.boxes
-            if "mask_base64" in b and b.get("mask_image_id") == str(other_image.image_path)
-        ]
 
         # 3) Redraw boxes
         self.clear_boxes(); self.display_boxes(self.boxes)
@@ -659,27 +456,13 @@ class AnnotatableImage(ttk.Frame):
             new_state = ImageAnnotation.Classes.ANNOTATED
 
         # 7) SAVE:
-        self.controller._maybe_save(pair_state=new_state)
+        self.annot_img.controller._maybe_save(pair_state=new_state)
 
 
         # 8) Update outline/buttons
-        self.controller.update_ui_state(new_state)
+        self.annot_img.controller.update_ui_state(new_state)
         print("Deleted pair in both images & masks updated immediately.")
 
-    def clear_image(self):
-        """Löscht das Hintergrund-Bild"""
-        self.canvas.delete("all")
-        self._image = None
-
-    def clear_mask(self):
-        """Löscht nur die Maske"""
-        if hasattr(self, '_mask_ids'):
-            for mid in self._mask_ids:
-                self.canvas.delete(mid)
-            self._mask_ids = []
-        
-        self._original_mask_pils = []
-        self._mask_overlays = []
 
     def clear_boxes(self):
         for rect in self.box_rects:
@@ -692,73 +475,119 @@ class AnnotatableImage(ttk.Frame):
             self.current_box = None
 
         self.selected_box_index = None
-        
-    def clear_all(self):
-        self.clear_image()
-        self.clear_mask()
-        self.clear_boxes()
-        self.boxes = []
-        self._original_pil_image = None
 
+    def on_right_release(self, event):
+        if self.moving_box_index is not None:
+            print(f"[MOVE] Finished moving box {self.moving_box_index}")
 
+            moved_box = self.boxes[self.moving_box_index]
+            pair_id = moved_box.get("pair_id")
+            if not pair_id:
+                print("[WARN] Moved box has no pair_id.")
+                return
 
-    def set_drawing_mode(self, enabled):
-        """Enable or disable box drawing"""
-        self.drawing = enabled
-        
+            # TODO: This is not defined correctly!! i think should not be defined using controller
+            # Get the mirrored box in the other image
+            other_image = self.annot_img.controller.image2 if self is self.annot_img.controller.image1 else self.annot_img.controller.image1
+            for box in other_image.boxes:
+                if box.get("pair_id") == pair_id:
+                    # Update position
+                    box["x1"] = moved_box["x1"]
+                    box["y1"] = moved_box["y1"]
+                    box["x2"] = moved_box["x2"]
+                    box["y2"] = moved_box["y2"]
+                    break
+            else:
+                print("[WARN] No mirrored box found.")
+
+            # Redraw boxes in both views
+            self.display_boxes(self.boxes)
+            other_image.display_boxes(other_image.boxes)
+
+            # Auto-save
+            if self.annot_img.controller:
+                self.annot_img.controller.save_current_boxes()
+
+            # Reset state
+            self.moving_box_index = None
+            self.move_start_coords = None
+
+    def on_right_click(self, event):
+            x = self.canvas.canvasx(event.x)
+            y = self.canvas.canvasy(event.y)
+
+            # Get index of the box at the clicked location
+            index = self.get_box_at(x, y)  # ✅ this returns an integer index
+
+            if index is not None:
+                self.moving_box_index = index
+                self.move_start_coords = (x, y)
+                print(f"[MOVE] Selected box {index} for moving")
+            else:
+                print("[MOVE] No box at clicked position")
+
+    def get_box_at(self, x, y):
+        """Return index of box that contains (canvas-x, canvas-y) by converting to image-space"""
+        image_x = int((x - self.annot_img._offset_x) / self.annot_img._scale_factor)
+        image_y = int((y - self.annot_img._offset_y) / self.annot_img._scale_factor)
+
+        for i, box in enumerate(self.boxes):
+            if box["x1"] <= image_x <= box["x2"] and box["y1"] <= image_y <= box["y2"]:
+                return i
+        return None
+
     def get_boxes(self):
         """Return only boxes that were manually drawn (not mirrored)"""
         return [b for b in self.boxes if not b.get("synced_highlight", False)]
         # return self.boxes  # ⚠️ für Debug, nicht dauerhaft!
 
-
-    def draw_canvas_outline(self, color):
-        """Zieht eine farbige Umrandung um das gesamte Bild/Canvas"""
-        self.canvas.delete("canvas_outline")
-        width = self.canvas.winfo_width()
-        height = self.canvas.winfo_height()
-        self.canvas.create_rectangle(
-            1, 1, width - 1, height - 1,
-            outline=color,
-            width=20,
-            tags="canvas_outline"
-        )
-
-
-
-    def generate_mask_from_bbox(self):
-        if not self.boxes:
-            print("No BBoxes available for segmentation!")
+    def on_right_drag(self, event):
+        if self.moving_box_index is None:
             return
 
-        bbox = self.boxes[-1]
-        box = np.array([bbox['x1'], bbox['y1'], bbox['x2'], bbox['y2']])
-        image_np = np.array(self._original_pil_image)
+        new_x = self.canvas.canvasx(event.x)
+        new_y = self.canvas.canvasy(event.y)
 
-        # segmentation
-        mask_pil, details = segment(image_np, box)
-        if mask_pil is None:
-            print("Segmentation failed — no mask to show.")
+        dx = new_x - self.move_start_coords[0]
+        dy = new_y - self.move_start_coords[1]
+
+        box = self.boxes[self.moving_box_index]
+        box["x1"] += dx
+        box["y1"] += dy
+        box["x2"] += dx
+        box["y2"] += dy
+
+        self.move_start_coords = (new_x, new_y)
+
+        self.display_boxes(self.boxes)
+
+
+
+    def delete_selected_box(self):
+        if self.selected_box_index is None:
+            print("No box selected!")
             return
 
-        result_mask = np.array(mask_pil)
-        binary_mask = (result_mask > 128).astype(np.uint8) * 255  # ensure 0/255
+        # Finde die pair_id der ausgewählten Box
+        pair_id = self.boxes[self.selected_box_index].get('pair_id')
+        print(f"Deleting box pair_id: {pair_id}")
 
-        # --- use apply_mask_and_blur ---
-        extracted = apply_mask_and_blur(image_np, binary_mask)
+        # Lösche ALLE Boxen mit dieser pair_id in diesem Bild
+        self.boxes = [b for b in self.boxes if b.get('pair_id') != pair_id]
 
-        # save result
-        mask_dir = Path(SEGMENTATION_PATH)
-        mask_dir.mkdir(parents=True, exist_ok=True)
-        base_name = Path(self.image_path).stem
-        cutout_filename = mask_dir / f"{base_name}_bbox{len(self.boxes)}.png"
+        # Gleiche Box auch im anderen Bild löschen:
+        other_image = self.annot_img.controller.image2 if self is self.annot_img.controller.image1 else self.annot_img.controller.image1
+        other_image.boxes = [b for b in other_image.boxes if b.get('pair_id') != pair_id]
 
-        Image.fromarray(extracted).save(cutout_filename)
-        print(f"Saved extracted object with blur: {cutout_filename}")
+        # Clear & redraw
+        self.clear_boxes()
+        self.display_boxes(self.boxes)
 
-        # optional UI update
-        self._resize_image()
-        other_image = self.controller.image2 if self is self.controller.image1 else self.controller.image1
-        other_image._resize_image()
+        other_image.clear_boxes()
+        other_image.display_boxes(other_image.boxes)
 
+        self.selected_box_index = None
+        other_image.selected_box_index = None
+        print("Deleted box in both images.")
 
+    
