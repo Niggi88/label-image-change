@@ -68,10 +68,18 @@ class UIElements(tk.Frame):
 
     def prev_pair(self):
         self.loader.prev_pair()
+        current = self.loader.current_pair()
+        state = current.pair_annotation
+        if not state:
+            self.saver.save_pair(current, "unsure")
         self.refresh()
 
     def next_pair(self):
         self.loader.next_pair()
+        current = self.loader.current_pair()
+        state = current.pair_annotation
+        if not state:
+            self.saver.save_pair(current, "unsure")
         self.refresh()
 
     # Annotation callbacks (wire to logic_saver later)
@@ -82,6 +90,7 @@ class UIElements(tk.Frame):
             self.handler = BoxHandler(pair, self.saver)
             # enable box drawing only when "Annotate" pressed
             self.canvas_frame.attach_boxes(self.handler, pair)
+        else: self.next_pair()
 
         print(f"Marked: {state}")
         self.refresh()

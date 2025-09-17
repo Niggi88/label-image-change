@@ -53,7 +53,7 @@ class AnnotationDisplayer:
 
 
     def _draw_outline(self, canvas, state):
-        color = {"chaos": "yellow", "nothing": "blue", "unsure": "gray"}[state]
+        color = {"chaos": "yellow", "nothing": "blue", "unsure": "purple"}[state]
         w, h = canvas.winfo_width(), canvas.winfo_height()
         canvas.create_rectangle(0, 0, w, h, outline=color, width=5, tags="outline")
 

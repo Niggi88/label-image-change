@@ -23,6 +23,7 @@ class AnnotationSaver:
             "image2_size": pair.image2.img_size,
         }
         self.annotations[str(pair.pair_id)] = entry
+        pair.pair_annotation = state
         self._flush()
 
     def _flush(self):
