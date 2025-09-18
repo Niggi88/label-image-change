@@ -2,13 +2,13 @@
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
-from logic_loader import PairLoader
+from logic_loader import PairLoader, DataHandler
 from logic_saver import AnnotationSaver
 from ui_annotation import BoxHandler, Flickerer
 from ui_annotation_displayer import AnnotationDisplayer
+from config import DATASET_DIR
 
-
-dataset_path = "/home/sarah/Documents/background_segmentation/small_relevant_sessions/store_b28cc24b-0dbf-483a-b9c6-d56367683935/session_0d428799-7b09-43b7-b352-e379c5f5abb7"
+dataset_path = DATASET_DIR
 saving_path = "/home/sarah/Documents/change_detection/label-image-change"
 
 
@@ -16,7 +16,8 @@ class UIElements(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
 
-        self.loader = PairLoader(dataset_path)
+        self.data_handler = DataHandler(dataset_path)
+        self.loader = self.data_handler.current_loader()
         self.saver = AnnotationSaver(saving_path)
         self.handler = BoxHandler(self.loader.current_pair(), self.saver, ui=self)
         self.displayer = AnnotationDisplayer()
@@ -75,22 +76,40 @@ class UIElements(tk.Frame):
         self.status.update_status(self.loader.current_index, len(self.loader))
 
     def prev_pair(self):
-        self.loader.prev_pair()
-        current = self.loader.current_pair()
-        state = current.pair_annotation
-        if not state:
-            self.saver.save_pair(current, "no_annotation")
+        if self.loader.has_prev():
+            # normal case: move back inside this session
+            self.loader.prev_pair()
         else:
-            self.refresh()
+            # start of session -> try previous session
+            if self.data_handler.prev_session():
+                self.loader = self.data_handler.current_loader()
+                # jump to *last* pair of that session
+                self.loader.last_pair()
+            else:
+                print("Reached start of all sessions")
+
+        current = self.loader.current_pair()
+        if not current.pair_annotation:
+            self.saver.save_pair(current, "no_annotation")
+        self.refresh()
+
 
     def next_pair(self):
-        self.loader.next_pair()
-        current = self.loader.current_pair()
-        state = current.pair_annotation
-        if not state:
-            self.saver.save_pair(current, "no_annotation")
+        if self.loader.has_next():
+            # normal case: move inside this session
+            self.loader.next_pair()
         else:
-            self.refresh()
+            # end of session -> try next session
+            if self.data_handler.next_session():
+                self.loader = self.data_handler.current_loader()
+            else:
+                print("Reached end of all sessions")
+
+        current = self.loader.current_pair()
+        if not current.pair_annotation:
+            self.saver.save_pair(current, "no_annotation")
+        self.refresh()
+
 
     # Annotation callbacks (wire to logic_saver later)
     def mark_state(self, state):

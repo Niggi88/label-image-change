@@ -2,6 +2,55 @@ from pathlib import Path
 from PIL import Image
 
 
+class DataHandler:
+    def __init__(self, dataset_dir):
+        self.dataset_dir = Path(dataset_dir)
+        self.sessions = self.find_session_paths(self.dataset_dir)
+
+        if not self.sessions:
+            raise ValueError(f"No sessions found under {dataset_dir}")
+
+        self.session_index = 0
+        self.loader = PairLoader(str(self.sessions[self.session_index]["path"]))
+
+    def find_session_paths(self, base_dir):
+        """Scan dataset dir for all store/session combinations."""
+        sessions = []
+        for store in sorted(base_dir.glob("store_*")):
+            for session in sorted(store.glob("session_*")):
+                sessions.append({
+                    "store": store.name,
+                    "session": session.name,
+                    "path": session
+                })
+        return sessions
+
+    # --- Accessors ---
+    def current_loader(self):
+        return self.loader
+
+    def current_session_info(self):
+        return self.sessions[self.session_index]
+
+    # --- Navigation ---
+    def next_session(self):
+        if self.session_index < len(self.sessions) - 1:
+            self.session_index += 1
+            self.loader = PairLoader(str(self.sessions[self.session_index]["path"]))
+            print("load next session")
+            return True
+        return False
+
+    def prev_session(self):
+        if self.session_index > 0:
+            self.session_index -= 1
+            self.loader = PairLoader(str(self.sessions[self.session_index]["path"]))
+            print("load previous session")
+            return True
+        return False
+
+
+
 class AnnotatableImage:
     def __init__(self, img_path, image_id):
         self.img_path = Path(img_path)
@@ -57,3 +106,12 @@ class PairLoader:
         if self.current_index > 0:
             self.current_index -= 1
             return self.image_pairs[self.current_index]
+    
+    def has_next(self):
+        return self.current_index < len(self.image_pairs) - 1
+
+    def has_prev(self):
+        return self.current_index > 0
+
+    def last_pair(self):
+        self.current_index = len(self.image_pairs) - 1
