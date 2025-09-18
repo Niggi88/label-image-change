@@ -227,3 +227,58 @@ class BoxHandler:
         self._move_start_y = None
         del self._moving_box
         del self._moving_index
+
+
+
+class Flickerer:
+    def __init__(self, pair_loader, ui=None):
+        self.ui = ui
+        self.pair_loader = pair_loader
+        self.displayer = AnnotationDisplayer()
+
+        self._flicker_running = False
+        self._show_first = True
+
+        # will be set when flicker starts
+        self.canvas = None
+        self.pair = None
+        self.w = None
+        self.h = None
+        self.interval = 500
+
+    def start_flicker(self, canvas, pair, w, h, interval=500):
+        self.canvas = canvas
+        self.pair = pair
+        self.w = w
+        self.h = h
+        self.interval = interval
+
+        self._flicker_running = True
+        self._show_first = True  # reset toggle
+        self._flicker_step()
+
+    def _flicker_step(self):
+        if not self._flicker_running:
+            return
+
+        self.canvas.delete("all")
+        if self._show_first:
+            self.displayer._draw_image(self.canvas, self.pair.image1, self.w, self.h)
+        else:
+            self.displayer._draw_image(self.canvas, self.pair.image2, self.w, self.h)
+
+        self._show_first = not self._show_first
+        self.canvas.after(self.interval, self._flicker_step)
+
+    def stop_flicker(self):
+        self._flicker_running = False
+        self.canvas.delete("all")
+        # always stop on image2
+        self.displayer._draw_image(self.canvas, self.pair.image2, self.w, self.h)
+
+    def toggle_flicker(self, canvas, pair, w, h, interval=500):
+        if self._flicker_running:
+            self.stop_flicker()
+        else:
+            self.start_flicker(canvas, pair, w, h, interval)
+

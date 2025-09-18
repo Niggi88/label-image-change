@@ -4,7 +4,7 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 from logic_loader import PairLoader
 from logic_saver import AnnotationSaver
-from ui_annotation import BoxHandler
+from ui_annotation import BoxHandler, Flickerer
 from ui_annotation_displayer import AnnotationDisplayer
 
 
@@ -31,6 +31,12 @@ class UIElements(tk.Frame):
                                          on_delete=self.delete_box, 
                                          on_reset=self.reset_pair)
         self.status = StatusFrame(self)
+
+
+        self.flickerer = Flickerer(self.loader, ui=self)
+
+
+        root.bind("<space>", self.toggle_flicker)
 
         # Layout
         self.canvas_frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
@@ -109,6 +115,21 @@ class UIElements(tk.Frame):
         self.saver.reset_pair(pair)
         self.refresh()
         print("Reset boxes")
+
+
+    
+    def toggle_flicker(self, event=None):
+        pair = self.loader.current_pair()
+
+        root = self.winfo_toplevel()
+        root.update_idletasks()
+        root_w, root_h = root.winfo_width(), root.winfo_height()
+        if root_w <= 1 or root_h <= 1:
+            root_w, root_h = 1200, 800
+
+        # toggle flicker on the right canvas
+        self.flickerer.toggle_flicker(self.canvas_frame.canvas_right, pair, root_w // 2, root_h, interval=150)
+
 
 
 class CanvasFrame(tk.Frame):
