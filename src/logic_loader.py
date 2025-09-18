@@ -60,7 +60,10 @@ class AnnotatableImage:
 
 
 class ImagePair:
-    def __init__(self, pair_id, img1_path, img2_path):
+    def __init__(self, pair_id, img1_path, img2_path, store=None, session=None):
+        self.store = store # name of store: i.e. store_eb36deb2-bcab-4f89-8536-2dd6e0a0d7aa
+        self.session = session # name of session: i.e.session_d026e74d-68dd-4cea-9089-48682fdaa5b9
+
         self.pair_id = pair_id
         self.image1 = AnnotatableImage(img1_path, image_id=1)
         self.image2 = AnnotatableImage(img2_path, image_id=2)
