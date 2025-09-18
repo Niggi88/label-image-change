@@ -30,7 +30,16 @@ class AnnotationDisplayer:
             self._draw_outline(canvas_right, state)
         elif state == "annotated":
             for canvas in (canvas_left, canvas_right):
-                self._draw_boxes(canvas, data.get("boxes", []))
+                boxes = data.get("boxes", [])
+                for b in boxes:
+                    if b["annotation_type"] == "item_removed":
+                        self._draw_boxes(canvas_left, [b], highlight=True)
+                        self._draw_boxes(canvas_right, [b], highlight=False)
+                    elif b["annotation_type"] == "item_added":
+                        self._draw_boxes(canvas_left, [b], highlight=False)                        
+                        self._draw_boxes(canvas_right, [b], highlight=True)
+
+
 
     def _scale_image(self, pil_img, max_w, max_h):
         w, h = pil_img.size
@@ -66,7 +75,13 @@ class AnnotationDisplayer:
         scale_y = canvas.winfo_height() / img_h
 
         for i, b in enumerate(boxes):
-            outline = "green" if highlight is None or i != highlight else "blue"
+            if highlight:
+                outline = "green"
+            elif not highlight:
+                outline = "red"
+            elif highlight is None:
+                outline = "blue"
+
             canvas.create_rectangle(
                 int(b["x1"] * scale_x),
                 int(b["y1"] * scale_y),
@@ -74,4 +89,3 @@ class AnnotationDisplayer:
                 int(b["y2"] * scale_y),
                 outline=outline, width=2, tags="box"
             )
-

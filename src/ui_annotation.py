@@ -2,7 +2,9 @@ import uuid
 from ui_annotation_displayer import AnnotationDisplayer
 
 class BoxHandler:
-    def __init__(self, pair_loader, saver):
+    def __init__(self, pair_loader, saver, ui=None):
+        self.ui = ui
+
         self.pair = pair_loader
         self.saver = saver
         self.displayer = AnnotationDisplayer()
@@ -65,34 +67,32 @@ class BoxHandler:
     def draw_box(self, event, canvas):
         if not getattr(self, "_drawing", False):
             return
-        if self.current_rect:
-            canvas.delete(self.current_rect)
+        # Lösche alten Preview
+        canvas.delete("preview")
+        # Zeichne neuen Preview
         self.current_rect = canvas.create_rectangle(
             self.start_x, self.start_y, event.x, event.y,
-            outline="red", width=2
+            outline="red", width=2, dash=(2, 2), tags="preview"
         )
 
     def end_box(self, event, canvas, annot_img):
-        if self.start_x is None:
+        if self.start_x is None or not getattr(self, "_drawing", False):
             return
-        if not getattr(self, "_drawing", False):
-            return  # it was just a click → selection already handled
         self._drawing = False
 
         x1, y1 = self.start_x, self.start_y
         x2, y2 = event.x, event.y
         self.start_x = self.start_y = None
 
-        # Ignore tiny boxes
+        # Ignoriere winzige Boxen
         if abs(x2 - x1) < 5 or abs(y2 - y1) < 5:
-            if self.current_rect:
-                canvas.delete(self.current_rect)
+            canvas.delete("preview")
             self.current_rect = None
             return
 
+        # Skaliere zu Bildkoordinaten
         scale_x = annot_img.img_size[0] / canvas.winfo_width()
         scale_y = annot_img.img_size[1] / canvas.winfo_height()
-        # Build full box
         box = {
             "x1": int(min(x1, x2) * scale_x),
             "y1": int(min(y1, y2) * scale_y),
@@ -102,18 +102,14 @@ class BoxHandler:
             "pair_id": str(uuid.uuid4()),
         }
 
-        # Add to in-memory list
         annot_img.boxes.append(box)
-
-        # Draw all boxes for this image
-        # self.display_boxes(canvas, annot_img.boxes)
-        self.current_rect = None
-
-        # Save immediately
         self.saver.save_box(self.pair, box, state="annotated")
 
-
-
+        # 🔑 Preview löschen – jetzt übernimmt refresh() das Zeichnen
+        canvas.delete("preview")
+        self.current_rect = None
+        if self.ui:
+            self.ui.refresh()
 
     def delete_box(self):
         """Delete the currently selected box and update JSON."""

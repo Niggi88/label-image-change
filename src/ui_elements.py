@@ -18,7 +18,7 @@ class UIElements(tk.Frame):
 
         self.loader = PairLoader(dataset_path)
         self.saver = AnnotationSaver(saving_path)
-        self.handler = BoxHandler(self.loader, self.saver)
+        self.handler = BoxHandler(self.loader, self.saver, ui=self)
         self.displayer = AnnotationDisplayer()
         print(self.loader.image_pairs)
 
@@ -87,7 +87,7 @@ class UIElements(tk.Frame):
         pair = self.loader.current_pair()
         self.saver.save_pair(pair, state)
         if state == "annotated":
-            self.handler = BoxHandler(pair, self.saver)
+            self.handler = BoxHandler(pair, self.saver, ui=self)
             # enable box drawing only when "Annotate" pressed
             self.canvas_frame.attach_boxes(self.handler, pair)
         else: self.next_pair()
