@@ -20,7 +20,9 @@ class UIElements(tk.Frame):
         self.saver = AnnotationSaver(saving_path)
         self.handler = BoxHandler(self.loader.current_pair(), self.saver, ui=self)
         self.displayer = AnnotationDisplayer()
-        print(self.loader.image_pairs)
+        # print(self.loader.image_pairs)
+
+        self.saver.set_on_change(self.refresh)
 
         # Subframes
         self.canvas_frame = CanvasFrame(self)
@@ -78,7 +80,8 @@ class UIElements(tk.Frame):
         state = current.pair_annotation
         if not state:
             self.saver.save_pair(current, "no_annotation")
-        self.refresh()
+        else:
+            self.refresh()
 
     def next_pair(self):
         self.loader.next_pair()
@@ -86,7 +89,8 @@ class UIElements(tk.Frame):
         state = current.pair_annotation
         if not state:
             self.saver.save_pair(current, "no_annotation")
-        self.refresh()
+        else:
+            self.refresh()
 
     # Annotation callbacks (wire to logic_saver later)
     def mark_state(self, state):
@@ -99,13 +103,11 @@ class UIElements(tk.Frame):
         else: self.next_pair()
 
         print(f"Marked: {state}")
-        self.refresh()
 
     def delete_box(self):
         """Delete the currently selected box safely."""
         try:
             self.handler.delete_box()
-            self.refresh()
         except Exception as e:
             print(f"Delete failed: {e}")
 
@@ -113,7 +115,6 @@ class UIElements(tk.Frame):
     def reset_pair(self):
         pair = self.loader.current_pair()
         self.saver.reset_pair(pair)
-        self.refresh()
         print("Reset boxes")
 
 

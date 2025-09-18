@@ -12,6 +12,9 @@ class AnnotationSaver:
         else:
             self.annotations = {}
 
+
+        self._on_change = None  # callback
+
     def save_pair(self, pair, state):
         """Speichere ein komplettes ImagePair mit state"""
         entry = {
@@ -26,8 +29,15 @@ class AnnotationSaver:
         pair.pair_annotation = state
         self._flush()
 
+
+    def set_on_change(self, callback):
+        """UI can register refresh here."""
+        self._on_change = callback
+
     def _flush(self):
         self.file.write_text(json.dumps(self.annotations, indent=2))
+        if self._on_change:
+            self._on_change()
 
     def save_box(self, pair, box, state="annotated"):
         """
