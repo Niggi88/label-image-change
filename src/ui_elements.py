@@ -77,7 +77,7 @@ class UIElements(tk.Frame):
         current = self.loader.current_pair()
         state = current.pair_annotation
         if not state:
-            self.saver.save_pair(current, "unsure")
+            self.saver.save_pair(current, "no_annotation")
         self.refresh()
 
     def next_pair(self):
@@ -85,7 +85,7 @@ class UIElements(tk.Frame):
         current = self.loader.current_pair()
         state = current.pair_annotation
         if not state:
-            self.saver.save_pair(current, "unsure")
+            self.saver.save_pair(current, "no_annotation")
         self.refresh()
 
     # Annotation callbacks (wire to logic_saver later)
@@ -174,7 +174,7 @@ class AnnotationFrame(tk.Frame):
         buttons = [
             ("Chaos", lambda: on_mark("chaos")),
             ("Nothing", lambda: on_mark("nothing")),
-            ("Unsure", lambda: on_mark("unsure")),
+            ("Unsure", lambda: on_mark("no_annotation")),
             ("Annotate", lambda: on_mark("annotated")),
             ("Delete Box", on_delete),
             ("Reset", on_reset),
