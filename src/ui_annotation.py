@@ -2,10 +2,10 @@ import uuid
 from ui_annotation_displayer import AnnotationDisplayer
 
 class BoxHandler:
-    def __init__(self, pair_loader, saver, ui=None):
+    def __init__(self, pair, saver, ui=None):
         self.ui = ui
 
-        self.pair = pair_loader
+        self.pair = pair
         self.saver = saver
         self.displayer = AnnotationDisplayer()
 
@@ -275,7 +275,8 @@ class Flickerer:
         self.canvas.delete("all")
         # always stop on image2
         self.displayer._draw_image(self.canvas, self.pair.image2, self.w, self.h)
-
+        if self.ui:
+            self.ui.refresh()
     def toggle_flicker(self, canvas, pair, w, h, interval=500):
         if self._flicker_running:
             self.stop_flicker()

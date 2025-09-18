@@ -18,7 +18,7 @@ class UIElements(tk.Frame):
 
         self.loader = PairLoader(dataset_path)
         self.saver = AnnotationSaver(saving_path)
-        self.handler = BoxHandler(self.loader, self.saver, ui=self)
+        self.handler = BoxHandler(self.loader.current_pair(), self.saver, ui=self)
         self.displayer = AnnotationDisplayer()
         print(self.loader.image_pairs)
 
