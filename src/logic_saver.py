@@ -83,3 +83,13 @@ class AnnotationSaver:
             self._flush()
             return True  # deleted something
         return False
+    
+    def reset_pair(self, pair):
+        pid = str(pair.pair_id)
+        if pid not in self.annotations:
+            return False
+        
+        self.annotations[pid]["pair_state"] = "unsure"
+        self.annotations[pid]["boxes"] = []
+
+        self._flush()

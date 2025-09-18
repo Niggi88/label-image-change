@@ -104,7 +104,11 @@ class UIElements(tk.Frame):
             print(f"Delete failed: {e}")
 
 
-    def reset_pair(self): print("Reset boxes")
+    def reset_pair(self):
+        pair = self.loader.current_pair()
+        self.saver.reset_pair(pair)
+        self.refresh()
+        print("Reset boxes")
 
 
 class CanvasFrame(tk.Frame):
