@@ -81,23 +81,26 @@ class UIElements(tk.Frame):
 
 
     def prev_pair(self):
+        current = None
         if self.data_handler.has_prev_pair_global():
             # normal case: move back inside this session
             current = self.data_handler.prev_pair()
         else:
             print("Reached start of all sessions")
-
+            return
         if not current.pair_annotation:
             self.saver.save_pair(self.data_handler, "no_annotation")
         self.refresh()
 
 
     def next_pair(self):
+        current = None
         if self.data_handler.has_next_pair_global():
             # normal case: move inside this session
             current = self.data_handler.next_pair()
         else:
             print("Reached end of all sessions")
+            return
 
         if not current.pair_annotation:
             self.saver.save_pair(self.data_handler, "no_annotation")

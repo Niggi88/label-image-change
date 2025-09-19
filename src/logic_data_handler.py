@@ -130,7 +130,7 @@ class DataHandler:
 
         self.pairs = None
         self.total_pairs = None
-        
+
         self._load_current_session_pairs()
 
     def _load_current_session_pairs(self):
@@ -155,6 +155,7 @@ class DataHandler:
 
         # when last pair in session -> session over
         if self.all_sessions.next():
+            print("start next session")
             self._load_current_session_pairs()
             return self.pairs.first() if len(self.pairs) else None
         
@@ -165,6 +166,7 @@ class DataHandler:
         prv = self.pairs.prev()
         if prv: return prv
         if self.all_sessions.prev():
+            print("go back to previous session")
             self._load_current_session_pairs()
             return self.pairs.last() if len(self.pairs) else None
         return None  # start of all data
