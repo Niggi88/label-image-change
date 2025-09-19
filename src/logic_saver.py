@@ -15,13 +15,17 @@ class AnnotationSaver:
 
         self._on_change = None  # callback
 
-    def save_pair(self, pair, state):
+    def save_pair(self, data_handler, state):
         """Speichere ein komplettes ImagePair mit state"""
+
+        pair = data_handler.current_pair()
+        info = data_handler.current_session_info()
+
         entry = {
             "pair_state": state,
             "boxes": pair.image1.boxes + pair.image2.boxes,
-            "im1_path": str(pair.image1.img_path),
-            "im2_path": str(pair.image2.img_path),
+            "im1_path": str(Path(info.store) / info.session / pair.image1.img_name),
+            "im2_path": str(Path(info.store) / info.session / pair.image2.img_name),
             "image1_size": pair.image1.img_size,
             "image2_size": pair.image2.img_size,
         }
@@ -39,11 +43,14 @@ class AnnotationSaver:
         if self._on_change:
             self._on_change()
 
-    def save_box(self, pair, box, state="annotated"):
+    def save_box(self, data_handler, box, state="annotated"):
         """
         Save a single new box into annotations.json.
         Ensures pair entry exists, and appends the box with correct structure.
         """
+        pair = data_handler.current_pair()
+        info = data_handler.current_session_info()
+
         pid = str(pair.pair_id)
 
         # Ensure the pair exists
@@ -51,8 +58,8 @@ class AnnotationSaver:
             self.annotations[pid] = {
                 "pair_state": state,
                 "boxes": [],
-                "im1_path": str(pair.image1.img_path),
-                "im2_path": str(pair.image2.img_path),
+                "im1_path": str(Path(info.store) / info.session / pair.image1.img_name),
+                "im2_path": str(Path(info.store) / info.session / pair.image2.img_name),
                 "image1_size": pair.image1.img_size,
                 "image2_size": pair.image2.img_size,
             }
@@ -74,10 +81,12 @@ class AnnotationSaver:
 
         self._flush()
 
-    def save_delete_box(self, pair, box_id):
+    def save_delete_box(self, data_handler, box_id):
         """
         Delete a box from annotations.json by its pair_id.
         """
+        pair = data_handler.current_pair()
+
         pid = str(pair.pair_id)
         if pid not in self.annotations:
             return False  # nothing to delete
@@ -94,7 +103,9 @@ class AnnotationSaver:
             return True  # deleted something
         return False
     
-    def reset_pair(self, pair):
+    def reset_pair(self, data_handler):
+        pair = data_handler.current_pair()
+
         pid = str(pair.pair_id)
         if pid not in self.annotations:
             return False

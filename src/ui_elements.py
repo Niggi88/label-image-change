@@ -2,7 +2,7 @@
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
-from logic_loader import PairLoader, DataHandler
+from logic_data_handler import DataHandler
 from logic_saver import AnnotationSaver
 from ui_annotation import BoxHandler, Flickerer
 from ui_annotation_displayer import AnnotationDisplayer
@@ -17,11 +17,10 @@ class UIElements(tk.Frame):
         super().__init__(root)
 
         self.data_handler = DataHandler(dataset_path)
-        self.loader = self.data_handler.current_loader()
+
         self.saver = AnnotationSaver(saving_path)
-        self.handler = BoxHandler(self.loader.current_pair(), self.saver, ui=self)
+        self.handler = BoxHandler(self.data_handler, self.saver, ui=self)
         self.displayer = AnnotationDisplayer()
-        # print(self.loader.image_pairs)
 
         self.saver.set_on_change(self.refresh)
 
@@ -36,7 +35,7 @@ class UIElements(tk.Frame):
         self.status = StatusFrame(self)
 
 
-        self.flickerer = Flickerer(self.loader, ui=self)
+        self.flickerer = Flickerer(ui=self)
 
 
         root.bind("<space>", self.toggle_flicker)
@@ -53,7 +52,7 @@ class UIElements(tk.Frame):
 
     def refresh(self):
         print("refreshing")
-        pair = self.loader.current_pair()
+        pair = self.data_handler.current_pair()
 
         root = self.winfo_toplevel()
         root.update_idletasks()
@@ -69,54 +68,47 @@ class UIElements(tk.Frame):
             max_w=root_w,
             max_h=root_h
         )
-        self.handler.selected_box_index = None
-        self.handler.selected_canvas = None
-        self.handler.selected_image = None
+        if not getattr(self.handler, "_moving", False):
+            self.handler.selected_box_index = None
+            self.handler.selected_canvas = None
+            self.handler.selected_image = None
 
-        self.status.update_status(self.loader.current_index, len(self.loader))
+        self.status.update_status(
+            self.data_handler.pairs.pair_idx,
+            len(self.data_handler.pairs)
+        )
 
+
+        
     def prev_pair(self):
-        if self.loader.has_prev():
+        if self.data_handler.has_prev_pair_global():
             # normal case: move back inside this session
-            self.loader.prev_pair()
+            current = self.data_handler.prev_pair()
         else:
-            # start of session -> try previous session
-            if self.data_handler.prev_session():
-                self.loader = self.data_handler.current_loader()
-                # jump to *last* pair of that session
-                self.loader.last_pair()
-            else:
-                print("Reached start of all sessions")
+            print("Reached start of all sessions")
 
-        current = self.loader.current_pair()
         if not current.pair_annotation:
-            self.saver.save_pair(current, "no_annotation")
+            self.saver.save_pair(self.data_handler, "no_annotation")
         self.refresh()
 
 
     def next_pair(self):
-        if self.loader.has_next():
+        if self.data_handler.has_next_pair_global():
             # normal case: move inside this session
-            self.loader.next_pair()
+            current = self.data_handler.next_pair()
         else:
-            # end of session -> try next session
-            if self.data_handler.next_session():
-                self.loader = self.data_handler.current_loader()
-            else:
-                print("Reached end of all sessions")
+            print("Reached end of all sessions")
 
-        current = self.loader.current_pair()
         if not current.pair_annotation:
-            self.saver.save_pair(current, "no_annotation")
+            self.saver.save_pair(self.data_handler, "no_annotation")
         self.refresh()
 
 
     # Annotation callbacks (wire to logic_saver later)
     def mark_state(self, state):
-        pair = self.loader.current_pair()
-        self.saver.save_pair(pair, state)
+        pair = self.data_handler.current_pair()
+        self.saver.save_pair(self.data_handler, state)
         if state == "annotated":
-            self.handler = BoxHandler(pair, self.saver, ui=self)
             # enable box drawing only when "Annotate" pressed
             self.canvas_frame.attach_boxes(self.handler, pair)
         else: self.next_pair()
@@ -132,14 +124,14 @@ class UIElements(tk.Frame):
 
 
     def reset_pair(self):
-        pair = self.loader.current_pair()
-        self.saver.reset_pair(pair)
+        pair = self.data_handler.current_pair()
+        self.saver.reset_pair(self.data_handler)
         print("Reset boxes")
 
 
     
     def toggle_flicker(self, event=None):
-        pair = self.loader.current_pair()
+        pair = self.data_handler.current_pair()
 
         root = self.winfo_toplevel()
         root.update_idletasks()

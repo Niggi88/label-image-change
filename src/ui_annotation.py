@@ -2,10 +2,10 @@ import uuid
 from ui_annotation_displayer import AnnotationDisplayer
 
 class BoxHandler:
-    def __init__(self, pair, saver, ui=None):
+    def __init__(self, data_handler, saver, ui=None):
         self.ui = ui
 
-        self.pair = pair
+        self.data_handler = data_handler
         self.saver = saver
         self.displayer = AnnotationDisplayer()
 
@@ -18,6 +18,8 @@ class BoxHandler:
         self.selected_image = None
         self._drawing = False
 
+        self._moving = False
+        
     def attach_to_canvas(self, canvas, image):
         """
         Bind drawing events for the given canvas and AnnotatableImage.
@@ -103,7 +105,7 @@ class BoxHandler:
         }
 
         annot_img.boxes.append(box)
-        self.saver.save_box(self.pair, box, state="annotated")
+        self.saver.save_box(self.data_handler, box, state="annotated")
 
         # 🔑 Preview löschen – jetzt übernimmt refresh() das Zeichnen
         canvas.delete("preview")
@@ -125,7 +127,7 @@ class BoxHandler:
         # self.display_boxes(self.selected_canvas, self.selected_image.boxes)
 
         # update annotations.json (remove box by pair_id)
-        self.saver.save_delete_box(self.pair, removed_box["pair_id"])
+        self.saver.save_delete_box(self.data_handler, removed_box["pair_id"])
 
         # reset selection
         self.selected_box_index = None
@@ -149,7 +151,7 @@ class BoxHandler:
                 print(f"Start moving box {i}")
 
                 # 1) Entferne Box aus JSON
-                self.saver.save_delete_box(self.pair, b["pair_id"])
+                self.saver.save_delete_box(self.data_handler, b["pair_id"])
 
                 # 2) Entferne aus Memory
                 self.selected_image.boxes.pop(i)
@@ -205,7 +207,7 @@ class BoxHandler:
         moved_box = self._moving_box
 
         # Speichern
-        self.saver.save_box(self.pair, moved_box)
+        self.saver.save_box(self.data_handler, moved_box)
         print(f"Moved and saved box {moved_box['pair_id']}")
 
         # Insert back at same index
@@ -231,9 +233,8 @@ class BoxHandler:
 
 
 class Flickerer:
-    def __init__(self, pair_loader, ui=None):
+    def __init__(self, ui=None):
         self.ui = ui
-        self.pair_loader = pair_loader
         self.displayer = AnnotationDisplayer()
 
         self._flicker_running = False

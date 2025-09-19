@@ -86,7 +86,7 @@ class SessionInfo:
 
 class SessionList:
     def __init__(self, dataset_dir):
-        self.dataset_dir = dataset_dir
+        self.dataset_dir = Path(dataset_dir)
         self.sessions = self.append_sessions()
         self.session_idx = 0
 
@@ -150,7 +150,7 @@ class DataHandler:
         # next pair if it exists
         if next: return next
 
-        # when last pair inside session -> session over
+        # when last pair in session -> session over
         if self.all_sessions.next():
             self._load_current_session_pairs()
             return self.pairs.first() if len(self.pairs) else None
@@ -158,7 +158,7 @@ class DataHandler:
         return None
     
 
-    def prev_pair(self) -> ImagePair | None:
+    def prev_pair(self):
         prv = self.pairs.prev()
         if prv: return prv
         if self.all_sessions.prev():
