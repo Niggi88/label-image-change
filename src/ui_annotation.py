@@ -19,7 +19,7 @@ class BoxHandler:
         self._drawing = False
 
         self._moving = False
-        
+
     def attach_to_canvas(self, canvas, image):
         """
         Bind drawing events for the given canvas and AnnotatableImage.
@@ -105,7 +105,10 @@ class BoxHandler:
         }
 
         annot_img.boxes.append(box)
-        self.saver.save_box(self.data_handler, box, state="annotated")
+        pair = self.data_handler.current_pair()
+        info = self.data_handler.current_session_info()
+        total_pairs = self.data_handler.total_pairs
+        self.saver.save_box(pair, info, box, total_pairs, state="annotated")
 
         # 🔑 Preview löschen – jetzt übernimmt refresh() das Zeichnen
         canvas.delete("preview")
@@ -127,7 +130,10 @@ class BoxHandler:
         # self.display_boxes(self.selected_canvas, self.selected_image.boxes)
 
         # update annotations.json (remove box by pair_id)
-        self.saver.save_delete_box(self.data_handler, removed_box["pair_id"])
+        pair = self.data_handler.current_pair()
+        total_pairs = self.data_handler.total_pairs
+        info = self.data_handler.current_session_info()
+        self.saver.save_delete_box(pair, removed_box["pair_id"], total_pairs, info)
 
         # reset selection
         self.selected_box_index = None
@@ -149,9 +155,11 @@ class BoxHandler:
                 self._moving = True
                 self._move_start_x, self._move_start_y = event.x, event.y
                 print(f"Start moving box {i}")
-
+                total_pairs = self.data_handler.total_pairs
                 # 1) Entferne Box aus JSON
-                self.saver.save_delete_box(self.data_handler, b["pair_id"])
+                pair = self.data_handler.current_pair()
+                info = self.data_handler.current_session_info()
+                self.saver.save_delete_box(pair, b["pair_id"], total_pairs, info)
 
                 # 2) Entferne aus Memory
                 self.selected_image.boxes.pop(i)
@@ -207,7 +215,10 @@ class BoxHandler:
         moved_box = self._moving_box
 
         # Speichern
-        self.saver.save_box(self.data_handler, moved_box)
+        pair = self.data_handler.current_pair()
+        total_pairs = len(self.data_handler.pairs)
+        info = self.data_handler.current_session_info()
+        self.saver.save_box(pair, info, moved_box, total_pairs)
         print(f"Moved and saved box {moved_box['pair_id']}")
 
         # Insert back at same index

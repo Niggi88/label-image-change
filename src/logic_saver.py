@@ -6,9 +6,7 @@ from datetime import datetime
 
 
 class AnnotationSaver:
-    def __init__(self, saving_path, data_handler):
-
-        self.data_handler = data_handler
+    def __init__(self, saving_path):
 
         self.saving_path = Path(saving_path)
         self.file = self.saving_path / "annotations.json"
@@ -21,11 +19,11 @@ class AnnotationSaver:
 
         self._on_change = None  # callback
 
-    def save_pair(self, data_handler, state):
+    def save_pair(self, pair, info, state, total_pairs):
         """Speichere ein komplettes ImagePair mit state"""
-
-        pair = data_handler.current_pair()
-        info = data_handler.current_session_info()
+        self.saving_path = info.path
+        # pair = data_handler.current_pair()
+        # info = data_handler.current_session_info()
 
         entry = {
             "pair_state": state,
@@ -37,6 +35,7 @@ class AnnotationSaver:
         }
         self.annotations[str(pair.pair_id)] = entry
         pair.pair_annotation = state
+        self.update_meta(total_pairs)
         self._flush()
 
 
@@ -48,12 +47,11 @@ class AnnotationSaver:
         self.file.write_text(json.dumps(self.annotations, indent=2))
         if self._on_change:
             self._on_change()
-        self.update_meta()
 
-    def update_meta(self):
+    def update_meta(self, total_pairs):
         # Check if all pairs are annotated (have a pair_state)
         pid_count = sum(1 for k in self.annotations if k != "_meta")
-        completed = pid_count >= self.data_handler.total_pairs
+        completed = pid_count >= total_pairs
 
         self.annotations["_meta"] = {
             "completed": completed,
@@ -61,13 +59,13 @@ class AnnotationSaver:
             "root": str(config.DATASET_DIR),
         }
 
-    def save_box(self, data_handler, box, state="annotated"):
+    def save_box(self, pair, info, box, total_pairs, state="annotated"):
         """
         Save a single new box into annotations.json.
         Ensures pair entry exists, and appends the box with correct structure.
         """
-        pair = data_handler.current_pair()
-        info = data_handler.current_session_info()
+        self.saving_path = Path(info.path)
+
 
         pid = str(pair.pair_id)
 
@@ -96,15 +94,14 @@ class AnnotationSaver:
 
         # Always update pair state
         self.annotations[pid]["pair_state"] = state
-
+        self.update_meta(total_pairs)
         self._flush()
 
-    def save_delete_box(self, data_handler, box_id):
+    def save_delete_box(self, pair, box_id, total_pairs, info):
         """
         Delete a box from annotations.json by its pair_id.
         """
-        pair = data_handler.current_pair()
-
+        self.saving_path = Path(info.path)
         pid = str(pair.pair_id)
         if pid not in self.annotations:
             return False  # nothing to delete
@@ -117,12 +114,12 @@ class AnnotationSaver:
         after = len(self.annotations[pid]["boxes"])
 
         if before != after:
+            self.update_meta(total_pairs)
             self._flush()
             return True  # deleted something
         return False
     
-    def reset_pair(self, data_handler):
-        pair = data_handler.current_pair()
+    def reset_pair(self, pair):
 
         pid = str(pair.pair_id)
         if pid not in self.annotations:

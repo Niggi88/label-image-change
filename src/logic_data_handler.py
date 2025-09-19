@@ -1,7 +1,7 @@
 from pathlib import Path
 from PIL import Image
 from dataclasses import dataclass
-
+from logic_saver import AnnotationSaver
 
 
 
@@ -133,6 +133,8 @@ class DataHandler:
 
         self._load_current_session_pairs()
 
+        self.saver = AnnotationSaver(self.current_session_info().path)
+
     def _load_current_session_pairs(self):
         info = self.all_sessions.current()
         self.pairs = ImagePairList(info.path)
@@ -157,6 +159,7 @@ class DataHandler:
         if self.all_sessions.next():
             print("start next session")
             self._load_current_session_pairs()
+            self.saver = AnnotationSaver(self.current_session_info().path, self)
             return self.pairs.first() if len(self.pairs) else None
         
         return None
@@ -168,6 +171,7 @@ class DataHandler:
         if self.all_sessions.prev():
             print("go back to previous session")
             self._load_current_session_pairs()
+            self.saver = AnnotationSaver(self.current_session_info().path, self)
             return self.pairs.last() if len(self.pairs) else None
         return None  # start of all data
     
