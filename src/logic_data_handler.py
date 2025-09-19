@@ -129,13 +129,16 @@ class DataHandler:
         self.all_sessions = SessionList(self.dataset_dir)
 
         self.pairs = None
+        self.total_pairs = None
+        
         self._load_current_session_pairs()
 
     def _load_current_session_pairs(self):
         info = self.all_sessions.current()
         self.pairs = ImagePairList(info.path)
+        self.total_pairs = len(self.pairs)
         if not len(self.pairs):
-            print(f"⚠️ Warning: session {info.session} has no pairs")
+            print(f"Warning: session {info.session} has no pairs")
 
 
     def current_pair(self):

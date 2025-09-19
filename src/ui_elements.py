@@ -18,7 +18,7 @@ class UIElements(tk.Frame):
 
         self.data_handler = DataHandler(dataset_path)
 
-        self.saver = AnnotationSaver(saving_path)
+        self.saver = AnnotationSaver(saving_path, self.data_handler)
         self.handler = BoxHandler(self.data_handler, self.saver, ui=self)
         self.displayer = AnnotationDisplayer()
 
@@ -79,7 +79,7 @@ class UIElements(tk.Frame):
         )
 
 
-        
+
     def prev_pair(self):
         if self.data_handler.has_prev_pair_global():
             # normal case: move back inside this session

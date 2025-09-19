@@ -1,9 +1,15 @@
 import json
 from pathlib import Path
 import uuid
+import config
+from datetime import datetime
+
 
 class AnnotationSaver:
-    def __init__(self, saving_path):
+    def __init__(self, saving_path, data_handler):
+
+        self.data_handler = data_handler
+
         self.saving_path = Path(saving_path)
         self.file = self.saving_path / "annotations.json"
 
@@ -42,6 +48,18 @@ class AnnotationSaver:
         self.file.write_text(json.dumps(self.annotations, indent=2))
         if self._on_change:
             self._on_change()
+        self.update_meta()
+
+    def update_meta(self):
+        # Check if all pairs are annotated (have a pair_state)
+        pid_count = sum(1 for k in self.annotations if k != "_meta")
+        completed = pid_count >= self.data_handler.total_pairs
+
+        self.annotations["_meta"] = {
+            "completed": completed,
+            "timestamp": datetime.now().isoformat(),
+            "root": str(config.DATASET_DIR),
+        }
 
     def save_box(self, data_handler, box, state="annotated"):
         """
