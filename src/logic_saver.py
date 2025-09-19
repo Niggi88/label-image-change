@@ -6,9 +6,9 @@ from datetime import datetime
 
 
 class AnnotationSaver:
-    def __init__(self, saving_path):
-
-        self.saving_path = Path(saving_path)
+    def __init__(self, info):
+        
+        self.saving_path = Path(info.path)
         self.file = self.saving_path / "annotations.json"
 
         if self.file.exists():
@@ -64,7 +64,6 @@ class AnnotationSaver:
         Save a single new box into annotations.json.
         Ensures pair entry exists, and appends the box with correct structure.
         """
-        self.saving_path = Path(info.path)
 
 
         pid = str(pair.pair_id)
@@ -101,7 +100,6 @@ class AnnotationSaver:
         """
         Delete a box from annotations.json by its pair_id.
         """
-        self.saving_path = Path(info.path)
         pid = str(pair.pair_id)
         if pid not in self.annotations:
             return False  # nothing to delete

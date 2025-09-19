@@ -133,7 +133,7 @@ class DataHandler:
 
         self._load_current_session_pairs()
 
-        self.saver = AnnotationSaver(self.current_session_info().path)
+        self.saver = AnnotationSaver(self.current_session_info())
 
     def _load_current_session_pairs(self):
         info = self.all_sessions.current()
@@ -159,7 +159,7 @@ class DataHandler:
         if self.all_sessions.next():
             print("start next session")
             self._load_current_session_pairs()
-            self.saver = AnnotationSaver(self.current_session_info().path, self)
+            self.saver = AnnotationSaver(self.current_session_info())
             return self.pairs.first() if len(self.pairs) else None
         
         return None

@@ -18,11 +18,11 @@ class UIElements(tk.Frame):
 
         self.data_handler = DataHandler(dataset_path)
 
-        self.saver = AnnotationSaver(self.data_handler.current_session_info().path)
-        self.handler = BoxHandler(self.data_handler, self.saver, ui=self)
+        self.handler = BoxHandler(self.data_handler, self.data_handler.saver, ui=self)
+
         self.displayer = AnnotationDisplayer()
 
-        self.saver.set_on_change(self.refresh)
+        self.data_handler.saver.set_on_change(self.refresh)
 
         # Subframes
         self.canvas_frame = CanvasFrame(self)
@@ -64,7 +64,7 @@ class UIElements(tk.Frame):
             self.canvas_frame.canvas_left,
             self.canvas_frame.canvas_right,
             pair,
-            self.saver.annotations, # are read from the json
+            self.data_handler.saver.annotations, # are read from the json
             max_w=root_w,
             max_h=root_h
         )
@@ -90,7 +90,7 @@ class UIElements(tk.Frame):
             return
         if not current.pair_annotation:
             total_pairs = len(self.data_handler.pairs)
-            self.saver.save_pair(current, self.data_handler.current_session_info(), "no_annotation", total_pairs)
+            self.data_handler.save_pair(current, self.data_handler.current_session_info(), "no_annotation", total_pairs)
         self.refresh()
 
 
@@ -105,7 +105,7 @@ class UIElements(tk.Frame):
 
         if not current.pair_annotation:
             total_pairs = len(self.data_handler.pairs)
-            self.saver.save_pair(current, self.data_handler.current_session_info(), "no_annotation", total_pairs)
+            self.data_handler.saver.save_pair(current, self.data_handler.current_session_info(), "no_annotation", total_pairs)
         self.refresh()
 
 
@@ -113,7 +113,7 @@ class UIElements(tk.Frame):
     def mark_state(self, state):
         pair = self.data_handler.current_pair()
         total_pairs = len(self.data_handler.pairs)
-        self.saver.save_pair(pair, self.data_handler.current_session_info(), state, total_pairs)
+        self.data_handler.saver.save_pair(pair, self.data_handler.current_session_info(), state, total_pairs)
         if state == "annotated":
             # enable box drawing only when "Annotate" pressed
             self.canvas_frame.attach_boxes(self.handler, pair)
@@ -131,7 +131,7 @@ class UIElements(tk.Frame):
 
     def reset_pair(self):
         pair = self.data_handler.current_pair()
-        self.saver.reset_pair(pair)
+        self.data_handler.saver.reset_pair(pair)
         print("Reset boxes")
 
 

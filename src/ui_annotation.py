@@ -6,7 +6,6 @@ class BoxHandler:
         self.ui = ui
 
         self.data_handler = data_handler
-        self.saver = saver
         self.displayer = AnnotationDisplayer()
 
         self.start_x = None
@@ -108,7 +107,7 @@ class BoxHandler:
         pair = self.data_handler.current_pair()
         info = self.data_handler.current_session_info()
         total_pairs = self.data_handler.total_pairs
-        self.saver.save_box(pair, info, box, total_pairs, state="annotated")
+        self.data_handler.saver.save_box(pair, info, box, total_pairs, state="annotated")
 
         # 🔑 Preview löschen – jetzt übernimmt refresh() das Zeichnen
         canvas.delete("preview")
@@ -133,7 +132,7 @@ class BoxHandler:
         pair = self.data_handler.current_pair()
         total_pairs = self.data_handler.total_pairs
         info = self.data_handler.current_session_info()
-        self.saver.save_delete_box(pair, removed_box["pair_id"], total_pairs, info)
+        self.data_handler.saver.save_delete_box(pair, removed_box["pair_id"], total_pairs, info)
 
         # reset selection
         self.selected_box_index = None
@@ -159,7 +158,7 @@ class BoxHandler:
                 # 1) Entferne Box aus JSON
                 pair = self.data_handler.current_pair()
                 info = self.data_handler.current_session_info()
-                self.saver.save_delete_box(pair, b["pair_id"], total_pairs, info)
+                self.data_handler.saver.save_delete_box(pair, b["pair_id"], total_pairs, info)
 
                 # 2) Entferne aus Memory
                 self.selected_image.boxes.pop(i)
@@ -218,7 +217,7 @@ class BoxHandler:
         pair = self.data_handler.current_pair()
         total_pairs = len(self.data_handler.pairs)
         info = self.data_handler.current_session_info()
-        self.saver.save_box(pair, info, moved_box, total_pairs)
+        self.data_handler.saver.save_box(pair, info, moved_box, total_pairs)
         print(f"Moved and saved box {moved_box['pair_id']}")
 
         # Insert back at same index
