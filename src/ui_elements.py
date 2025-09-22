@@ -68,6 +68,12 @@ class UIElements(tk.Frame):
         self.session_frame = SessionFrame(self.top_bar)
         self.session_frame.pack(side="left", padx=10, pady=10)
 
+
+        self.skip_button = ttk.Button(self.top_bar, text="Skip Session",
+                                    command=self.skip_session)
+        self.skip_button.pack(side="right", padx=10, pady=10)
+
+
         # --- Content frame (centered) ---
         self.content_frame = tk.Frame(self)
         self.content_frame.grid(row=1, column=1)
@@ -204,6 +210,10 @@ class UIElements(tk.Frame):
         self.data_handler.saver.reset_pair(pair)
         print("Reset boxes")
 
+
+    def skip_session(self):
+        self.data_handler.skip_current_session()
+        self.refresh()
 
     
     def toggle_flicker(self, event=None):

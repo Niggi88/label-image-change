@@ -57,6 +57,7 @@ class AnnotationSaver:
             "completed": completed,
             "timestamp": datetime.now().isoformat(),
             "root": str(config.DATASET_DIR),
+            "usable": self.annotations["_meta"].get("usable", True)  # default True
         }
 
     def save_box(self, pair, info, box, total_pairs, state="annotated"):
