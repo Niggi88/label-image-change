@@ -49,16 +49,19 @@ class AnnotationSaver:
             self._on_change()
 
     def update_meta(self, total_pairs):
-        # Check if all pairs are annotated (have a pair_state)
         pid_count = sum(1 for k in self.annotations if k != "_meta")
         completed = pid_count >= total_pairs
 
-        self.annotations["_meta"] = {
+        if "_meta" not in self.annotations:
+            self.annotations["_meta"] = {}
+
+        self.annotations["_meta"].update({
             "completed": completed,
             "timestamp": datetime.now().isoformat(),
             "root": str(config.DATASET_DIR),
             "usable": self.annotations["_meta"].get("usable", True)  # default True
-        }
+        })
+
 
     def save_box(self, pair, info, box, total_pairs, state="annotated"):
         """

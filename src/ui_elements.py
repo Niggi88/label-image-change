@@ -167,12 +167,17 @@ class UIElements(tk.Frame):
 
         # save default if necessary
         pid = str(current.pair_id)
-        if pid not in self.data_handler.saver.annotations:
+        entry = self.data_handler.saver.annotations.get(pid)
+
+        if not entry or "pair_state" not in entry:
             total_pairs = len(self.data_handler.pairs)
             self.data_handler.saver.save_pair(
-                current, self.data_handler.current_session_info(),
-                "no_annotation", total_pairs
+                current,
+                self.data_handler.current_session_info(),
+                "no_annotation",
+                total_pairs,
             )
+
 
         self.refresh()
 
@@ -192,11 +197,15 @@ class UIElements(tk.Frame):
 
         # save default if necessary
         pid = str(current.pair_id)
-        if pid not in self.data_handler.saver.annotations:
+        entry = self.data_handler.saver.annotations.get(pid)
+
+        if not entry or "pair_state" not in entry:
             total_pairs = len(self.data_handler.pairs)
             self.data_handler.saver.save_pair(
-                current, self.data_handler.current_session_info(),
-                "no_annotation", total_pairs
+                current,
+                self.data_handler.current_session_info(),
+                "no_annotation",
+                total_pairs,
             )
 
         self.refresh()
@@ -314,7 +323,7 @@ class AnnotationFrame(tk.Frame):
         buttons = [
             ("Nothing Changed", lambda: on_mark("nothing")),
             ("Chaos", lambda: on_mark("chaos")),
-            ("Unsure", lambda: on_mark("unsure")),
+            ("Unsure", lambda: on_mark("no_annotation")),
             ("Annotate", lambda: on_mark("annotate")),
             ("Delete Selected Box", on_delete),
             ("Reset", on_reset),
@@ -323,7 +332,7 @@ class AnnotationFrame(tk.Frame):
         for col, (text, cmd, style) in enumerate([
             ("Nothing Changed", lambda: on_mark("nothing"), STYLE_NOTHING),
             ("Chaos", lambda: on_mark("chaos"), STYLE_CHAOS),
-            ("Unsure", lambda: on_mark("unsure"), STYLE_UNSURE),
+            ("Unsure", lambda: on_mark("no_annotation"), STYLE_UNSURE),
             ("Annotate", lambda: on_mark("annotated"), STYLE_ANNOTATE),
             ("Delete Selected Box", on_delete, STYLE_DELETE),
             ("Reset", on_reset, STYLE_RESET),
