@@ -74,11 +74,12 @@ class UIElements(tk.Frame):
                                         on_mark=self.mark_state,
                                         on_delete=self.delete_box,
                                         on_reset=self.reset_pair)
-        self.ann_frame.grid(row=1, column=0, pady=6, sticky="n")
+        
+        self.ann_frame.grid(row=1, column=0, columnspan=2, pady=(30, 5))  
 
         # Navigation bar
         self.nav_bar = tk.Frame(self.content_frame)
-        self.nav_bar.grid(row=2, column=0, pady=6)
+        self.nav_bar.grid(row=2, column=0, columnspan=2, pady=(10, 20))
 
         self.prev_btn = ttk.Button(self.nav_bar, text="Prev", command=self.prev_pair)
         self.prev_btn.pack(side="left", padx=10)
@@ -244,20 +245,25 @@ class NavigationFrame(tk.Frame):
 class AnnotationFrame(tk.Frame):
     def __init__(self, parent, on_mark, on_delete, on_reset):
         super().__init__(parent)
-        annotation_frame = ttk.Frame(self)
-        annotation_frame.pack(anchor="center")  # <- center the whole bar
 
         buttons = [
+            ("Nothing Changed", lambda: on_mark("nothing")),
             ("Chaos", lambda: on_mark("chaos")),
-            ("Nothing", lambda: on_mark("nothing")),
-            ("Unsure", lambda: on_mark("no_annotation")),
-            ("Annotate", lambda: on_mark("annotated")),
-            ("Delete Box", on_delete),
+            ("Unsure", lambda: on_mark("unsure")),
+            ("Annotate", lambda: on_mark("annotate")),
+            ("Delete Selected Box", on_delete),
             ("Reset", on_reset),
         ]
 
         for col, (text, cmd) in enumerate(buttons):
-            ttk.Button(annotation_frame, text=text, command=cmd).grid(row=0, column=col, padx=5)
+            btn = ttk.Button(self, text=text, command=cmd)
+            # Weniger horizontal spacing zwischen Buttons
+            btn.grid(row=0, column=col, padx=5, pady=10, sticky="nsew", ipady=6)
+            self.columnconfigure(col, weight=1)
+
+        # Trick: mehr Außenpadding über Rahmen
+        self.grid(sticky="ew", padx=100)   # hier mehr linker/rechter Rand
+
 
 
 
