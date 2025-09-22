@@ -43,8 +43,11 @@ class AnnotationDisplayer:
 
     def _scale_image(self, pil_img, max_w, max_h):
         w, h = pil_img.size
-        scale = min(max_w / w, max_h / h)
+        scale = min(max_w / w, max_h / h)  # preserve proportions
         return pil_img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
+
+
+        return pil_img.resize((max_w, max_h), Image.Resampling.LANCZOS)
 
     def _draw_image(self, canvas, annot_img, max_w, max_h):
         from PIL import Image, ImageTk
@@ -58,7 +61,7 @@ class AnnotationDisplayer:
 
         w, h = pil_img.size
         canvas.config(width=w, height=h)
-        canvas.create_image(0, 0, image=tk_img, anchor="nw")
+        canvas.create_image(max_w // 2, max_h // 2, image=tk_img, anchor="center")
 
 
     def _draw_outline(self, canvas, state):

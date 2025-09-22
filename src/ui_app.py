@@ -17,6 +17,7 @@ class UIApp(tk.Tk):
 
         self.title("Annotation Tool")
         self.geometry("1200x800")
+        self.minsize(800, 600)      # don’t allow too tiny
 
         # Fenster-Gitter aufteilen
         self.grid_rowconfigure(0, weight=1)

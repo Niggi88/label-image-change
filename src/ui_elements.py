@@ -16,6 +16,18 @@ class UIElements(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
 
+
+        # Make root window resizable and stretchy
+        root.rowconfigure(0, weight=1)
+        root.columnconfigure(0, weight=1)
+
+        # Make UIElements expand too
+        self.grid(row=0, column=0, sticky="nsew")
+        self.rowconfigure(0, weight=1)   # canvas frame grows
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=1)
+
+
         self.data_handler = DataHandler(dataset_path)
 
         self.handler = BoxHandler(self.data_handler, self.data_handler.saver, ui=self)
@@ -39,6 +51,7 @@ class UIElements(tk.Frame):
 
 
         root.bind("<space>", self.toggle_flicker)
+        root.bind("<Configure>", self.on_resize)
 
         # Layout
         self.canvas_frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
@@ -50,6 +63,13 @@ class UIElements(tk.Frame):
 
         self.refresh()
 
+
+    def on_resize(self, event):
+        if event.widget == self.winfo_toplevel():
+            if hasattr(self, "_resize_after_id"):
+                self.after_cancel(self._resize_after_id)
+            self._resize_after_id = self.after(200, self.refresh)  # 200ms delay
+            
     def refresh(self):
         print("refreshing")
         pair = self.data_handler.current_pair()
@@ -156,10 +176,17 @@ class CanvasFrame(tk.Frame):
         self.parent = parent
         self._images = []
 
+               # Make two equal columns that expand
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=1)
+
         self.canvas_left = tk.Canvas(self, bg="gray", highlightthickness=0)
         self.canvas_right = tk.Canvas(self, bg="gray", highlightthickness=0)
-        self.canvas_left.grid(row=0, column=0, padx=10, pady=10)
-        self.canvas_right.grid(row=0, column=1, padx=10, pady=10)
+
+        # Important: sticky="nsew" lets canvases stretch fully
+        self.canvas_left.grid(row=0, column=0, sticky="nsew")
+        self.canvas_right.grid(row=0, column=1, sticky="nsew")
 
     def _scale_image(self, pil_img, max_w, max_h):
         w, h = pil_img.size
