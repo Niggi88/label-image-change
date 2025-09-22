@@ -16,52 +16,59 @@ class UIElements(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
 
-
-        # Make root window resizable and stretchy
+        # Make root window resizable
         root.rowconfigure(0, weight=1)
         root.columnconfigure(0, weight=1)
 
-        # Make UIElements expand too
+        # Make this frame expand
         self.grid(row=0, column=0, sticky="nsew")
-        self.rowconfigure(0, weight=1)   # canvas frame grows
+        self.rowconfigure(0, weight=1)   # top frame (images) expands
+        self.rowconfigure(1, weight=0)   # bottom frame (controls) fixed
         self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=1)
-
 
         self.data_handler = DataHandler(dataset_path)
-
         self.handler = BoxHandler(self.data_handler, self.data_handler.saver, ui=self)
-
         self.displayer = AnnotationDisplayer()
-
         self.data_handler.saver.set_on_change(self.refresh)
-
-        # Subframes
-        self.canvas_frame = CanvasFrame(self)
-        self.nav_frame = NavigationFrame(self, 
-                                         on_prev=self.prev_pair, 
-                                         on_next=self.next_pair)
-        self.ann_frame = AnnotationFrame(self, on_mark=self.mark_state,
-                                         on_delete=self.delete_box, 
-                                         on_reset=self.reset_pair)
-        self.status = StatusFrame(self)
-
-
         self.flickerer = Flickerer(ui=self)
 
+        # --- Subframes ---
+        self.top_frame = tk.Frame(self)
+        self.bottom_frame = tk.Frame(self)
 
+        # Canvases (inside top_frame)
+        self.canvas_frame = CanvasFrame(self.top_frame)
+
+        # Controls (inside bottom_frame)
+        self.nav_frame = NavigationFrame(self.bottom_frame,
+                                         on_prev=self.prev_pair,
+                                         on_next=self.next_pair)
+        self.status = StatusFrame(self.bottom_frame)
+        self.ann_frame = AnnotationFrame(self.bottom_frame,
+                                         on_mark=self.mark_state,
+                                         on_delete=self.delete_box,
+                                         on_reset=self.reset_pair)
+
+        # Bind keys
         root.bind("<space>", self.toggle_flicker)
         root.bind("<Configure>", self.on_resize)
 
-        # Layout
-        self.canvas_frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
-        self.nav_frame.grid(row=1, column=0, sticky="w", padx=8, pady=6)
-        self.status.grid(row=1, column=1, sticky="e", padx=8, pady=6)
-        self.ann_frame.grid(row=2, column=0, columnspan=2, pady=8)
+        # --- Layout ---
+        self.top_frame.grid(row=0, column=0, sticky="nsew")
+        self.bottom_frame.grid(row=1, column=0, sticky="ew")
 
-        self.grid(row=0, column=0, sticky="nsew")
+        # Layout for top_frame (make canvases expand fully)
+        self.top_frame.rowconfigure(0, weight=1)
+        self.top_frame.columnconfigure(0, weight=1)
+        self.canvas_frame.grid(row=0, column=0, sticky="nsew")
+
+        # Layout for bottom_frame (controls stacked neatly)
+        self.nav_frame.grid(row=0, column=0, sticky="w", padx=4, pady=2)
+        self.status.grid(row=0, column=1, sticky="e", padx=4, pady=2)
+        self.ann_frame.grid(row=1, column=0, columnspan=2, pady=4)
 
         self.refresh()
+
 
 
     def on_resize(self, event):
@@ -185,8 +192,8 @@ class CanvasFrame(tk.Frame):
         self.canvas_right = tk.Canvas(self, bg="gray", highlightthickness=0)
 
         # Important: sticky="nsew" lets canvases stretch fully
-        self.canvas_left.grid(row=0, column=0, sticky="nsew")
-        self.canvas_right.grid(row=0, column=1, sticky="nsew")
+        self.canvas_left.grid(row=0, column=0)
+        self.canvas_right.grid(row=0, column=1)
 
     def _scale_image(self, pil_img, max_w, max_h):
         w, h = pil_img.size

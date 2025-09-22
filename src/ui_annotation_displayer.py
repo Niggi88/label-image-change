@@ -50,18 +50,18 @@ class AnnotationDisplayer:
         return pil_img.resize((max_w, max_h), Image.Resampling.LANCZOS)
 
     def _draw_image(self, canvas, annot_img, max_w, max_h):
-        from PIL import Image, ImageTk
         pil_img = Image.open(annot_img.img_path)
-        w, h = pil_img.size
-        canvas.img_size = (w, h)  # store true image size
+        orig_w, orig_h = pil_img.size
+        canvas.img_size = (orig_w, orig_h)  # store true image size
 
         pil_img = self._scale_image(pil_img, max_w, max_h)
         tk_img = ImageTk.PhotoImage(pil_img)
         self._images.append(tk_img)
 
         w, h = pil_img.size
-        canvas.config(width=w, height=h)
-        canvas.create_image(max_w // 2, max_h // 2, image=tk_img, anchor="center")
+        canvas.config(width=w, height=h)   # canvas matches image size exactly
+        canvas.create_image(w // 2, h // 2, image=tk_img, anchor="center")  # center inside itself
+
 
 
     def _draw_outline(self, canvas, state):
