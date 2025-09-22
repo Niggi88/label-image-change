@@ -156,7 +156,8 @@ class UIElements(tk.Frame):
         else:
             print("Reached start of all sessions")
             return
-        if not current.pair_annotation:
+        pid = str(current.pair_id)
+        if pid not in self.data_handler.saver.annotations:
             total_pairs = len(self.data_handler.pairs)
             self.data_handler.saver.save_pair(current, self.data_handler.current_session_info(), "no_annotation", total_pairs)
         self.refresh()
@@ -171,7 +172,8 @@ class UIElements(tk.Frame):
             print("Reached end of all sessions")
             return
 
-        if not current.pair_annotation:
+        pid = str(current.pair_id)
+        if pid not in self.data_handler.saver.annotations:
             total_pairs = len(self.data_handler.pairs)
             self.data_handler.saver.save_pair(current, self.data_handler.current_session_info(), "no_annotation", total_pairs)
         self.refresh()
