@@ -53,19 +53,37 @@ class UIElements(tk.Frame):
         root.bind("<space>", self.toggle_flicker)
         root.bind("<Configure>", self.on_resize)
 
-        # --- Layout ---
-        self.top_frame.grid(row=0, column=0, sticky="nsew")
-        self.bottom_frame.grid(row=1, column=0, sticky="ew")
-
-        # Layout for top_frame (make canvases expand fully)
-        self.top_frame.rowconfigure(0, weight=1)
-        self.top_frame.columnconfigure(0, weight=1)
+        # --- Layout directly inside UIElements ---
+        self.canvas_frame = CanvasFrame(self)
         self.canvas_frame.grid(row=0, column=0, sticky="nsew")
 
-        # Layout for bottom_frame (controls stacked neatly)
-        self.nav_frame.grid(row=0, column=0, sticky="w", padx=4, pady=2)
-        self.status.grid(row=0, column=1, sticky="e", padx=4, pady=2)
-        self.ann_frame.grid(row=1, column=0, columnspan=2, pady=4)
+        # Annotation buttons just below canvases
+        self.ann_frame = AnnotationFrame(self,
+                                        on_mark=self.mark_state,
+                                        on_delete=self.delete_box,
+                                        on_reset=self.reset_pair)
+        self.ann_frame.grid(row=1, column=0, pady=6, sticky="n")
+
+        # Navigation bar just below annotation bar
+        self.nav_bar = tk.Frame(self)
+        self.nav_bar.grid(row=2, column=0, pady=6)
+
+        self.prev_btn = ttk.Button(self.nav_bar, text="Prev", command=self.prev_pair)
+        self.prev_btn.pack(side="left", padx=10)
+
+        self.status = StatusFrame(self.nav_bar)
+        self.status.pack(side="left", padx=10)
+
+        self.next_btn = ttk.Button(self.nav_bar, text="Next", command=self.next_pair)
+        self.next_btn.pack(side="left", padx=10)
+
+        # spacer row to eat up extra space at bottom
+        self.rowconfigure(0, weight=0)  # images size to content
+        self.rowconfigure(1, weight=0)  # annotation bar
+        self.rowconfigure(2, weight=0)  # navigation bar
+        self.rowconfigure(3, weight=1)  # filler
+        tk.Frame(self).grid(row=3, column=0, sticky="nsew")
+
 
         self.refresh()
 
@@ -117,7 +135,7 @@ class UIElements(tk.Frame):
             return
         if not current.pair_annotation:
             total_pairs = len(self.data_handler.pairs)
-            self.data_handler.save_pair(current, self.data_handler.current_session_info(), "no_annotation", total_pairs)
+            self.data_handler.saver.save_pair(current, self.data_handler.current_session_info(), "no_annotation", total_pairs)
         self.refresh()
 
 
@@ -221,7 +239,7 @@ class AnnotationFrame(tk.Frame):
     def __init__(self, parent, on_mark, on_delete, on_reset):
         super().__init__(parent)
         annotation_frame = ttk.Frame(self)
-        annotation_frame.grid(row=0, column=0, columnspan=2, pady=10)
+        annotation_frame.pack(anchor="center")  # <- center the whole bar
 
         buttons = [
             ("Chaos", lambda: on_mark("chaos")),
@@ -236,11 +254,12 @@ class AnnotationFrame(tk.Frame):
             ttk.Button(annotation_frame, text=text, command=cmd).grid(row=0, column=col, padx=5)
 
 
+
 class StatusFrame(tk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
         self.label_info = ttk.Label(self, text="")
-        self.label_info.grid(row=0, column=0, columnspan=2)
+        self.label_info.pack()
 
     def update_status(self, index, total):
         self.label_info.config(text=f"Pair {index+1}/{total}")
