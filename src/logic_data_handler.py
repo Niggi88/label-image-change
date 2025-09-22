@@ -171,7 +171,7 @@ class DataHandler:
         if self.all_sessions.prev():
             print("go back to previous session")
             self._load_current_session_pairs()
-            self.saver = AnnotationSaver(self.current_session_info().path, self)
+            self.saver = AnnotationSaver(self.current_session_info())
             return self.pairs.last() if len(self.pairs) else None
         return None  # start of all data
     
