@@ -53,19 +53,31 @@ class UIElements(tk.Frame):
         root.bind("<space>", self.toggle_flicker)
         root.bind("<Configure>", self.on_resize)
 
-        # --- Layout directly inside UIElements ---
-        self.canvas_frame = CanvasFrame(self)
-        self.canvas_frame.grid(row=0, column=0, sticky="nsew")
+        # --- Main layout: a 3x3 grid to center everything ---
+        self.rowconfigure(0, weight=1)   # top spacer
+        self.rowconfigure(1, weight=0)   # content row
+        self.rowconfigure(2, weight=1)   # bottom spacer
+        self.columnconfigure(0, weight=1)  # left spacer
+        self.columnconfigure(1, weight=0)  # content col
+        self.columnconfigure(2, weight=1)  # right spacer
 
-        # Annotation buttons just below canvases
-        self.ann_frame = AnnotationFrame(self,
+        # --- Content frame (centered) ---
+        self.content_frame = tk.Frame(self)
+        self.content_frame.grid(row=1, column=1)
+
+        # Canvases (images)
+        self.canvas_frame = CanvasFrame(self.content_frame)
+        self.canvas_frame.grid(row=0, column=0, sticky="n")
+
+        # Annotation buttons
+        self.ann_frame = AnnotationFrame(self.content_frame,
                                         on_mark=self.mark_state,
                                         on_delete=self.delete_box,
                                         on_reset=self.reset_pair)
         self.ann_frame.grid(row=1, column=0, pady=6, sticky="n")
 
-        # Navigation bar just below annotation bar
-        self.nav_bar = tk.Frame(self)
+        # Navigation bar
+        self.nav_bar = tk.Frame(self.content_frame)
         self.nav_bar.grid(row=2, column=0, pady=6)
 
         self.prev_btn = ttk.Button(self.nav_bar, text="Prev", command=self.prev_pair)
@@ -77,12 +89,6 @@ class UIElements(tk.Frame):
         self.next_btn = ttk.Button(self.nav_bar, text="Next", command=self.next_pair)
         self.next_btn.pack(side="left", padx=10)
 
-        # spacer row to eat up extra space at bottom
-        self.rowconfigure(0, weight=0)  # images size to content
-        self.rowconfigure(1, weight=0)  # annotation bar
-        self.rowconfigure(2, weight=0)  # navigation bar
-        self.rowconfigure(3, weight=1)  # filler
-        tk.Frame(self).grid(row=3, column=0, sticky="nsew")
 
 
         self.refresh()
