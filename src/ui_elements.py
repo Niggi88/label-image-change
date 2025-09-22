@@ -7,6 +7,8 @@ from logic_saver import AnnotationSaver
 from ui_annotation import BoxHandler, Flickerer
 from ui_annotation_displayer import AnnotationDisplayer
 from config import DATASET_DIR
+from tkinter import messagebox
+
 
 dataset_path = DATASET_DIR
 saving_path = "/home/sarah/Documents/change_detection/label-image-change"
@@ -155,34 +157,53 @@ class UIElements(tk.Frame):
 
 
     def prev_pair(self):
-        current = None
+        old_session_idx = self.data_handler.all_sessions.session_idx
+
         if self.data_handler.has_prev_pair_global():
-            # normal case: move back inside this session
             current = self.data_handler.prev_pair()
         else:
-            print("Reached start of all sessions")
+            messagebox.showinfo("Start Reached", "You have reached the start of all sessions.")
             return
+
+        # save default if necessary
         pid = str(current.pair_id)
         if pid not in self.data_handler.saver.annotations:
             total_pairs = len(self.data_handler.pairs)
-            self.data_handler.saver.save_pair(current, self.data_handler.current_session_info(), "no_annotation", total_pairs)
+            self.data_handler.saver.save_pair(
+                current, self.data_handler.current_session_info(),
+                "no_annotation", total_pairs
+            )
+
         self.refresh()
+
+        # popup if session changed
+        if self.data_handler.all_sessions.session_idx != old_session_idx:
+            messagebox.showinfo("Previous Session", "Returning to previous session.")
 
 
     def next_pair(self):
-        current = None
+        old_session_idx = self.data_handler.all_sessions.session_idx
+
         if self.data_handler.has_next_pair_global():
-            # normal case: move inside this session
             current = self.data_handler.next_pair()
         else:
-            print("Reached end of all sessions")
+            messagebox.showinfo("End Reached", "You have reached the end of all sessions.")
             return
 
+        # save default if necessary
         pid = str(current.pair_id)
         if pid not in self.data_handler.saver.annotations:
             total_pairs = len(self.data_handler.pairs)
-            self.data_handler.saver.save_pair(current, self.data_handler.current_session_info(), "no_annotation", total_pairs)
+            self.data_handler.saver.save_pair(
+                current, self.data_handler.current_session_info(),
+                "no_annotation", total_pairs
+            )
+
         self.refresh()
+
+        # popup if session changed
+        if self.data_handler.all_sessions.session_idx != old_session_idx:
+            messagebox.showinfo("Next Session", "Moving on to the next session.")
 
 
     # Annotation callbacks (wire to logic_saver later)
@@ -212,7 +233,12 @@ class UIElements(tk.Frame):
 
 
     def skip_session(self):
+        confirm = messagebox.askyesno("Skip Session", "Do you really want to skip this session?")
+        if not confirm:
+            return  # user canceled
+
         self.data_handler.skip_current_session()
+        messagebox.showinfo("Session Skipped", "This session was skipped. Next session will start now.")
         self.refresh()
 
     
