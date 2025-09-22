@@ -11,11 +11,7 @@ from config import DATASET_DIR
 dataset_path = DATASET_DIR
 saving_path = "/home/sarah/Documents/change_detection/label-image-change"
 
-from ui_styles import (
-    BUTTON_PADX, BUTTON_PADY, BUTTON_IPADY, OUTER_PADX,
-    STYLE_NOTHING, STYLE_CHAOS, STYLE_UNSURE,
-    STYLE_ANNOTATE, STYLE_DELETE, STYLE_RESET
-)
+from ui_styles import *
 
 class UIElements(tk.Frame):
     def __init__(self, root):
@@ -66,9 +62,16 @@ class UIElements(tk.Frame):
         self.columnconfigure(1, weight=0)  # content col
         self.columnconfigure(2, weight=1)  # right spacer
 
+        self.top_bar = tk.Frame(self)
+        self.top_bar.grid(row=0, column=0, columnspan=3, sticky="ew")
+
+        self.session_frame = SessionFrame(self.top_bar)
+        self.session_frame.pack(side="left", padx=10, pady=10)
+
         # --- Content frame (centered) ---
         self.content_frame = tk.Frame(self)
         self.content_frame.grid(row=1, column=1)
+
 
         # Canvases (images)
         self.canvas_frame = CanvasFrame(self.content_frame)
@@ -121,7 +124,7 @@ class UIElements(tk.Frame):
             self.canvas_frame.canvas_left,
             self.canvas_frame.canvas_right,
             pair,
-            self.data_handler.saver.annotations, # are read from the json
+            self.data_handler.saver.annotations,
             max_w=root_w,
             max_h=root_h
         )
@@ -130,10 +133,18 @@ class UIElements(tk.Frame):
             self.handler.selected_canvas = None
             self.handler.selected_image = None
 
+        # Pair-Status (unten in Navigation)
         self.status.update_status(
             self.data_handler.pairs.pair_idx,
             len(self.data_handler.pairs)
         )
+
+        current_session = self.data_handler.all_sessions.session_idx + 1
+        total_sessions = len(self.data_handler.all_sessions)
+        session_name = self.data_handler.current_session_info().session
+        self.session_frame.update_session(current_session, total_sessions, session_name)
+
+
 
 
 
@@ -239,6 +250,17 @@ class CanvasFrame(tk.Frame):
         self.parent.refresh()
         
 
+class SessionFrame(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.label_info = ttk.Label(self, text="", anchor="w", style=STYLE_SESSION)
+        self.label_info.pack()
+
+    def update_session(self, current_idx, total, session_name):
+        self.label_info.config(
+            text=f"Session {current_idx}/{total} - {session_name}"
+        )
+
 
 class NavigationFrame(tk.Frame):
     def __init__(self, parent, on_prev, on_next):
@@ -283,7 +305,7 @@ class AnnotationFrame(tk.Frame):
 class StatusFrame(tk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
-        self.label_info = ttk.Label(self, text="")
+        self.label_info = ttk.Label(self, text="", style=STYLE_STATUS)
         self.label_info.pack()
 
     def update_status(self, index, total):

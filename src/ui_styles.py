@@ -18,6 +18,10 @@ STYLE_ANNOTATE = "Annotate.TButton"
 STYLE_DELETE   = "Delete.TButton"
 STYLE_RESET    = "Reset.TButton"
 
+STYLE_SESSION = "Session.TLabel"
+STYLE_STATUS  = "Status.TLabel"
+
+
 def init_ttk_styles(root):
     """Initialisiere Theme + Styles"""
     s = ttk.Style(root)
@@ -35,3 +39,7 @@ def init_ttk_styles(root):
     s.configure(STYLE_ANNOTATE, background="#2ECC71", foreground="white", **base)
     s.configure(STYLE_DELETE,   background="#FF7580", foreground="white", **base)
     s.configure(STYLE_RESET,    background="#FF3B3B", foreground="white", **base)
+
+    # Labels
+    s.configure(STYLE_SESSION, font=("TkDefaultFont", 14, "bold"))
+    s.configure(STYLE_STATUS,  font=("TkDefaultFont", 12))
