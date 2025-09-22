@@ -11,6 +11,11 @@ from config import DATASET_DIR
 dataset_path = DATASET_DIR
 saving_path = "/home/sarah/Documents/change_detection/label-image-change"
 
+from ui_styles import (
+    BUTTON_PADX, BUTTON_PADY, BUTTON_IPADY, OUTER_PADX,
+    STYLE_NOTHING, STYLE_CHAOS, STYLE_UNSURE,
+    STYLE_ANNOTATE, STYLE_DELETE, STYLE_RESET
+)
 
 class UIElements(tk.Frame):
     def __init__(self, root):
@@ -255,14 +260,22 @@ class AnnotationFrame(tk.Frame):
             ("Reset", on_reset),
         ]
 
-        for col, (text, cmd) in enumerate(buttons):
-            btn = ttk.Button(self, text=text, command=cmd)
-            # Weniger horizontal spacing zwischen Buttons
-            btn.grid(row=0, column=col, padx=5, pady=10, sticky="nsew", ipady=6)
+        for col, (text, cmd, style) in enumerate([
+            ("Nothing Changed", lambda: on_mark("nothing"), STYLE_NOTHING),
+            ("Chaos", lambda: on_mark("chaos"), STYLE_CHAOS),
+            ("Unsure", lambda: on_mark("unsure"), STYLE_UNSURE),
+            ("Annotate", lambda: on_mark("annotated"), STYLE_ANNOTATE),
+            ("Delete Selected Box", on_delete, STYLE_DELETE),
+            ("Reset", on_reset, STYLE_RESET),
+        ]):
+            btn = ttk.Button(self, text=text, command=cmd, style=style)
+            btn.grid(row=0, column=col,
+                    padx=BUTTON_PADX, pady=BUTTON_PADY,
+                    sticky="nsew", ipady=BUTTON_IPADY)
             self.columnconfigure(col, weight=1)
 
-        # Trick: mehr Außenpadding über Rahmen
-        self.grid(sticky="ew", padx=100)   # hier mehr linker/rechter Rand
+        # Außenabstand für gesamte Leiste
+        self.grid(sticky="ew", padx=OUTER_PADX)
 
 
 

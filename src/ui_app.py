@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import ttk
 
 from ui_elements import UIElements
+from ui_styles import init_ttk_styles
+
+
 '''
 ui app
 initialize root for window (entry point)
@@ -14,7 +17,7 @@ class UIApp(tk.Tk):
     def __init__(self):
         super().__init__()
         # Root window
-
+        init_ttk_styles(self)
         self.title("Annotation Tool")
         self.geometry("1200x800")
         self.minsize(800, 600)      # don’t allow too tiny
