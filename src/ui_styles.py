@@ -21,6 +21,8 @@ STYLE_RESET    = "Reset.TButton"
 STYLE_SESSION = "Session.TLabel"
 STYLE_STATUS  = "Status.TLabel"
 
+STYLE_SKIP = "Skip.TButton"
+
 
 def init_ttk_styles(root):
     """Initialisiere Theme + Styles"""
@@ -43,3 +45,13 @@ def init_ttk_styles(root):
     # Labels
     s.configure(STYLE_SESSION, font=("TkDefaultFont", 14, "bold"))
     s.configure(STYLE_STATUS,  font=("TkDefaultFont", 12))
+
+    s.configure(
+    STYLE_SKIP,
+    background="#c50000",
+    foreground="white",
+    relief="flat",
+    borderwidth=1,
+    padding=(12, 8),
+    anchor="center",
+)

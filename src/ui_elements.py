@@ -71,7 +71,7 @@ class UIElements(tk.Frame):
         self.session_frame.pack(side="left", padx=10, pady=10)
 
 
-        self.skip_button = ttk.Button(self.top_bar, text="Skip Session",
+        self.skip_button = ttk.Button(self.top_bar, text="Skip Session", style=STYLE_SKIP,
                                     command=self.skip_session)
         self.skip_button.pack(side="right", padx=10, pady=10)
 
