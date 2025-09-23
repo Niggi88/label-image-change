@@ -62,7 +62,14 @@ class AnnotationSaver:
             "usable": self.annotations["_meta"].get("usable", True)  # default True
         })
 
+    def mark_session_unusable(self):
+        """Mark this session as unusable in annotations.json and save."""
+        if "_meta" not in self.annotations:
+            self.annotations["_meta"] = {}
 
+        self.annotations["_meta"]["usable"] = False
+        self._flush()
+        
     def save_box(self, pair, info, box, total_pairs, state="annotated"):
         """
         Save a single new box into annotations.json.

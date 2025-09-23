@@ -201,18 +201,10 @@ class DataHandler:
         return self.pairs.has_prev() or self.all_sessions.has_prev()
     
     def skip_current_session(self):
-        """Mark current session as unusable in its annotations.json."""
-        info = self.current_session_info()
-        saver = AnnotationSaver(info)
+        """Mark current session unusable and move to the next if available."""
+        self.saver.mark_session_unusable()
+        print(f"Session {self.current_session_info().session} marked as unusable.")
 
-        if "_meta" not in saver.annotations:
-            saver.annotations["_meta"] = {}
-
-        saver.annotations["_meta"]["usable"] = False
-        saver._flush()
-
-        print(f"Session {info.session} marked as unusable.")
-        # direkt zur nächsten Session springen
         if self.all_sessions.has_next():
             self.all_sessions.next()
             self._load_current_session_pairs()
