@@ -85,17 +85,35 @@ class SessionInfo:
     path: Path
 
 class SessionList:
-    def __init__(self, dataset_dir):
+    def __init__(self, dataset_dir, skip_completed=False):
         self.dataset_dir = Path(dataset_dir)
-        self.sessions = self.append_sessions()
+        self.sessions = self.append_sessions(skip_completed=skip_completed)
         self.session_idx = 0
 
-    def append_sessions(self):
+    def append_sessions(self, skip_completed=False):
         sessions = []
         for store in sorted(self.dataset_dir.glob("store_*")):
             for session in sorted(store.glob("session_*")):
-                sessions.append(SessionInfo(store=store.name, session=session.name, path=session)) 
+                info = SessionInfo(store=store.name, session=session.name, path=session)
+
+                if skip_completed:
+                    ann_file = session / "annotations.json"
+                    if ann_file.exists():
+                        import json
+                        try:
+                            with open(ann_file, "r") as f:
+                                data = json.load(f)
+                            meta = data.get("_meta", {})
+                            completed = meta.get("completed", False)
+                            usable = meta.get("usable", True)
+                            if completed or not usable:
+                                continue
+                        except Exception as e:
+                            print(f"Warning: could not read {ann_file}: {e}")
+
+                sessions.append(info)
         return sessions
+
 
     def current(self):
         return self.sessions[self.session_idx]
@@ -124,9 +142,9 @@ class SessionList:
 
 
 class DataHandler:
-    def __init__(self, dataset_dir):
+    def __init__(self, dataset_dir, skip_completed=False):
         self.dataset_dir = dataset_dir
-        self.all_sessions = SessionList(self.dataset_dir)
+        self.all_sessions = SessionList(self.dataset_dir, skip_completed=skip_completed)
 
         self.pairs = None
         self.total_pairs = None

@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 
 from ui_elements import UIElements
 from ui_styles import init_ttk_styles
@@ -26,8 +26,15 @@ class UIApp(tk.Tk):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
+        # ask at startup
+        skip_done = messagebox.askyesno(
+            "Skip Completed Sessions?",
+            "Do you want to skip sessions that are already completed or unusable?"
+        )
+
+        # pass choice into UIElements
+        self.ui_elements = UIElements(self, skip_completed=skip_done)
         # Haupt-UI
-        self.ui_elements = UIElements(self)
         self.ui_elements.grid(row=0, column=0, sticky="nsew")
 
 
