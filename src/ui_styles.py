@@ -70,7 +70,7 @@ def init_ttk_styles(root):
 
     s.configure(
         STYLE_NAV,
-        background="#e0e0e0",
+        background="#f5f5f5",
         foreground="black",
         relief="flat",
         borderwidth=0,
