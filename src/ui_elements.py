@@ -97,14 +97,14 @@ class UIElements(tk.Frame):
         self.nav_bar = tk.Frame(self.content_frame)
         self.nav_bar.grid(row=2, column=0, columnspan=2, pady=(10, 20))
 
-        self.prev_btn = ttk.Button(self.nav_bar, text="Prev", command=self.prev_pair)
-        self.prev_btn.pack(side="left", padx=10)
+        self.prev_btn = ttk.Button(self.nav_bar, text="Prev", style=STYLE_NAV, command=self.prev_pair)
+        self.prev_btn.pack(side="left", padx=30, pady=15)
 
         self.status = StatusFrame(self.nav_bar)
         self.status.pack(side="left", padx=10)
 
-        self.next_btn = ttk.Button(self.nav_bar, text="Next", command=self.next_pair)
-        self.next_btn.pack(side="left", padx=10)
+        self.next_btn = ttk.Button(self.nav_bar, text="Next", style=STYLE_NAV, command=self.next_pair)
+        self.next_btn.pack(side="left", padx=30, pady=15)
 
 
         # --- Keyboard Shortcuts ---
