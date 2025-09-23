@@ -4,7 +4,7 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 from logic_data_handler import DataHandler
 from logic_saver import AnnotationSaver
-from ui_annotation import BoxHandler, Flickerer
+from ui_annotation import BoxHandler, Flickerer, Crosshair
 from ui_annotation_displayer import AnnotationDisplayer
 from config import DATASET_DIR
 from tkinter import messagebox
@@ -292,6 +292,10 @@ class CanvasFrame(tk.Frame):
         # Important: sticky="nsew" lets canvases stretch fully
         self.canvas_left.grid(row=0, column=0)
         self.canvas_right.grid(row=0, column=1)
+
+        self.crosshair_left = Crosshair(self.canvas_left)
+        self.crosshair_right = Crosshair(self.canvas_right)
+
 
     def _scale_image(self, pil_img, max_w, max_h):
         w, h = pil_img.size

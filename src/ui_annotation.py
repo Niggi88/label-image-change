@@ -1,5 +1,6 @@
 import uuid
 from ui_annotation_displayer import AnnotationDisplayer
+import tkinter as tk
 
 class BoxHandler:
     def __init__(self, data_handler, saver, ui=None):
@@ -294,3 +295,46 @@ class Flickerer:
         else:
             self.start_flicker(canvas, pair, w, h, interval)
 
+
+
+class Crosshair:
+    def __init__(self, canvas: tk.Canvas, color="gray", width=8):
+        self.canvas = canvas
+        self.color = color
+        self.width = width
+
+        self._hline = None
+        self._vline = None
+
+        # Binde Mausbewegung
+        self.canvas.bind("<Motion>", self._on_mouse_move)
+        # Crosshair verschwindet, wenn Maus den Canvas verlässt
+        self.canvas.bind("<Leave>", self._on_mouse_leave)
+
+    def _on_mouse_move(self, event):
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+
+        # Existierende Linien löschen
+        if self._hline is not None:
+            self.canvas.delete(self._hline)
+        if self._vline is not None:
+            self.canvas.delete(self._vline)
+
+        # Neue Linien zeichnen
+        self._hline = self.canvas.create_line(
+            0, event.y, w, event.y,
+            fill=self.color, width=self.width, dash=(2, 2)
+        )
+        self._vline = self.canvas.create_line(
+            event.x, 0, event.x, h,
+            fill=self.color, width=self.width, dash=(2, 2)
+        )
+
+    def _on_mouse_leave(self, event):
+        if self._hline is not None:
+            self.canvas.delete(self._hline)
+            self._hline = None
+        if self._vline is not None:
+            self.canvas.delete(self._vline)
+            self._vline = None
