@@ -16,7 +16,7 @@ saving_path = "/home/sarah/Documents/change_detection/label-image-change"
 from src.ui.ui_styles import *
 
 class UIElements(tk.Frame):
-    def __init__(self, root, skip_completed=False):
+    def __init__(self, root, data_handler=None, skip_completed=False):
         super().__init__(root)
 
         # Make root window resizable
@@ -29,7 +29,11 @@ class UIElements(tk.Frame):
         self.rowconfigure(1, weight=0)   # bottom frame (controls) fixed
         self.columnconfigure(0, weight=1)
 
-        self.data_handler = SessionDataHandler(dataset_path, skip_completed=skip_completed)
+        if data_handler is not None:
+            self.data_handler = data_handler
+        else:
+            self.data_handler = SessionDataHandler(dataset_path, skip_completed=skip_completed)
+        
         self.handler = BoxHandler(self.data_handler, self.data_handler.saver, ui=self)
         self.displayer = AnnotationDisplayer()
         self.data_handler.saver.set_on_change(self.refresh)

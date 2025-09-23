@@ -250,3 +250,97 @@ class SessionDataHandler(BaseDataHandler):
 
 
 
+from urllib.parse import urljoin
+import requests
+
+
+class BatchDataHandler(BaseDataHandler):
+    """
+    Gemeinsame Logik für Batch-basierte Review Modi (unsure, inconsistent).
+    Holt Paare vom API-Server in Batches und erlaubt Navigation.
+    """
+
+    def __init__(self, api_base: str, batch_type: str, user: str, size: int = 20):
+        self.api_base = api_base.rstrip("/")
+        self.batch_type = batch_type
+        self.user = user
+        self.size = size
+
+        self.pairs = []
+        self.idx = 0
+        self.batch_id = None
+        self.meta = {}
+
+        self.load_current_pairs()
+
+    # ------------------------------
+    # Pflichtmethoden aus BaseDataHandler
+    # ------------------------------
+
+    def load_current_pairs(self):
+        """Hole ein neues Batch vom API-Server."""
+        path = f"/{self.batch_type}/batch"
+        url = urljoin(self.api_base + "/", path.lstrip("/"))
+        resp = requests.get(url, params={"user": self.user, "size": self.size}, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+
+        self.batch_id = data.get("batch_id")
+        self.meta = data
+        self.pairs = data.get("items", [])
+        self.idx = 0
+
+    def current_pair(self):
+        if not self.pairs:
+            return None
+        return self.pairs[self.idx]
+
+    def next_pair(self):
+        if self.idx < len(self.pairs) - 1:
+            self.idx += 1
+        return self.current_pair()
+
+    def prev_pair(self):
+        if self.idx > 0:
+            self.idx -= 1
+        return self.current_pair()
+
+    def has_next_pair_global(self) -> bool:
+        return self.idx < len(self.pairs) - 1
+
+    def has_prev_pair_global(self) -> bool:
+        return self.idx > 0
+
+    # ------------------------------
+    # Review-spezifische Funktion
+    # ------------------------------
+
+    def upload_results(self, results: dict):
+        """
+        Ergebnisse für das Batch hochladen.
+        results: Dict[str, Any], keys = "store_session_path|pair_id"
+        """
+        if not self.batch_id:
+            raise RuntimeError("Kein aktives Batch geladen")
+
+        path = f"/batches/{self.batch_id}/results"
+        url = urljoin(self.api_base + "/", path.lstrip("/"))
+        resp = requests.post(url, json=results, timeout=30)
+        resp.raise_for_status()
+        return resp.json()
+
+
+# ------------------------------
+# Spezialisierungen
+# ------------------------------
+
+class UnsureDataHandler(BatchDataHandler):
+    """Datenquelle für Unsure-Batches."""
+    def __init__(self, api_base: str, user: str, size: int = 20):
+        super().__init__(api_base, "unsure", user, size)
+
+
+class InconsistentDataHandler(BatchDataHandler):
+    """Datenquelle für Inconsistent-Batches."""
+    def __init__(self, api_base: str, user: str, size: int = 20):
+        super().__init__(api_base, "inconsistent", user, size)
