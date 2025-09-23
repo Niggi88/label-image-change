@@ -2,18 +2,18 @@
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
-from logic_data_handler import DataHandler
-from logic_saver import AnnotationSaver
-from ui_annotation import BoxHandler, Flickerer, Crosshair
-from ui_annotation_displayer import AnnotationDisplayer
-from config import DATASET_DIR
+from src.logic_annotation.logic_data_handler import DataHandler
+from src.logic_annotation.logic_saver import AnnotationSaver
+from src.ui.ui_annotation import BoxHandler, Flickerer, Crosshair
+from src.ui.ui_annotation_displayer import AnnotationDisplayer
+from src.config import DATASET_DIR
 from tkinter import messagebox
 
 
 dataset_path = DATASET_DIR
 saving_path = "/home/sarah/Documents/change_detection/label-image-change"
 
-from ui_styles import *
+from src.ui.ui_styles import *
 
 class UIElements(tk.Frame):
     def __init__(self, root, skip_completed=False):
@@ -40,7 +40,7 @@ class UIElements(tk.Frame):
         self.bottom_frame = tk.Frame(self)
 
         # Canvases (inside top_frame)
-        self.canvas_frame = CanvasFrame(self.top_frame)
+        self.canvas_frame = CanvasFrame(self.top_frame, parent_ui=self)
 
         # Controls (inside bottom_frame)
         self.nav_frame = NavigationFrame(self.bottom_frame,
@@ -82,7 +82,7 @@ class UIElements(tk.Frame):
 
 
         # Canvases (images)
-        self.canvas_frame = CanvasFrame(self.content_frame)
+        self.canvas_frame = CanvasFrame(self.content_frame, parent_ui=self)
         self.canvas_frame.grid(row=0, column=0, sticky="n")
 
         # Annotation buttons
@@ -282,9 +282,9 @@ class UIElements(tk.Frame):
 
 
 class CanvasFrame(tk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.parent = parent
+    def __init__(self, master, parent_ui):
+        super().__init__(master)
+        self.parent_ui = parent_ui
         self._images = []
 
                # Make two equal columns that expand
@@ -314,7 +314,7 @@ class CanvasFrame(tk.Frame):
         """Attach existing handler to canvases and redraw boxes."""
         handler.attach_to_canvas(self.canvas_left, pair.image1)
         handler.attach_to_canvas(self.canvas_right, pair.image2)
-        self.parent.refresh()
+        self.parent_ui.refresh()
         
 
 class SessionFrame(tk.Frame):

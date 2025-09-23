@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from ui_elements import UIElements
-from ui_styles import init_ttk_styles
+from src.ui.ui_elements import UIElements
+from src.ui.ui_styles import init_ttk_styles
 
 
 '''

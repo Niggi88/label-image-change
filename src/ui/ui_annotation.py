@@ -1,5 +1,5 @@
 import uuid
-from ui_annotation_displayer import AnnotationDisplayer
+from src.ui.ui_annotation_displayer import AnnotationDisplayer
 import tkinter as tk
 
 class BoxHandler:

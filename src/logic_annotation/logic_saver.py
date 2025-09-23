@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 import uuid
-import config
+import src.config
 from datetime import datetime
 
 
@@ -58,7 +58,7 @@ class AnnotationSaver:
         self.annotations["_meta"].update({
             "completed": completed,
             "timestamp": datetime.now().isoformat(),
-            "root": str(config.DATASET_DIR),
+            "root": str(src.config.DATASET_DIR),
             "usable": self.annotations["_meta"].get("usable", True)  # default True
         })
 

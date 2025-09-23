@@ -1,7 +1,7 @@
 from pathlib import Path
 from PIL import Image
 from dataclasses import dataclass
-from logic_saver import AnnotationSaver
+from src.logic_annotation.logic_saver import AnnotationSaver
 
 
 
