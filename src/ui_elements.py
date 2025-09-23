@@ -54,7 +54,7 @@ class UIElements(tk.Frame):
 
         # Bind keys
         root.bind("<space>", self.toggle_flicker)
-        root.bind("<Configure>", self.on_resize)
+        root.bind("<Configure>", self._on_resize)
 
         # --- Main layout: a 3x3 grid to center everything ---
         self.rowconfigure(0, weight=1)   # top spacer
@@ -122,11 +122,17 @@ class UIElements(tk.Frame):
 
 
 
-    def on_resize(self, event):
-        if event.widget == self.winfo_toplevel():
-            if hasattr(self, "_resize_after_id"):
-                self.after_cancel(self._resize_after_id)
-            self._resize_after_id = self.after(200, self.refresh)  # 200ms delay
+    def _on_resize(self, event=None):
+        # cancel pending refresh if still waiting
+        if hasattr(self, "_resize_job") and self._resize_job:
+            self.after_cancel(self._resize_job)
+
+        # schedule refresh shortly after resizing finished
+        self._resize_job = self.after(200, self._refresh_after_resize)
+
+    def _refresh_after_resize(self):
+        self._resize_job = None
+        self.refresh()
             
     def refresh(self):
         print("refreshing")
