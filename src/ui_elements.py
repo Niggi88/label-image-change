@@ -107,6 +107,16 @@ class UIElements(tk.Frame):
         self.next_btn.pack(side="left", padx=10)
 
 
+        # --- Keyboard Shortcuts ---
+        root.bind("a", lambda e: self.mark_state("annotated"))   # A = Annotate
+        root.bind("n", lambda e: self.mark_state("nothing"))     # N = Nothing
+        root.bind("c", lambda e: self.mark_state("chaos"))       # C = Chaos
+        root.bind("u", lambda e: self.mark_state("no_annotation")) # U = Unsure/No Annotation
+        root.bind("d", lambda e: self.delete_box())              # D = Delete selected box
+        root.bind("x", lambda e: self.reset_pair())              # X = Reset pair
+        root.bind("f", lambda e: self.next_pair())               # F = Next pair
+        root.bind("s", lambda e: self.prev_pair())               # S = Previous pair
+
 
         self.refresh()
 
