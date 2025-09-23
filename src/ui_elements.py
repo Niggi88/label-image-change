@@ -152,7 +152,7 @@ class UIElements(tk.Frame):
         session_name = self.data_handler.current_session_info().session
         self.session_frame.update_session(current_session, total_sessions, session_name)
 
-
+        self.canvas_frame.canvas_right.focus_set()
 
 
 
