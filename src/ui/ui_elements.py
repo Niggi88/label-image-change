@@ -2,7 +2,7 @@
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
-from src.logic_annotation.logic_data_handler import DataHandler
+from src.logic_annotation.logic_data_handler import SessionDataHandler
 from src.logic_annotation.logic_saver import AnnotationSaver
 from src.ui.ui_annotation import BoxHandler, Flickerer, Crosshair
 from src.ui.ui_annotation_displayer import AnnotationDisplayer
@@ -29,7 +29,7 @@ class UIElements(tk.Frame):
         self.rowconfigure(1, weight=0)   # bottom frame (controls) fixed
         self.columnconfigure(0, weight=1)
 
-        self.data_handler = DataHandler(dataset_path, skip_completed=skip_completed)
+        self.data_handler = SessionDataHandler(dataset_path, skip_completed=skip_completed)
         self.handler = BoxHandler(self.data_handler, self.data_handler.saver, ui=self)
         self.displayer = AnnotationDisplayer()
         self.data_handler.saver.set_on_change(self.refresh)
