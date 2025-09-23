@@ -29,7 +29,7 @@ class UIApp(tk.Tk):
         # ask at startup
         skip_done = messagebox.askyesno(
             "Skip Completed Sessions?",
-            "Do you want to skip sessions that are already completed or unusable?"
+            "Do you want to skip sessions that are already completed?"
         )
 
         # pass choice into UIElements
