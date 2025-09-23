@@ -2,8 +2,46 @@ from pathlib import Path
 from PIL import Image
 from dataclasses import dataclass
 from src.logic_annotation.logic_saver import AnnotationSaver
+from abc import ABC, abstractmethod
 
+class BaseDataHandler(ABC):
+    """
+    Abstract interface for data handlers.
+    Both SessionDataHandler and BatchDataHandler must implement these methods.
+    """
 
+    @abstractmethod
+    def current_pair(self):
+        """Return the current ImagePair."""
+        pass
+
+    @abstractmethod
+    def next_pair(self):
+        """Move to the next pair and return it."""
+        pass
+
+    @abstractmethod
+    def prev_pair(self):
+        """Move to the previous pair and return it."""
+        pass
+
+    @abstractmethod
+    def has_next_pair_global(self) -> bool:
+        """Return True if there is another pair after the current one."""
+        pass
+
+    @abstractmethod
+    def has_prev_pair_global(self) -> bool:
+        """Return True if there is another pair before the current one."""
+        pass
+
+    @abstractmethod
+    def load_current_pairs(self):
+        """
+        Load the pairs relevant to the current context 
+        (e.g. session or batch).
+        """
+        pass
 
 class AnnotatableImage:
     def __init__(self, img_path, image_id):
@@ -141,7 +179,7 @@ class SessionList:
 
 
 
-class DataHandler:
+class SessionDataHandler(BaseDataHandler):
     def __init__(self, dataset_dir, skip_completed=False):
         self.dataset_dir = dataset_dir
         self.all_sessions = SessionList(self.dataset_dir, skip_completed=skip_completed)
@@ -149,11 +187,11 @@ class DataHandler:
         self.pairs = None
         self.total_pairs = None
 
-        self._load_current_session_pairs()
+        self.load_current_pairs()
 
         self.saver = AnnotationSaver(self.current_session_info())
 
-    def _load_current_session_pairs(self):
+    def load_current_pairs(self):
         info = self.all_sessions.current()
         self.pairs = ImagePairList(info.path)
         self.total_pairs = len(self.pairs)
@@ -176,7 +214,7 @@ class DataHandler:
         # when last pair in session -> session over
         if self.all_sessions.next():
             print("start next session")
-            self._load_current_session_pairs()
+            self.load_current_pairs()
             self.saver = AnnotationSaver(self.current_session_info())
             return self.pairs.first() if len(self.pairs) else None
         
@@ -188,7 +226,7 @@ class DataHandler:
         if prv: return prv
         if self.all_sessions.prev():
             print("go back to previous session")
-            self._load_current_session_pairs()
+            self.load_current_pairs()
             self.saver = AnnotationSaver(self.current_session_info())
             return self.pairs.last() if len(self.pairs) else None
         return None  # start of all data
@@ -207,5 +245,8 @@ class DataHandler:
 
         if self.all_sessions.has_next():
             self.all_sessions.next()
-            self._load_current_session_pairs()
+            self.load_current_pairs()
             self.saver = AnnotationSaver(self.current_session_info())
+
+
+
