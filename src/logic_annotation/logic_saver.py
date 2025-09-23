@@ -4,8 +4,37 @@ import uuid
 import src.config
 from datetime import datetime
 
+from abc import ABC, abstractmethod
+class BaseSaver(ABC):
+    @abstractmethod
+    def save_pair(self):
+        pass
 
-class AnnotationSaver:
+    @abstractmethod
+    def set_on_change(self):
+        pass
+
+    @abstractmethod
+    def _flush(self):
+        pass
+
+    @abstractmethod
+    def update_meta(self):
+        pass
+
+    @abstractmethod
+    def save_box(self):
+        pass
+
+    @abstractmethod
+    def save_delete_box(self):
+        pass
+
+    @abstractmethod
+    def reset_pair(self):
+        pass
+
+class AnnotationSaver(BaseSaver):
     def __init__(self, info):
         
         self.saving_path = Path(info.path)
@@ -69,7 +98,7 @@ class AnnotationSaver:
 
         self.annotations["_meta"]["usable"] = False
         self._flush()
-        
+
     def save_box(self, pair, info, box, total_pairs, state="annotated"):
         """
         Save a single new box into annotations.json.
@@ -138,3 +167,5 @@ class AnnotationSaver:
         self.annotations[pid]["boxes"] = []
 
         self._flush()
+
+
