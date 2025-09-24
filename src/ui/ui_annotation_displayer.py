@@ -50,7 +50,12 @@ class AnnotationDisplayer:
         return pil_img.resize((max_w, max_h), Image.Resampling.LANCZOS)
 
     def _draw_image(self, canvas, annot_img, max_w, max_h):
-        pil_img = Image.open(annot_img.img_path)
+
+        if hasattr(annot_img, "load_image"):
+            pil_img = annot_img.load_image()
+        else:
+            pil_img = Image.open(annot_img.img_path)
+            
         orig_w, orig_h = pil_img.size
         canvas.img_size = (orig_w, orig_h)  # store true image size
 

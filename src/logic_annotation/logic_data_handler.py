@@ -1,8 +1,12 @@
 from pathlib import Path
 from PIL import Image
 from dataclasses import dataclass
-from src.logic_annotation.logic_saver import AnnotationSaver
+from src.logic_annotation.logic_saver import AnnotationSaver, InconsistentSaver, UnsureSaver
 from abc import ABC, abstractmethod
+from src.config import LOCAL_LOG_DIR
+from io import BytesIO
+
+
 
 class BaseDataHandler(ABC):
     """
@@ -52,19 +56,85 @@ class AnnotatableImage:
         self.image_id = image_id
 
 
+class RemoteAnnotatableImage(AnnotatableImage):
+    """For API-served images (http/https)."""
+    def __init__(self, url: str, image_id: int, api_base: str = None):
+        self.url = url if url.startswith("http") else f"{api_base.rstrip('/')}/{url.lstrip('/')}"
+        self.img_name = Path(url).name
+        self.img_path = None  # no local path
+        self.boxes = []
+        self.image_id = image_id
+        self._img_size = None  # lazy loaded
 
+    @property
+    def img_size(self):
+        if self._img_size is None:
+            pil_img = self.load_image()
+            self._img_size = pil_img.size
+        return self._img_size
+
+    def load_image(self):
+        resp = requests.get(self.url, timeout=30)
+        resp.raise_for_status()
+        return Image.open(BytesIO(resp.content))
+    
 
 class ImagePair:
-    def __init__(self, pair_id, img1_path, img2_path):
-
+    def __init__(self, pair_id, img1_path, img2_path, remote=False, api_base=None):
         self.pair_id = pair_id
-        self.image1 = AnnotatableImage(img1_path, image_id=1)
-        self.image2 = AnnotatableImage(img2_path, image_id=2)
+        if remote:
+            self.image1 = RemoteAnnotatableImage(img1_path, image_id=1, api_base=api_base)
+            self.image2 = RemoteAnnotatableImage(img2_path, image_id=2, api_base=api_base)
+        else:
+            self.image1 = AnnotatableImage(img1_path, image_id=1)
+            self.image2 = AnnotatableImage(img2_path, image_id=2)
 
         self.pair_annotation = None
 
     def update_pair_annotation(self, state: str):
         self.pair_annotation = state
+
+
+class BatchImagePairList:
+    """Wrapper around a list of ImagePairs for batch mode, with same API as ImagePairList."""
+
+    def __init__(self, image_pairs):
+        self.image_pairs = image_pairs
+        self.pair_idx = 0
+
+    def current(self):
+        return self.image_pairs[self.pair_idx]
+
+    def has_next(self):
+        return self.pair_idx < len(self.image_pairs) - 1
+
+    def has_prev(self):
+        return self.pair_idx > 0
+
+    def next(self):
+        if self.has_next():
+            self.pair_idx += 1
+            return self.current()
+        return None
+
+    def prev(self):
+        if self.has_prev():
+            self.pair_idx -= 1
+            return self.current()
+        return None
+
+    def first(self):
+        self.pair_idx = 0
+        return self.current() if self.image_pairs else None
+
+    def last(self):
+        self.pair_idx = len(self.image_pairs) - 1
+        return self.current() if self.image_pairs else None
+
+    def __len__(self):
+        return len(self.image_pairs)
+
+
 
 class ImagePairList:
     '''
@@ -260,11 +330,13 @@ class BatchDataHandler(BaseDataHandler):
     Holt Paare vom API-Server in Batches und erlaubt Navigation.
     """
 
-    def __init__(self, api_base: str, batch_type: str, user: str, size: int = 20):
+    def __init__(self, api_base: str, batch_type: str, user: str, size: int = 20, saver_cls=None):
         self.api_base = api_base.rstrip("/")
         self.batch_type = batch_type
         self.user = user
         self.size = size
+        self.saver = None  # attach later
+        self.saver_cls = saver_cls
 
         self.pairs = []
         self.idx = 0
@@ -273,12 +345,8 @@ class BatchDataHandler(BaseDataHandler):
 
         self.load_current_pairs()
 
-    # ------------------------------
-    # Pflichtmethoden aus BaseDataHandler
-    # ------------------------------
-
     def load_current_pairs(self):
-        """Hole ein neues Batch vom API-Server."""
+        """Fetch a new batch from the API and wrap into BatchImagePairList."""
         path = f"/{self.batch_type}/batch"
         url = urljoin(self.api_base + "/", path.lstrip("/"))
         resp = requests.get(url, params={"user": self.user, "size": self.size}, timeout=30)
@@ -287,29 +355,41 @@ class BatchDataHandler(BaseDataHandler):
 
         self.batch_id = data.get("batch_id")
         self.meta = data
-        self.pairs = data.get("items", [])
-        self.idx = 0
 
+        pairs = []
+        for item in data.get("items", []):
+            pair = ImagePair(
+                pair_id=item["pair_id"],
+                img1_path=item["im1_url"],
+                img2_path=item["im2_url"],
+                remote=True,
+                api_base=self.api_base
+            )
+            pair.expected = item.get("expected")
+            pair.predicted = item.get("predicted")
+            pair.annotated_by = item.get("annotated_by")
+            pair.model_name = item.get("model_name")
+            pair.source_item = item
+            pairs.append(pair)
+
+        # Wrap in BatchImagePairList
+        self.pairs = BatchImagePairList(pairs)
+
+    # --- Delegate to BatchImagePairList instead of indexing ---
     def current_pair(self):
-        if not self.pairs:
-            return None
-        return self.pairs[self.idx]
+        return self.pairs.current() if self.pairs else None
 
     def next_pair(self):
-        if self.idx < len(self.pairs) - 1:
-            self.idx += 1
-        return self.current_pair()
+        return self.pairs.next() if self.pairs else None
 
     def prev_pair(self):
-        if self.idx > 0:
-            self.idx -= 1
-        return self.current_pair()
+        return self.pairs.prev() if self.pairs else None
 
     def has_next_pair_global(self) -> bool:
-        return self.idx < len(self.pairs) - 1
+        return self.pairs.has_next() if self.pairs else False
 
     def has_prev_pair_global(self) -> bool:
-        return self.idx > 0
+        return self.pairs.has_prev() if self.pairs else False
 
     # ------------------------------
     # Review-spezifische Funktion
@@ -335,12 +415,11 @@ class BatchDataHandler(BaseDataHandler):
 # ------------------------------
 
 class UnsureDataHandler(BatchDataHandler):
-    """Datenquelle für Unsure-Batches."""
     def __init__(self, api_base: str, user: str, size: int = 20):
-        super().__init__(api_base, "unsure", user, size)
-
+        super().__init__(api_base, "unsure", user, size, saver_cls=UnsureSaver)
+        self.saver = UnsureSaver(self.meta, LOCAL_LOG_DIR)
 
 class InconsistentDataHandler(BatchDataHandler):
-    """Datenquelle für Inconsistent-Batches."""
     def __init__(self, api_base: str, user: str, size: int = 20):
-        super().__init__(api_base, "inconsistent", user, size)
+        super().__init__(api_base, "inconsistent", user, size, saver_cls=InconsistentSaver)
+        self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR)

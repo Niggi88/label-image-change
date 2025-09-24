@@ -167,10 +167,21 @@ class UIElements(tk.Frame):
             len(self.data_handler.pairs)
         )
 
-        current_session = self.data_handler.all_sessions.session_idx + 1
-        total_sessions = len(self.data_handler.all_sessions)
-        session_name = self.data_handler.current_session_info().session
-        self.session_frame.update_session(current_session, total_sessions, session_name)
+          # --- Session vs Batch ---
+        if hasattr(self.data_handler, "all_sessions"):  
+            # Normal annotation mode
+            current_session = self.data_handler.all_sessions.session_idx + 1
+            total_sessions = len(self.data_handler.all_sessions)
+            session_name = self.data_handler.current_session_info().session
+            self.session_frame.update_session(current_session, total_sessions, session_name)
+        else:
+            # Review mode (batch)
+            batch_id = getattr(self.data_handler, "batch_id", "unknown")
+            batch_type = getattr(self.data_handler, "batch_type", "batch")
+            total_pairs = len(self.data_handler.pairs)
+            current_pair_idx = self.data_handler.pairs.pair_idx + 1
+            session_name = f"Batch {batch_type}:{batch_id} ({current_pair_idx}/{total_pairs})"
+            self.session_frame.update_session(1, 1, session_name)
 
         self.canvas_frame.canvas_right.focus_set()
 
