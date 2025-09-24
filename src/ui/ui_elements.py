@@ -204,8 +204,8 @@ class UIElements(tk.Frame):
             total_pairs = len(self.data_handler.pairs)
             self.data_handler.saver.save_pair(
                 current,
-                self.data_handler.current_session_info(),
                 "no_annotation",
+                self.data_handler.current_session_info(),
                 total_pairs,
             )
 
@@ -234,8 +234,8 @@ class UIElements(tk.Frame):
             total_pairs = len(self.data_handler.pairs)
             self.data_handler.saver.save_pair(
                 current,
-                self.data_handler.current_session_info(),
                 "no_annotation",
+                self.data_handler.current_session_info(),
                 total_pairs,
             )
 
@@ -250,7 +250,7 @@ class UIElements(tk.Frame):
     def mark_state(self, state):
         pair = self.data_handler.current_pair()
         total_pairs = len(self.data_handler.pairs)
-        self.data_handler.saver.save_pair(pair, self.data_handler.current_session_info(), state, total_pairs)
+        self.data_handler.saver.save_pair(pair, state, self.data_handler.current_session_info(), total_pairs)
         if state == "annotated":
             # enable box drawing only when "Annotate" pressed
             self.canvas_frame.attach_boxes(self.handler, pair)
