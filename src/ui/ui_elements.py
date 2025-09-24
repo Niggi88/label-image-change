@@ -162,16 +162,16 @@ class UIElements(tk.Frame):
             self.handler.selected_image = None
 
           # --- Session vs Batch ---
-        info = self.data_handler.progress_info()
+        info = self.data_handler.context_info()
 
         self.status.update_status(
-            info["current_index"],
-            info["total"]
+            info["progress"]["current_index"],
+            info["progress"]["total"]
         )
         self.session_frame.update_session(
-            info["current_index"],
-            info["total"],
-            info["label"]
+            info["progress"]["current_index"],
+            info["progress"]["total"],
+            info["progress"]["label"]
         )
 
         self.canvas_frame.canvas_right.focus_set()
@@ -179,7 +179,7 @@ class UIElements(tk.Frame):
 
 
     def prev_pair(self):
-        old_info = self.data_handler.progress_info()
+        old_info = self.data_handler.context_info()
 
         if self.data_handler.has_prev_pair_global():
             current = self.data_handler.prev_pair()
@@ -196,20 +196,19 @@ class UIElements(tk.Frame):
                 current,
                 "no_annotation",
                 self.data_handler.context_info(),
-                old_info["total"],
             )
 
         self.refresh()
 
         # detect transition
-        new_info = self.data_handler.progress_info()
+        new_info = self.data_handler.context_info()
         if new_info["label"] != old_info["label"]:
             messagebox.showinfo("Previous", f"Moved back to {new_info['label']}.")
 
 
 
     def next_pair(self):
-        old_info = self.data_handler.progress_info()
+        old_info = self.data_handler.context_info()
 
         if self.data_handler.has_next_pair_global():
             current = self.data_handler.next_pair()
@@ -226,14 +225,13 @@ class UIElements(tk.Frame):
                 current,
                 "no_annotation",
                 self.data_handler.context_info(),
-                old_info["total"],
             )
 
         self.refresh()
 
         # detect transition
-        new_info = self.data_handler.progress_info()
-        if new_info["label"] != old_info["label"]:
+        new_info = self.data_handler.context_info()
+        if new_info["progress"]["label"] != old_info["progress"]["label"]:
             messagebox.showinfo("Next", f"Moved on to {new_info['label']}.")
 
 
@@ -241,7 +239,7 @@ class UIElements(tk.Frame):
     def mark_state(self, state):
         pair = self.data_handler.current_pair()
         total_pairs = len(self.data_handler.pairs)
-        self.data_handler.saver.save_pair(pair, state, self.data_handler.context_info(), total_pairs)
+        self.data_handler.saver.save_pair(pair, state, self.data_handler.context_info())
         if state == "annotated":
             # enable box drawing only when "Annotate" pressed
             self.canvas_frame.attach_boxes(self.handler, pair)
@@ -259,7 +257,8 @@ class UIElements(tk.Frame):
 
     def reset_pair(self):
         pair = self.data_handler.current_pair()
-        self.data_handler.saver.reset_pair(pair)
+        ctx = self.data_handler.context_info()
+        self.data_handler.saver.reset_pair(pair, ctx)
         print("Reset boxes")
 
 

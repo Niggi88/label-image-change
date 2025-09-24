@@ -55,17 +55,7 @@ class BaseDataHandler(ABC):
     def current_session_index(self):
         """Return (current_idx, total, session_name) or None if not applicable."""
         return None
-    
-    @abstractmethod
-    def progress_info(self) -> dict:
-        """
-        Return info for the UI to show progress/status.
-        Example keys:
-            - current_index: int
-            - total: int
-            - label: str (session name or batch id)
-        """
-        pass
+
 
 
 class AnnotatableImage:
@@ -348,13 +338,15 @@ class SessionDataHandler(BaseDataHandler):
             self.saver = AnnotationSaver(self.current_session_info())
 
 
-    def progress_info(self):
+    def context_info(self):
         return {
-            "current_index": self.all_sessions.session_idx + 1,
-            "total": len(self.all_sessions),
-            "label": self.current_session_info().session
+            "progress": {
+                "current_index": self.all_sessions.session_idx + 1,
+                "total": len(self.pairs),
+                "label": self.current_session_info().session,
+            },
+            "session_info": self.current_session_info()
         }
-    
 
 from urllib.parse import urljoin
 import requests
@@ -430,12 +422,16 @@ class BatchDataHandler(BaseDataHandler):
     def current_session_index(self):
         return None  # no sessions in review mode
     
-    def progress_info(self):
+    def context_info(self):
         return {
-            "current_index": self.pairs.pair_idx + 1 if self.pairs else 0,
-            "total": len(self.pairs),
-            "label": f"Batch {self.batch_id}" if self.batch_id else "Batch"
+            "progress": {
+                "current_index": self.pairs.pair_idx + 1 if self.pairs else 0,
+                "total": len(self.pairs),
+                "label": f"Batch {self.batch_id}" if self.batch_id else "Batch",
+            },
+            "batch_meta": self.meta,
         }
+    
     # ------------------------------
     # Review-spezifische Funktion
     # ------------------------------
