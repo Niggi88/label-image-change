@@ -76,8 +76,16 @@ class CommonSaver(BaseSaver):
         self._flush()
 
     def reset_pair(self, pair, context):
+        pid = str(pair.pair_id)
         if str(pair.pair_id) in self.annotations["items"]:
-            self.annotations["items"].pop(str(pair.pair_id))
+            self.annotations["items"][pid] = {
+                "pair_state": "no_annotation",
+                "boxes": [],
+                "timestamp": datetime.now().isoformat(),
+            }
+            # clear boxes in memory
+            pair.image1.boxes.clear()
+            pair.image2.boxes.clear()
             self._flush()
 
     # meta must be customized in children
