@@ -402,6 +402,8 @@ class BatchDataHandler(BaseDataHandler):
 
         # Wrap in BatchImagePairList
         self.pairs = BatchImagePairList(pairs)
+        print("Loaded batch with", len(self.pairs), "pairs, starting at index", self.pairs.pair_idx)
+
 
     # --- Delegate to BatchImagePairList instead of indexing ---
     def current_pair(self):
@@ -460,13 +462,10 @@ class UnsureDataHandler(BatchDataHandler):
         super().__init__(api_base, "unsure", user, size, saver_cls=UnsureSaver)
         self.saver = UnsureSaver(self.meta, LOCAL_LOG_DIR)
 
-    def context_info(self):
-        return self.meta
+
 
 class InconsistentDataHandler(BatchDataHandler):
     def __init__(self, api_base: str, user: str, size: int = 20):
         super().__init__(api_base, "inconsistent", user, size, saver_cls=InconsistentSaver)
         self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR)
 
-    def context_info(self):
-        return self.meta

@@ -148,11 +148,14 @@ class UIElements(tk.Frame):
         if root_w <= 1 or root_h <= 1:
             root_w, root_h = 1200, 800
 
+        ann_all = self.data_handler.saver.annotations
+        ann_lookup = ann_all.get("items", ann_all)
+
         self.displayer.display_pair(
             self.canvas_frame.canvas_left,
             self.canvas_frame.canvas_right,
             pair,
-            self.data_handler.saver.annotations,
+            ann_lookup,
             max_w=root_w,
             max_h=root_h
         )
@@ -189,7 +192,8 @@ class UIElements(tk.Frame):
 
         # save default if necessary
         pid = str(current.pair_id)
-        entry = self.data_handler.saver.annotations.get(pid)
+        ann_all = self.data_handler.saver.annotations
+        entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
 
         if not entry or "pair_state" not in entry:
             self.data_handler.saver.save_pair(
@@ -202,8 +206,8 @@ class UIElements(tk.Frame):
 
         # detect transition
         new_info = self.data_handler.context_info()
-        if new_info["label"] != old_info["label"]:
-            messagebox.showinfo("Previous", f"Moved back to {new_info['label']}.")
+        if new_info["progress"]["label"] != old_info["progress"]["label"]:
+            messagebox.showinfo("Previous", f"Moved back to ") # {new_info["progress"]["label"]}.")
 
 
 
@@ -218,7 +222,8 @@ class UIElements(tk.Frame):
 
         # save default if necessary
         pid = str(current.pair_id)
-        entry = self.data_handler.saver.annotations.get(pid)
+        ann_all = self.data_handler.saver.annotations
+        entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
 
         if not entry or "pair_state" not in entry:
             self.data_handler.saver.save_pair(

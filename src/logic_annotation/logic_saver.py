@@ -70,7 +70,9 @@ class CommonSaver(BaseSaver):
 
     def save_delete_box(self, pair, box_id, context):
         boxes = self.annotations["items"].get(str(pair.pair_id), {}).get("boxes", [])
-        self.annotations["items"][str(pair.pair_id)]["boxes"] = [b for b in boxes if b.get("id") != box_id]
+        self.annotations["items"][str(pair.pair_id)]["boxes"] = [
+            b for b in boxes if b.get("box_id") != box_id   # ✅ consistent
+        ]
         self._flush()
 
     def reset_pair(self, pair, context):
@@ -169,7 +171,7 @@ class AnnotationSaver:
             "y1": box["y1"],
             "x2": box["x2"],
             "y2": box["y2"],
-            "pair_id": box.get("pair_id", str(uuid.uuid4())),
+            "box_id": box.get("box_id", str(uuid.uuid4())),
             "annotation_type": box["annotation_type"],
         }
 
@@ -182,7 +184,7 @@ class AnnotationSaver:
 
     def save_delete_box(self, pair, box_id, context):
         """
-        Delete a box from annotations.json by its pair_id.
+        Delete a box from annotations.json by its box_id.
         """
         total_pairs = context["progress"]["total"]
 
@@ -193,7 +195,7 @@ class AnnotationSaver:
         before = len(self.annotations[pid]["boxes"])
         self.annotations[pid]["boxes"] = [
             b for b in self.annotations[pid]["boxes"]
-            if b["pair_id"] != box_id
+            if b.get("box_id") != box_id   # ✅ use "box_id" not "pair_id"
         ]
         after = len(self.annotations[pid]["boxes"])
 
@@ -202,6 +204,7 @@ class AnnotationSaver:
             self._flush()
             return True  # deleted something
         return False
+
     
     def reset_pair(self, pair, context):
 
@@ -220,7 +223,7 @@ class AnnotationSaver:
 
 
 class ReviewSaver(CommonSaver):
-    def __init__(self, batch_info: dict, local_dir="./review_logs"):
+    def __init__(self, batch_info: dict, local_dir=src.config.LOCAL_LOG_DIR):
         batch_id = batch_info["batch_id"]
         batch_type = batch_info["batch_type"]
 
@@ -236,19 +239,29 @@ class ReviewSaver(CommonSaver):
         self.annotations["_meta"].setdefault("total_pairs", batch_info.get("count"))
         self._flush()
 
-    def update_meta(self):
+    def update_meta(self, total_pairs):
+        """Update progress meta information."""
+        self.annotations.setdefault("_meta", {})
+
+        # Always update timestamp
         self.annotations["_meta"]["timestamp"] = datetime.now().isoformat()
+
+
+        annotated = len(self.annotations.get("items", {}))
+        self.annotations["_meta"]["completed"] = (
+            annotated >= total_pairs and total_pairs > 0
+        )
+
         self._flush()
+
 
 
 class InconsistentSaver(ReviewSaver):
     def save_pair(self, pair, state, context):
-        """
-        Save a full pair entry (review or annotation) with boxes and metadata.
-        """
         pid = str(pair.pair_id)
+
         self.annotations["items"][pid] = {
-            "state": state,
+            "pair_state": state,
             "timestamp": datetime.now().isoformat(),
             "boxes": pair.image1.boxes + pair.image2.boxes,
             "im1_path": getattr(pair.image1, "url", str(pair.image1.img_path)),
@@ -259,47 +272,48 @@ class InconsistentSaver(ReviewSaver):
             "predicted": getattr(pair, "predicted", None),
             "annotated_by": getattr(pair, "annotated_by", None),
             "model_name": getattr(pair, "model_name", None),
+            # keep store_session_path as metadata, not as a key
+            "store_session_path": getattr(pair, "source_item", {}).get("store_session_path")
+                if hasattr(pair, "source_item") else None,
         }
 
-        # Update meta progress
-        total_pairs = context["progress"]["total"]
-        if total_pairs:
-            self.annotations["_meta"]["total_pairs"] = total_pairs
-            self.annotations["_meta"]["completed"] = (
-                len(self.annotations["items"]) >= total_pairs
-            )
-
+        self.update_meta(context["progress"]["total"])
         self._flush()
 
-
     def save_box(self, pair, box, context, state="annotated"):
-        total_pairs = context.get("total_pairs")
+        pid = str(pair.pair_id)
 
-        key = f"{pair.source_item['store_session_path']}|{pair.pair_id}"
-
-        if key not in self.annotations:
-            self.annotations[key] = {
+        if pid not in self.annotations["items"]:
+            self.annotations["items"][pid] = {
                 "pair_state": state,
                 "boxes": [],
-                "expected": pair.expected,
-                "predicted": pair.predicted,
-                "annotated_by": pair.annotated_by,
-                "model_name": pair.model_name,
+                "expected": getattr(pair, "expected", None),
+                "predicted": getattr(pair, "predicted", None),
+                "annotated_by": getattr(pair, "annotated_by", None),
+                "model_name": getattr(pair, "model_name", None),
+                "store_session_path": pair.source_item.get("store_session_path")
+                    if hasattr(pair, "source_item") else None,
             }
 
         full_box = {
-            "x1": box["x1"],
-            "y1": box["y1"],
-            "x2": box["x2"],
-            "y2": box["y2"],
-            "pair_id": box.get("pair_id", str(uuid.uuid4())),
+            "x1": box["x1"], "y1": box["y1"], "x2": box["x2"], "y2": box["y2"],
+            "box_id": box.get("box_id", str(uuid.uuid4())),
             "annotation_type": box["annotation_type"],
         }
 
-        self.annotations[key]["boxes"].append(full_box)
-        self.annotations[key]["pair_state"] = state
-        self.update_meta(total_pairs)
+        # Save to JSON + ensure pair_state is 'annotated'
+        self.annotations["items"][pid]["boxes"].append(full_box)
+        self.annotations["items"][pid]["pair_state"] = state
+
+        # Keep in-memory boxes in sync (helps immediate UI)
+        if box.get("image_id") == 1:
+            pair.image1.boxes.append(full_box)
+        elif box.get("image_id") == 2:
+            pair.image2.boxes.append(full_box)
+
+        self.update_meta(context["progress"]["total"])
         self._flush()
+
 
 
 class UnsureSaver(ReviewSaver):

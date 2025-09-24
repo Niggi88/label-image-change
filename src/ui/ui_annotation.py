@@ -101,7 +101,7 @@ class BoxHandler:
             "x2": int(max(x1, x2) * scale_x),
             "y2": int(max(y1, y2) * scale_y),
             "annotation_type": "item_removed" if annot_img.image_id == 1 else "item_added",
-            "pair_id": str(uuid.uuid4()),
+            "box_id": str(uuid.uuid4()),
         }
 
         annot_img.boxes.append(box)
@@ -131,7 +131,7 @@ class BoxHandler:
         # update annotations.json (remove box by pair_id)
         pair = self.data_handler.current_pair()
         ctx = self.data_handler.context_info()
-        self.data_handler.saver.save_delete_box(pair, removed_box["pair_id"], ctx)
+        self.data_handler.saver.save_delete_box(pair, removed_box["box_id"], ctx)
 
 
         # reset selection
@@ -157,7 +157,7 @@ class BoxHandler:
                 # 1) Entferne Box aus JSON
                 pair = self.data_handler.current_pair()
                 ctx = self.data_handler.context_info()
-                self.data_handler.saver.save_delete_box(pair, b["pair_id"], ctx)
+                self.data_handler.saver.save_delete_box(pair, b["box_id"], ctx)
 
                 # 2) Entferne aus Memory
                 self.selected_image.boxes.pop(i)
