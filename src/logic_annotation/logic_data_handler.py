@@ -47,6 +47,27 @@ class BaseDataHandler(ABC):
         """
         pass
 
+    @abstractmethod
+    def context_info(self):
+        pass
+
+    @abstractmethod
+    def current_session_index(self):
+        """Return (current_idx, total, session_name) or None if not applicable."""
+        return None
+    
+    @abstractmethod
+    def progress_info(self) -> dict:
+        """
+        Return info for the UI to show progress/status.
+        Example keys:
+            - current_index: int
+            - total: int
+            - label: str (session name or batch id)
+        """
+        pass
+
+
 class AnnotatableImage:
     def __init__(self, img_path, image_id):
         self.img_path = Path(img_path)
@@ -268,6 +289,12 @@ class SessionDataHandler(BaseDataHandler):
         if not len(self.pairs):
             print(f"Warning: session {info.session} has no pairs")
 
+    def current_session_index(self):
+        return (
+            self.all_sessions.session_idx,
+            len(self.all_sessions),
+            self.current_session_info().session
+        )
 
     def current_pair(self):
         return self.pairs.current()
@@ -275,6 +302,8 @@ class SessionDataHandler(BaseDataHandler):
     def current_session_info(self):
         return self.all_sessions.current()
     
+    def context_info(self):
+        return self.current_session_info()
 
     def next_pair(self):
         next = self.pairs.next()
@@ -319,6 +348,13 @@ class SessionDataHandler(BaseDataHandler):
             self.saver = AnnotationSaver(self.current_session_info())
 
 
+    def progress_info(self):
+        return {
+            "current_index": self.all_sessions.session_idx + 1,
+            "total": len(self.all_sessions),
+            "label": self.current_session_info().session
+        }
+    
 
 from urllib.parse import urljoin
 import requests
@@ -391,6 +427,15 @@ class BatchDataHandler(BaseDataHandler):
     def has_prev_pair_global(self) -> bool:
         return self.pairs.has_prev() if self.pairs else False
 
+    def current_session_index(self):
+        return None  # no sessions in review mode
+    
+    def progress_info(self):
+        return {
+            "current_index": self.pairs.pair_idx + 1 if self.pairs else 0,
+            "total": len(self.pairs),
+            "label": f"Batch {self.batch_id}" if self.batch_id else "Batch"
+        }
     # ------------------------------
     # Review-spezifische Funktion
     # ------------------------------
@@ -419,7 +464,13 @@ class UnsureDataHandler(BatchDataHandler):
         super().__init__(api_base, "unsure", user, size, saver_cls=UnsureSaver)
         self.saver = UnsureSaver(self.meta, LOCAL_LOG_DIR)
 
+    def context_info(self):
+        return self.meta
+
 class InconsistentDataHandler(BatchDataHandler):
     def __init__(self, api_base: str, user: str, size: int = 20):
         super().__init__(api_base, "inconsistent", user, size, saver_cls=InconsistentSaver)
         self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR)
+
+    def context_info(self):
+        return self.meta

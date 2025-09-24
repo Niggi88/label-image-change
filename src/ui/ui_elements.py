@@ -161,39 +161,30 @@ class UIElements(tk.Frame):
             self.handler.selected_canvas = None
             self.handler.selected_image = None
 
-        # Pair-Status (unten in Navigation)
-        self.status.update_status(
-            self.data_handler.pairs.pair_idx,
-            len(self.data_handler.pairs)
-        )
-
           # --- Session vs Batch ---
-        if hasattr(self.data_handler, "all_sessions"):  
-            # Normal annotation mode
-            current_session = self.data_handler.all_sessions.session_idx + 1
-            total_sessions = len(self.data_handler.all_sessions)
-            session_name = self.data_handler.current_session_info().session
-            self.session_frame.update_session(current_session, total_sessions, session_name)
-        else:
-            # Review mode (batch)
-            batch_id = getattr(self.data_handler, "batch_id", "unknown")
-            batch_type = getattr(self.data_handler, "batch_type", "batch")
-            total_pairs = len(self.data_handler.pairs)
-            current_pair_idx = self.data_handler.pairs.pair_idx + 1
-            session_name = f"Batch {batch_type}:{batch_id} ({current_pair_idx}/{total_pairs})"
-            self.session_frame.update_session(1, 1, session_name)
+        info = self.data_handler.progress_info()
+
+        self.status.update_status(
+            info["current_index"],
+            info["total"]
+        )
+        self.session_frame.update_session(
+            info["current_index"],
+            info["total"],
+            info["label"]
+        )
 
         self.canvas_frame.canvas_right.focus_set()
 
 
 
     def prev_pair(self):
-        old_session_idx = self.data_handler.all_sessions.session_idx
+        old_info = self.data_handler.progress_info()
 
         if self.data_handler.has_prev_pair_global():
             current = self.data_handler.prev_pair()
         else:
-            messagebox.showinfo("Start Reached", "You have reached the start of all sessions.")
+            messagebox.showinfo("Start Reached", "You have reached the start.")
             return
 
         # save default if necessary
@@ -201,29 +192,29 @@ class UIElements(tk.Frame):
         entry = self.data_handler.saver.annotations.get(pid)
 
         if not entry or "pair_state" not in entry:
-            total_pairs = len(self.data_handler.pairs)
             self.data_handler.saver.save_pair(
                 current,
                 "no_annotation",
-                self.data_handler.current_session_info(),
-                total_pairs,
+                self.data_handler.context_info(),
+                old_info["total"],
             )
-
 
         self.refresh()
 
-        # popup if session changed
-        if self.data_handler.all_sessions.session_idx != old_session_idx:
-            messagebox.showinfo("Previous Session", "Returning to previous session.")
+        # detect transition
+        new_info = self.data_handler.progress_info()
+        if new_info["label"] != old_info["label"]:
+            messagebox.showinfo("Previous", f"Moved back to {new_info['label']}.")
+
 
 
     def next_pair(self):
-        old_session_idx = self.data_handler.all_sessions.session_idx
+        old_info = self.data_handler.progress_info()
 
         if self.data_handler.has_next_pair_global():
             current = self.data_handler.next_pair()
         else:
-            messagebox.showinfo("End Reached", "You have reached the end of all sessions.")
+            messagebox.showinfo("End Reached", "You have reached the end.")
             return
 
         # save default if necessary
@@ -231,26 +222,26 @@ class UIElements(tk.Frame):
         entry = self.data_handler.saver.annotations.get(pid)
 
         if not entry or "pair_state" not in entry:
-            total_pairs = len(self.data_handler.pairs)
             self.data_handler.saver.save_pair(
                 current,
                 "no_annotation",
-                self.data_handler.current_session_info(),
-                total_pairs,
+                self.data_handler.context_info(),
+                old_info["total"],
             )
 
         self.refresh()
 
-        # popup if session changed
-        if self.data_handler.all_sessions.session_idx != old_session_idx:
-            messagebox.showinfo("Next Session", "Moving on to the next session.")
+        # detect transition
+        new_info = self.data_handler.progress_info()
+        if new_info["label"] != old_info["label"]:
+            messagebox.showinfo("Next", f"Moved on to {new_info['label']}.")
 
 
     # Annotation callbacks (wire to logic_saver later)
     def mark_state(self, state):
         pair = self.data_handler.current_pair()
         total_pairs = len(self.data_handler.pairs)
-        self.data_handler.saver.save_pair(pair, state, self.data_handler.current_session_info(), total_pairs)
+        self.data_handler.saver.save_pair(pair, state, self.data_handler.context_info(), total_pairs)
         if state == "annotated":
             # enable box drawing only when "Annotate" pressed
             self.canvas_frame.attach_boxes(self.handler, pair)
