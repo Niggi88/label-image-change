@@ -445,6 +445,7 @@ class BatchDataHandler(BaseDataHandler):
                 "label": f"Batch {self.batch_id}" if self.batch_id else "Batch",
             },
             "batch_meta": self.meta,
+            "user": self.user,
         }
     
     @property

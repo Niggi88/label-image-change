@@ -296,9 +296,8 @@ class InconsistentSaver(ReviewSaver):
             "im2_size": pair.image2.img_size,
             "expected": getattr(pair, "expected", None),
             "predicted": getattr(pair, "predicted", None),
-            "annotated_by": getattr(pair, "annotated_by", None),
+            "reviewed_by": context.get("user"),
             "model_name": getattr(pair, "model_name", None),
-            # keep store_session_path as metadata, not as a key
             "store_session_path": getattr(pair, "source_item", {}).get("store_session_path")
                 if hasattr(pair, "source_item") else None,
         }
@@ -315,7 +314,7 @@ class InconsistentSaver(ReviewSaver):
                 "boxes": [],
                 "expected": getattr(pair, "expected", None),
                 "predicted": getattr(pair, "predicted", None),
-                "annotated_by": getattr(pair, "annotated_by", None),
+                "reviewed_by": context.get("user"),
                 "model_name": getattr(pair, "model_name", None),
                 "store_session_path": pair.source_item.get("store_session_path")
                     if hasattr(pair, "source_item") else None,
@@ -344,15 +343,17 @@ class InconsistentSaver(ReviewSaver):
 
 class UnsureSaver(ReviewSaver):
     def save_pair(self, pair, state, context):
-        self.annotations["items"][str(pair.pair_id)] = {
-            "pair_state": state,   # ✅ align with InconsistentSaver
+        key = f"{pair.source_item['store_session_path']}|{pair.pair_id}"
+        self.annotations["items"][key] = {
+            "pair_state": state,
             "timestamp": datetime.now().isoformat(),
             "boxes": pair.image1.boxes + pair.image2.boxes,
             "im1_path": _shorten_path(getattr(pair.image1, "url", str(pair.image1.img_path))),
             "im2_path": _shorten_path(getattr(pair.image2, "url", str(pair.image2.img_path))),
             "im1_size": pair.image1.img_size,
             "im2_size": pair.image2.img_size,
-            "annotated_by": getattr(pair, "annotated_by", None),
+            "reviewed_by": context.get("user"),  
         }
         self.update_meta(context["progress"]["total"])
         self._flush()
+
