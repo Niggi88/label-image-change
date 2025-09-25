@@ -428,7 +428,8 @@ class BatchDataHandler(BaseDataHandler):
     def context_info(self):
         return {
             "progress": {
-                "current_index": self.pairs.pair_idx + 1 if self.pairs else 0,
+                "current_pair_index": self.pairs.pair_idx + 1 if self.pairs else 0,
+                "current_session_index": None,
                 "total": len(self.pairs),
                 "label": f"Batch {self.batch_id}" if self.batch_id else "Batch",
             },
