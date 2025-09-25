@@ -370,7 +370,7 @@ class BatchDataHandler(BaseDataHandler):
     Holt Paare vom API-Server in Batches und erlaubt Navigation.
     """
 
-    def __init__(self, api_base: str, batch_type: str, user: str, size: int = 20, saver_cls=None):
+    def __init__(self, api_base: str, batch_type: str, user: str, size: int = 5, saver_cls=None):
         self.api_base = api_base.rstrip("/")
         self.batch_type = batch_type
         self.user = user
@@ -462,7 +462,8 @@ class BatchDataHandler(BaseDataHandler):
             annotated_by = annotated_by.get("name")
 
         return (
-            f"Expected: {ann.get('expected')} "
+            f"Batch ID: {self.batch_id}"
+            f"\nExpected: {ann.get('expected')} "
             f"by: {annotated_by} | "
             f"\nPredicted: {ann.get('predicted')} "
             f"by model: {ann.get('model_name')}"
