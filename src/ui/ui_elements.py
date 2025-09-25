@@ -208,9 +208,12 @@ class UIElements(tk.Frame):
         if self.data_handler.has_next_pair_global():
             current = self.data_handler.next_pair()
         else:
-            messagebox.showinfo("End Reached", "You have reached the end.")
+            if self.data_handler.mode == "review":
+                self._ask_upload_batch()
+            else:
+                messagebox.showinfo("End Reached", "You have reached the end.")
             return
-
+        
         # save default if necessary
         pid = str(current.pair_id)
         ann_all = self.data_handler.saver.annotations
@@ -230,6 +233,18 @@ class UIElements(tk.Frame):
         if new_info["progress"]["label"] != old_info["progress"]["label"]:
             messagebox.showinfo("Next", f"Moving on to next session.")
 
+    def _ask_upload_batch(self):
+        confirm = messagebox.askyesno(
+            "Batch finished",
+            "You have reached the end of this batch.\n\nDo you want to upload your results now?"
+        )
+        if confirm:
+            try:
+                results = self.data_handler.saver.annotations
+                resp = self.data_handler.upload_results(results)
+                messagebox.showinfo("Upload complete", f"Batch uploaded.\nServer response: {resp}")
+            except Exception as e:
+                messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
 
     # Annotation callbacks (wire to logic_saver later)
     def mark_state(self, state):
