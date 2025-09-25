@@ -168,11 +168,11 @@ class UIElements(tk.Frame):
         info = self.data_handler.context_info()
 
         self.status.update_status(
-            info["progress"]["current_index"],
+            info["progress"]["current_pair_index"],
             info["progress"]["total"]
         )
         self.session_frame.update_session(
-            info["progress"]["current_index"],
+            info["progress"]["current_session_index"],
             info["progress"]["total"],
             info["progress"]["label"]
         )
@@ -207,8 +207,7 @@ class UIElements(tk.Frame):
         # detect transition
         new_info = self.data_handler.context_info()
         if new_info["progress"]["label"] != old_info["progress"]["label"]:
-            messagebox.showinfo("Previous", f"Moved back to ") # {new_info["progress"]["label"]}.")
-
+            messagebox.showinfo("Previous", f"Moving back to previous session")
 
 
     def next_pair(self):
@@ -237,7 +236,7 @@ class UIElements(tk.Frame):
         # detect transition
         new_info = self.data_handler.context_info()
         if new_info["progress"]["label"] != old_info["progress"]["label"]:
-            messagebox.showinfo("Next", f"Moved on to {new_info['label']}.")
+            messagebox.showinfo("Next", f"Moving on to next session.")
 
 
     # Annotation callbacks (wire to logic_saver later)
@@ -386,4 +385,4 @@ class StatusFrame(tk.Frame):
         self.label_info.pack()
 
     def update_status(self, index, total):
-        self.label_info.config(text=f"Pair {index+1}/{total}")
+        self.label_info.config(text=f"Pair {index}/{total}")

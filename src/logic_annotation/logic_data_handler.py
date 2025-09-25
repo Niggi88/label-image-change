@@ -341,7 +341,8 @@ class SessionDataHandler(BaseDataHandler):
     def context_info(self):
         return {
             "progress": {
-                "current_index": self.all_sessions.session_idx + 1,
+                "current_pair_index": self.pairs.pair_idx + 1,
+                "current_session_index":self.all_sessions.session_idx + 1,
                 "total": len(self.pairs),
                 "label": self.current_session_info().session,
             },
