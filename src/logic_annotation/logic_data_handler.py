@@ -397,7 +397,7 @@ class BatchDataHandler(BaseDataHandler):
         self.meta = data
 
         pairs = []
-        for item in data.get("items", []):
+        for key, item in (data.get("items") or {}).items():
             pair = ImagePair(
                 pair_id=item["pair_id"],
                 img1_path=item["im1_url"],
@@ -464,7 +464,7 @@ class BatchDataHandler(BaseDataHandler):
         return (
             f"Batch ID: {self.batch_id}"
             f"\nExpected: {ann.get('expected')} "
-            f"by: {annotated_by} | "
+            f"by: {annotated_by}"
             f"\nPredicted: {ann.get('predicted')} "
             f"by model: {ann.get('model_name')}"
         )

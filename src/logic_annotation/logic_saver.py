@@ -3,6 +3,24 @@ from pathlib import Path
 import uuid
 import src.config
 from datetime import datetime
+from urllib.parse import urlparse
+
+
+def _shorten_path(path_or_url: str) -> str:
+    """
+    Convert either a full URL or a filesystem path into store/session/img_name.
+    """
+    # Handle URLs
+    if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
+        parts = Path(urlparse(path_or_url).path).parts
+    else:
+        parts = Path(path_or_url).parts
+
+    if "images" in parts:
+        idx = parts.index("images")
+        return str(Path(*parts[idx+1:]))
+    return str(Path(*parts))
+
 
 from abc import ABC, abstractmethod
 class BaseSaver(ABC):
@@ -272,8 +290,8 @@ class InconsistentSaver(ReviewSaver):
             "pair_state": state,
             "timestamp": datetime.now().isoformat(),
             "boxes": pair.image1.boxes + pair.image2.boxes,
-            "im1_path": getattr(pair.image1, "url", str(pair.image1.img_path)),
-            "im2_path": getattr(pair.image2, "url", str(pair.image2.img_path)),
+            "im1_path": _shorten_path(getattr(pair.image1, "url", str(pair.image1.img_path))),
+            "im2_path": _shorten_path(getattr(pair.image2, "url", str(pair.image2.img_path))),
             "im1_size": pair.image1.img_size,
             "im2_size": pair.image2.img_size,
             "expected": getattr(pair, "expected", None),
