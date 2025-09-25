@@ -461,6 +461,10 @@ class BatchDataHandler(BaseDataHandler):
         if isinstance(annotated_by, dict):
             annotated_by = annotated_by.get("name")
 
+         # Fallback: use meta from server batch JSON
+        if not ann and "items" in self.meta:
+            ann = self.meta["items"].get(f"{pair.source_item['store_session_path']}|{pair.pair_id}", {})
+
         return (
             f"Batch ID: {self.batch_id}"
             f"\nExpected: {ann.get('expected')} "
