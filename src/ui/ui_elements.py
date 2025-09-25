@@ -164,18 +164,9 @@ class UIElements(tk.Frame):
             self.handler.selected_canvas = None
             self.handler.selected_image = None
 
-          # --- Session vs Batch ---
-        info = self.data_handler.context_info()
 
-        self.status.update_status(
-            info["progress"]["current_pair_index"],
-            info["progress"]["total"]
-        )
-        self.session_frame.update_session(
-            info["progress"]["current_session_index"],
-            info["progress"]["total"],
-            info["progress"]["label"]
-        )
+        self.status.update_text(self.data_handler.get_status_text())
+        self.session_frame.update_text(self.data_handler.get_session_text())
 
         self.canvas_frame.canvas_right.focus_set()
 
@@ -326,17 +317,6 @@ class CanvasFrame(tk.Frame):
         self.parent_ui.refresh()
         
 
-class SessionFrame(tk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.label_info = ttk.Label(self, text="", anchor="w", style=STYLE_SESSION)
-        self.label_info.pack()
-
-    def update_session(self, current_idx, total, session_name):
-        self.label_info.config(
-            text=f"Session {current_idx}/{total} - {session_name}"
-        )
-
 
 class NavigationFrame(tk.Frame):
     def __init__(self, parent, on_prev, on_next):
@@ -376,6 +356,14 @@ class AnnotationFrame(tk.Frame):
         self.grid(sticky="ew", padx=OUTER_PADX)
 
 
+class SessionFrame(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.label_info = ttk.Label(self, text="", anchor="w", style=STYLE_SESSION)
+        self.label_info.pack()
+
+    def update_text(self, text):
+        self.label_info.config(text=text)
 
 
 class StatusFrame(tk.Frame):
@@ -384,5 +372,5 @@ class StatusFrame(tk.Frame):
         self.label_info = ttk.Label(self, text="", style=STYLE_STATUS)
         self.label_info.pack()
 
-    def update_status(self, index, total):
-        self.label_info.config(text=f"Pair {index}/{total}")
+    def update_text(self, text):
+        self.label_info.config(text=text)

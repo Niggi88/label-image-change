@@ -5,6 +5,8 @@ from src.logic_annotation.logic_saver import AnnotationSaver, InconsistentSaver,
 from abc import ABC, abstractmethod
 from src.config import LOCAL_LOG_DIR
 from io import BytesIO
+from urllib.parse import urljoin
+import requests
 
 
 
@@ -144,7 +146,6 @@ class BatchImagePairList:
 
     def __len__(self):
         return len(self.image_pairs)
-
 
 
 class ImagePairList:
@@ -349,10 +350,20 @@ class SessionDataHandler(BaseDataHandler):
             "session_info": self.current_session_info()
         }
 
-from urllib.parse import urljoin
-import requests
+    @property
+    def mode(self):
+        return "annotation"
 
+    def get_status_text(self):
+        # always Pair X/Y
+        return f"Pair {self.pairs.pair_idx+1}/{len(self.pairs)}"
 
+    def get_session_text(self):
+        return (
+            f"Session {self.all_sessions.session_idx+1}/{len(self.all_sessions)} "
+            f"– {self.current_session_info().session}"
+        )
+    
 class BatchDataHandler(BaseDataHandler):
     """
     Gemeinsame Logik für Batch-basierte Review Modi (unsure, inconsistent).
@@ -435,6 +446,28 @@ class BatchDataHandler(BaseDataHandler):
             },
             "batch_meta": self.meta,
         }
+    
+    @property
+    def mode(self):
+        return "review"
+
+    def get_status_text(self):
+        return f"Pair {self.pairs.pair_idx+1}/{len(self.pairs)}"
+
+    def get_session_text(self):
+        pair = self.current_pair()
+        ann = self.saver.annotations["items"].get(str(pair.pair_id), {})
+        annotated_by = ann.get("annotated_by")
+        if isinstance(annotated_by, dict):
+            annotated_by = annotated_by.get("name")
+
+        return (
+            f"Expected: {ann.get('expected')} "
+            f"by: {annotated_by} | "
+            f"\nPredicted: {ann.get('predicted')} "
+            f"by model: {ann.get('model_name')}"
+        )
+
     
     # ------------------------------
     # Review-spezifische Funktion
