@@ -454,25 +454,12 @@ class BatchDataHandler(BaseDataHandler):
     def get_status_text(self):
         return f"Pair {self.pairs.pair_idx+1}/{len(self.pairs)}"
 
+
     def get_session_text(self):
-        pair = self.current_pair()
-        ann = self.saver.annotations["items"].get(str(pair.pair_id), {})
-        annotated_by = ann.get("annotated_by")
-        if isinstance(annotated_by, dict):
-            annotated_by = annotated_by.get("name")
-
-         # Fallback: use meta from server batch JSON
-        if not ann and "items" in self.meta:
-            ann = self.meta["items"].get(f"{pair.source_item['store_session_path']}|{pair.pair_id}", {})
-
-        return (
-            f"Batch ID: {self.batch_id}"
-            f"\nExpected: {ann.get('expected')} "
-            f"by: {annotated_by}"
-            f"\nPredicted: {ann.get('predicted')} "
-            f"by model: {ann.get('model_name')}"
-        )
-
+        """
+        To be implemented by subclasses (UnsureDataHandler, InconsistentDataHandler).
+        """
+        return ""
     
     # ------------------------------
     # Review-spezifische Funktion
@@ -503,9 +490,45 @@ class UnsureDataHandler(BatchDataHandler):
         self.saver = UnsureSaver(self.meta, LOCAL_LOG_DIR)
 
 
+    def get_session_text(self):
+        pair = self.current_pair()
+        ann = self.saver.annotations["items"].get(str(pair.pair_id), {})
+
+        annotated_by = ann.get("unsure_by")
+        if not annotated_by and "items" in self.meta:
+            ann = self.meta["items"].get(f"{pair.source_item['store_session_path']}|{pair.pair_id}", {})
+            annotated_by = ann.get("unsure_by")
+
+        if isinstance(annotated_by, dict):
+            annotated_by = annotated_by.get("name")
+
+        return (
+            f"Batch ID: {self.batch_id}"
+            f"\nAnnotated by: {annotated_by or 'unknown'}"
+        )
+
+
 
 class InconsistentDataHandler(BatchDataHandler):
     def __init__(self, api_base: str, user: str, size: int = 20):
         super().__init__(api_base, "inconsistent", user, size, saver_cls=InconsistentSaver)
         self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR)
 
+    def get_session_text(self):
+        pair = self.current_pair()
+        ann = self.saver.annotations["items"].get(str(pair.pair_id), {})
+        annotated_by = ann.get("annotated_by")
+        if isinstance(annotated_by, dict):
+            annotated_by = annotated_by.get("name")
+
+         # Fallback: use meta from server batch JSON
+        if not ann and "items" in self.meta:
+            ann = self.meta["items"].get(f"{pair.source_item['store_session_path']}|{pair.pair_id}", {})
+
+        return (
+            f"Batch ID: {self.batch_id}"
+            f"\nExpected: {ann.get('expected')} "
+            f"by: {annotated_by}"
+            f"\nPredicted: {ann.get('predicted')} "
+            f"by model: {ann.get('model_name')}"
+        )
