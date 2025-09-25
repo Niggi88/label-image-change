@@ -216,7 +216,7 @@ class BoxHandler:
         pair = self.data_handler.current_pair()
         ctx = self.data_handler.context_info()
         self.data_handler.saver.save_box(pair, moved_box, ctx, state="annotated")
-        print(f"Moved and saved box {moved_box['pair_id']}")
+        print(f"Moved and saved box {moved_box['box_id']}")
 
         # Insert back at same index
         self.selected_image.boxes.insert(self._moving_index, moved_box)
