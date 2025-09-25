@@ -352,8 +352,41 @@ class UnsureSaver(ReviewSaver):
             "im2_path": _shorten_path(getattr(pair.image2, "url", str(pair.image2.img_path))),
             "im1_size": pair.image1.img_size,
             "im2_size": pair.image2.img_size,
-            "reviewed_by": context.get("user"),  
+            "reviewed_by": context.get("user"),
         }
         self.update_meta(context["progress"]["total"])
         self._flush()
 
+    def save_box(self, pair, box, context, state="annotated"):
+        key = f"{pair.source_item['store_session_path']}|{pair.pair_id}"
+
+        if key not in self.annotations["items"]:
+            self.annotations["items"][key] = {
+                "pair_state": state,
+                "boxes": [],
+                "reviewed_by": context.get("user"),
+                "im1_path": _shorten_path(getattr(pair.image1, "url", str(pair.image1.img_path))),
+                "im2_path": _shorten_path(getattr(pair.image2, "url", str(pair.image2.img_path))),
+                "im1_size": pair.image1.img_size,
+                "im2_size": pair.image2.img_size,
+            }
+
+        full_box = {
+            "x1": box["x1"], "y1": box["y1"],
+            "x2": box["x2"], "y2": box["y2"],
+            "box_id": box.get("box_id", str(uuid.uuid4())),
+            "annotation_type": box["annotation_type"],
+        }
+
+        # Save to JSON
+        self.annotations["items"][key]["boxes"].append(full_box)
+        self.annotations["items"][key]["pair_state"] = state
+
+        # Keep in-memory boxes updated
+        if box.get("image_id") == 1:
+            pair.image1.boxes.append(full_box)
+        elif box.get("image_id") == 2:
+            pair.image2.boxes.append(full_box)
+
+        self.update_meta(context["progress"]["total"])
+        self._flush()

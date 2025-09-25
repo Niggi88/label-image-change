@@ -493,7 +493,8 @@ class UnsureDataHandler(BatchDataHandler):
 
     def get_session_text(self):
         pair = self.current_pair()
-        ann = self.saver.annotations["items"].get(str(pair.pair_id), {})
+        key = f"{pair.source_item['store_session_path']}|{pair.pair_id}"
+        ann = self.saver.annotations["items"].get(key, {})
 
         annotated_by = ann.get("unsure_by")
         if not annotated_by and "items" in self.meta:
