@@ -233,6 +233,7 @@ class UIElements(tk.Frame):
         if new_info["progress"]["label"] != old_info["progress"]["label"]:
             messagebox.showinfo("Next", f"Moving on to next session.")
 
+
     def _ask_upload_batch(self):
         confirm = messagebox.askyesno(
             "Batch finished",
@@ -240,11 +241,19 @@ class UIElements(tk.Frame):
         )
         if confirm:
             try:
+                # upload results via data_handler
                 results = self.data_handler.saver.annotations
                 resp = self.data_handler.upload_results(results)
-                messagebox.showinfo("Upload complete", f"Batch uploaded.\nServer response: {resp}")
+
+                messagebox.showinfo("Upload complete", "Batch has been uploaded and marked completed.")
+
+                # ✅ Load a fresh batch after completion
+                self.data_handler.load_current_pairs()
+                self.refresh()
+
             except Exception as e:
                 messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
+
 
     # Annotation callbacks (wire to logic_saver later)
     def mark_state(self, state):
