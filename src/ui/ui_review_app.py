@@ -17,9 +17,9 @@ class UIReviewApp(tk.Tk):
 
         # Choose the right handler
         if batch_type == "unsure":
-            handler = UnsureDataHandler(api_base=api_base, user=user, size=20)
+            handler = UnsureDataHandler(api_base=api_base, user=user, size=5)
         elif batch_type == "inconsistent":
-            handler = InconsistentDataHandler(api_base=api_base, user=user, size=20)
+            handler = InconsistentDataHandler(api_base=api_base, user=user, size=5)
         else:
             raise ValueError("batch_type must be 'unsure' or 'inconsistent'")
 
@@ -51,5 +51,5 @@ class UIReviewApp(tk.Tk):
 
 if __name__ == "__main__":
     # Choose review mode: "unsure" or "inconsistent"
-    app = UIReviewApp(batch_type="inconsistent", api_base="http://172.30.20.31:8081", user="sarah")
+    app = UIReviewApp(batch_type="unsure", api_base="http://172.30.20.31:8081", user="sarah")
     app.run()

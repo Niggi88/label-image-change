@@ -345,16 +345,14 @@ class InconsistentSaver(ReviewSaver):
 class UnsureSaver(ReviewSaver):
     def save_pair(self, pair, state, context):
         self.annotations["items"][str(pair.pair_id)] = {
-            "state": state,
+            "pair_state": state,   # ✅ align with InconsistentSaver
             "timestamp": datetime.now().isoformat(),
             "boxes": pair.image1.boxes + pair.image2.boxes,
-            "im1_path": getattr(pair.image1, "url", None),
-            "im2_path": getattr(pair.image2, "url", None),
+            "im1_path": _shorten_path(getattr(pair.image1, "url", str(pair.image1.img_path))),
+            "im2_path": _shorten_path(getattr(pair.image2, "url", str(pair.image2.img_path))),
             "im1_size": pair.image1.img_size,
             "im2_size": pair.image2.img_size,
             "annotated_by": getattr(pair, "annotated_by", None),
         }
-
-
+        self.update_meta(context["progress"]["total"])
         self._flush()
-
