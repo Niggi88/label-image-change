@@ -518,18 +518,20 @@ class InconsistentDataHandler(BatchDataHandler):
     def get_session_text(self):
         pair = self.current_pair()
         ann = self.saver.annotations["items"].get(str(pair.pair_id), {})
-        annotated_by = ann.get("annotated_by")
-        if isinstance(annotated_by, dict):
-            annotated_by = annotated_by.get("name")
 
-         # Fallback: use meta from server batch JSON
+        reviewed_by = ann.get("reviewed_by")
+        if isinstance(reviewed_by, dict):
+            reviewed_by = reviewed_by.get("name")
+
+        # fallback: check server meta
         if not ann and "items" in self.meta:
             ann = self.meta["items"].get(f"{pair.source_item['store_session_path']}|{pair.pair_id}", {})
+            reviewed_by = ann.get("reviewed_by")
 
         return (
             f"Batch ID: {self.batch_id}"
             f"\nExpected: {ann.get('expected')} "
-            f"by: {annotated_by}"
+            f"by: {reviewed_by or 'unknown'}"
             f"\nPredicted: {ann.get('predicted')} "
             f"by model: {ann.get('model_name')}"
         )
