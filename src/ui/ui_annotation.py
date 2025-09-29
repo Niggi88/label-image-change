@@ -185,45 +185,45 @@ class BoxHandler:
                 return
 
 
-def move_box(self, event, canvas):
-    if not self._moving or not hasattr(self, "_moving_box"):
-        return
+    def move_box(self, event, canvas):
+        if not self._moving or not hasattr(self, "_moving_box"):
+            return
 
-    dx = event.x - self._move_start_x
-    dy = event.y - self._move_start_y
-    self._move_start_x, self._move_start_y = event.x, event.y
+        dx = event.x - self._move_start_x
+        dy = event.y - self._move_start_y
+        self._move_start_x, self._move_start_y = event.x, event.y
 
-    img_w, img_h = self.selected_image.img_size
-    scale_x = canvas.winfo_width() / img_w
-    scale_y = canvas.winfo_height() / img_h
+        img_w, img_h = self.selected_image.img_size
+        scale_x = canvas.winfo_width() / img_w
+        scale_y = canvas.winfo_height() / img_h
 
-    box = self._moving_box
+        box = self._moving_box
 
-    # Canvas coords
-    cx1, cy1 = int(box["x1"] * scale_x), int(box["y1"] * scale_y)
-    cx2, cy2 = int(box["x2"] * scale_x), int(box["y2"] * scale_y)
+        # Canvas coords
+        cx1, cy1 = int(box["x1"] * scale_x), int(box["y1"] * scale_y)
+        cx2, cy2 = int(box["x2"] * scale_x), int(box["y2"] * scale_y)
 
-    # Apply move
-    cx1 += dx; cx2 += dx
-    cy1 += dy; cy2 += dy
+        # Apply move
+        cx1 += dx; cx2 += dx
+        cy1 += dy; cy2 += dy
 
-    # Clamp inside canvas
-    w, h = canvas.winfo_width(), canvas.winfo_height()
-    cx1 = max(0, min(cx1, w))
-    cy1 = max(0, min(cy1, h))
-    cx2 = max(0, min(cx2, w))
-    cy2 = max(0, min(cy2, h))
+        # Clamp inside canvas
+        w, h = canvas.winfo_width(), canvas.winfo_height()
+        cx1 = max(0, min(cx1, w))
+        cy1 = max(0, min(cy1, h))
+        cx2 = max(0, min(cx2, w))
+        cy2 = max(0, min(cy2, h))
 
-    # Back to image coords
-    box["x1"] = int(cx1 / scale_x)
-    box["y1"] = int(cy1 / scale_y)
-    box["x2"] = int(cx2 / scale_x)
-    box["y2"] = int(cy2 / scale_y)
+        # Back to image coords
+        box["x1"] = int(cx1 / scale_x)
+        box["y1"] = int(cy1 / scale_y)
+        box["x2"] = int(cx2 / scale_x)
+        box["y2"] = int(cy2 / scale_y)
 
-    # Redraw: all existing boxes + moving box
-    canvas.delete("box")
-    all_boxes = self.selected_image.boxes + [box]
-    self.displayer._draw_boxes(canvas, all_boxes, highlight=len(all_boxes)-1)
+        # Redraw: all existing boxes + moving box
+        canvas.delete("box")
+        all_boxes = self.selected_image.boxes + [box]
+        self.displayer._draw_boxes(canvas, all_boxes, highlight=len(all_boxes)-1)
 
 
     def end_move(self, event):
