@@ -69,37 +69,50 @@ class BoxHandler:
     def draw_box(self, event, canvas):
         if not getattr(self, "_drawing", False):
             return
-        # Lösche alten Preview
+
+        # Clamp to canvas boundaries
+        w, h = canvas.winfo_width(), canvas.winfo_height()
+        x = max(0, min(event.x, w))
+        y = max(0, min(event.y, h))
+
+        # Delete old preview
         canvas.delete("preview")
-        # Zeichne neuen Preview
+        # Draw new preview
         self.current_rect = canvas.create_rectangle(
-            self.start_x, self.start_y, event.x, event.y,
+            self.start_x, self.start_y, x, y,
             outline="red", width=2, dash=(2, 2), tags="preview"
         )
 
+    
     def end_box(self, event, canvas, annot_img):
         if self.start_x is None or not getattr(self, "_drawing", False):
             return
         self._drawing = False
 
+        # Clamp release point to canvas boundaries
+        w, h = canvas.winfo_width(), canvas.winfo_height()
+        x2 = max(0, min(event.x, w))
+        y2 = max(0, min(event.y, h))
+
         x1, y1 = self.start_x, self.start_y
-        x2, y2 = event.x, event.y
         self.start_x = self.start_y = None
 
-        # Ignoriere winzige Boxen
+        # Ignore tiny boxes
         if abs(x2 - x1) < 5 or abs(y2 - y1) < 5:
             canvas.delete("preview")
             self.current_rect = None
             return
 
-        # Skaliere zu Bildkoordinaten
-        scale_x = annot_img.img_size[0] / canvas.winfo_width()
-        scale_y = annot_img.img_size[1] / canvas.winfo_height()
+        # Scale to image coordinates
+        img_w, img_h = annot_img.img_size
+        scale_x = img_w / canvas.winfo_width()
+        scale_y = img_h / canvas.winfo_height()
+
         box = {
-            "x1": int(min(x1, x2) * scale_x),
-            "y1": int(min(y1, y2) * scale_y),
-            "x2": int(max(x1, x2) * scale_x),
-            "y2": int(max(y1, y2) * scale_y),
+            "x1": max(0, min(img_w, int(min(x1, x2) * scale_x))),
+            "y1": max(0, min(img_h, int(min(y1, y2) * scale_y))),
+            "x2": max(0, min(img_w, int(max(x1, x2) * scale_x))),
+            "y2": max(0, min(img_h, int(max(y1, y2) * scale_y))),
             "annotation_type": "item_removed" if annot_img.image_id == 1 else "item_added",
             "box_id": str(uuid.uuid4()),
         }
@@ -109,7 +122,7 @@ class BoxHandler:
         ctx = self.data_handler.context_info()
         self.data_handler.saver.save_box(pair, box, ctx, state="annotated")
 
-        # 🔑 Preview löschen – jetzt übernimmt refresh() das Zeichnen
+        # Cleanup preview
         canvas.delete("preview")
         self.current_rect = None
         if self.ui:
@@ -172,38 +185,45 @@ class BoxHandler:
                 return
 
 
-    def move_box(self, event, canvas):
-        if not self._moving or not hasattr(self, "_moving_box"):
-            return
+def move_box(self, event, canvas):
+    if not self._moving or not hasattr(self, "_moving_box"):
+        return
 
-        dx = event.x - self._move_start_x
-        dy = event.y - self._move_start_y
-        self._move_start_x, self._move_start_y = event.x, event.y
+    dx = event.x - self._move_start_x
+    dy = event.y - self._move_start_y
+    self._move_start_x, self._move_start_y = event.x, event.y
 
-        img_w, img_h = self.selected_image.img_size
-        scale_x = canvas.winfo_width() / img_w
-        scale_y = canvas.winfo_height() / img_h
+    img_w, img_h = self.selected_image.img_size
+    scale_x = canvas.winfo_width() / img_w
+    scale_y = canvas.winfo_height() / img_h
 
-        box = self._moving_box
+    box = self._moving_box
 
-        # canvas coords
-        cx1, cy1 = int(box["x1"] * scale_x), int(box["y1"] * scale_y)
-        cx2, cy2 = int(box["x2"] * scale_x), int(box["y2"] * scale_y)
+    # Canvas coords
+    cx1, cy1 = int(box["x1"] * scale_x), int(box["y1"] * scale_y)
+    cx2, cy2 = int(box["x2"] * scale_x), int(box["y2"] * scale_y)
 
-        # apply move
-        cx1 += dx; cx2 += dx
-        cy1 += dy; cy2 += dy
+    # Apply move
+    cx1 += dx; cx2 += dx
+    cy1 += dy; cy2 += dy
 
-        # back to image coords
-        box["x1"] = int(cx1 / scale_x)
-        box["y1"] = int(cy1 / scale_y)
-        box["x2"] = int(cx2 / scale_x)
-        box["y2"] = int(cy2 / scale_y)
+    # Clamp inside canvas
+    w, h = canvas.winfo_width(), canvas.winfo_height()
+    cx1 = max(0, min(cx1, w))
+    cy1 = max(0, min(cy1, h))
+    cx2 = max(0, min(cx2, w))
+    cy2 = max(0, min(cy2, h))
 
-        # redraw: draw ONLY remaining boxes + the updated moving_box
-        canvas.delete("box")
-        all_boxes = self.selected_image.boxes + [box]
-        self.displayer._draw_boxes(canvas, all_boxes, highlight=len(all_boxes)-1)
+    # Back to image coords
+    box["x1"] = int(cx1 / scale_x)
+    box["y1"] = int(cy1 / scale_y)
+    box["x2"] = int(cx2 / scale_x)
+    box["y2"] = int(cy2 / scale_y)
+
+    # Redraw: all existing boxes + moving box
+    canvas.delete("box")
+    all_boxes = self.selected_image.boxes + [box]
+    self.displayer._draw_boxes(canvas, all_boxes, highlight=len(all_boxes)-1)
 
 
     def end_move(self, event):
