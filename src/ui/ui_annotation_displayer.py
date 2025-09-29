@@ -10,6 +10,9 @@ class AnnotationDisplayer:
         Show images + annotations for a given ImagePair.
         Scales images to half the width and full height of available space.
         """
+
+        self._images.clear()
+
         pid = str(pair.pair_id)
         data = annotations.get(pid, {})
 
@@ -46,8 +49,6 @@ class AnnotationDisplayer:
         scale = min(max_w / w, max_h / h)  # preserve proportions
         return pil_img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
 
-
-        return pil_img.resize((max_w, max_h), Image.Resampling.LANCZOS)
 
     def _draw_image(self, canvas, annot_img, max_w, max_h):
 
