@@ -178,6 +178,8 @@ class UIElements(tk.Frame):
 
         if self.data_handler.has_prev_pair_global():
             current = self.data_handler.prev_pair()
+            self.flickerer._flicker_running = False
+
         else:
             messagebox.showinfo("Start Reached", "You have reached the start.")
             return
@@ -207,6 +209,8 @@ class UIElements(tk.Frame):
 
         if self.data_handler.has_next_pair_global():
             current = self.data_handler.next_pair()
+
+            self.flickerer._flicker_running = False
         else:
             if self.data_handler.mode == "review":
                 self._ask_upload_batch()
