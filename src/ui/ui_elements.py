@@ -247,7 +247,7 @@ class UIElements(tk.Frame):
 
                 messagebox.showinfo("Upload complete", "Batch has been uploaded and marked completed.")
 
-                # ✅ Load a fresh batch after completion
+                # Load a fresh batch after completion
                 self.data_handler.load_current_pairs()
                 self.refresh()
 
