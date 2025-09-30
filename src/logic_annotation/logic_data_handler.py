@@ -387,7 +387,7 @@ class BatchDataHandler(BaseDataHandler):
 
     def load_current_pairs(self):
         """Fetch a new batch from the API and wrap into BatchImagePairList."""
-        path = f"/{self.batch_type}/batch"
+        path = f"/batch/{self.batch_type}"
         url = urljoin(self.api_base + "/", path.lstrip("/"))
         resp = requests.get(url, params={"user": self.user, "size": self.size}, timeout=30)
         resp.raise_for_status()
