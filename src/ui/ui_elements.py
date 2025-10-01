@@ -206,23 +206,27 @@ class UIElements(tk.Frame):
 
     def next_pair(self):
         old_info = self.data_handler.context_info()
+        current = self.data_handler.next_pair()
 
-        if self.data_handler.has_next_pair_global():
-            current = self.data_handler.next_pair()
 
-            self.flickerer._flicker_running = False
-        else:
-            if self.data_handler.mode == "review":
-                self._ask_upload_batch()
-            else:
-                messagebox.showinfo("End Reached", "You have reached the end.")
-            return
-        
-        # save default if necessary
+        if current is None:
+                # Kein weiteres Pair → Scope ist definitiv zu Ende
+                if not self.data_handler.ask_upload():
+                    return
+                self.refresh()
+                return
+
+        # Falls durch Wechsel Scope-Ende erreicht wurde (Session oder Batch)
+        if self.data_handler.has_next_pair_in_scope():
+            if not self.data_handler.ask_upload():
+                return
+
+        self.flickerer._flicker_running = False
+
+        # Default save if necessary
         pid = str(current.pair_id)
         ann_all = self.data_handler.saver.annotations
         entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
-
         if not entry or "pair_state" not in entry:
             self.data_handler.saver.save_pair(
                 current,
@@ -232,31 +236,13 @@ class UIElements(tk.Frame):
 
         self.refresh()
 
-        # detect transition
+        # Optional: Sessionwechsel anzeigen
         new_info = self.data_handler.context_info()
         if new_info["progress"]["label"] != old_info["progress"]["label"]:
-            messagebox.showinfo("Next", f"Moving on to next session.")
+            messagebox.showinfo("Next", "Moving on to next session.")
 
 
-    def _ask_upload_batch(self):
-        confirm = messagebox.askyesno(
-            "Batch finished",
-            "You have reached the end of this batch.\n\nDo you want to upload your results now?"
-        )
-        if confirm:
-            try:
-                # upload results via data_handler
-                results = self.data_handler.saver.annotations
-                resp = self.data_handler.upload_results(results)
 
-                messagebox.showinfo("Upload complete", "Batch has been uploaded and marked completed.")
-
-                # Load a fresh batch after completion
-                self.data_handler.load_current_pairs()
-                self.refresh()
-
-            except Exception as e:
-                messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
 
 
     # Annotation callbacks (wire to logic_saver later)

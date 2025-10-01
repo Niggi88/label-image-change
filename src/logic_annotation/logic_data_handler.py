@@ -3,11 +3,12 @@ from PIL import Image
 from dataclasses import dataclass
 from src.logic_annotation.logic_saver import AnnotationSaver, InconsistentSaver, UnsureSaver
 from abc import ABC, abstractmethod
-from src.config import LOCAL_LOG_DIR
+from src.config import LOCAL_LOG_DIR, USERNAME
 from io import BytesIO
 from urllib.parse import urljoin
 import requests
-
+import json
+from tkinter import messagebox
 
 
 class BaseDataHandler(ABC):
@@ -41,6 +42,9 @@ class BaseDataHandler(ABC):
         """Return True if there is another pair before the current one."""
         pass
 
+    def has_next_pair_in_scope():
+        pass
+
     @abstractmethod
     def load_current_pairs(self):
         """
@@ -58,6 +62,9 @@ class BaseDataHandler(ABC):
         """Return (current_idx, total, session_name) or None if not applicable."""
         return None
 
+    @abstractmethod
+    def ask_upload(self):
+        pass
 
 
 class AnnotatableImage:
@@ -328,6 +335,10 @@ class SessionDataHandler(BaseDataHandler):
     def has_prev_pair_global(self):
         return self.pairs.has_prev() or self.all_sessions.has_prev()
     
+
+    def has_next_pair_in_scope(self):
+        return self.has_next_pair_global()
+
     def skip_current_session(self):
         """Mark current session unusable and move to the next if available."""
         self.saver.mark_session_unusable()
@@ -364,6 +375,85 @@ class SessionDataHandler(BaseDataHandler):
             f"– {self.current_session_info().session}"
         )
     
+    def upload_results(self, results: dict = None):
+        """
+        Upload the annotations.json for the current session.
+        """
+        ann_file = self.saver.file
+        if not ann_file.exists():
+            raise RuntimeError("No annotations.json to upload")
+        
+        with open(ann_file, "r") as f:
+            data = json.load(f)
+        
+        info = self.current_session_info()
+        session_id = f"{info.store}_{info.session}"
+
+        try:
+            with open(ann_file, 'rb') as f:
+                files = {'file': (f"{session_id}.json", f)}
+                data = {
+                    'username': USERNAME,
+                    'session_id': session_id
+                }
+                path = f"results/annotations"
+                url = urljoin(self.api_base + "/", path.lstrip("/"))
+                response = requests.post(url, files=files, data=data)
+                if response.status_code == 200:
+                    print(f"✅ Uploaded {session_id}.json")
+                else:
+                    print(f"❌ Failed to upload {session_id}.json — Status {response.status_code}")
+                    print(response.text)
+        except Exception as e:
+            print(f"💥 Error uploading {ann_file}: {e}")
+
+        response.raise_for_status()
+        return response.json()
+    
+
+    def upload_images(self):
+        """
+        Upload all images for the current session to the API.
+        Uses the /upload_image endpoint on the server.
+        """
+        info = self.current_session_info()
+
+        # loop through all pairs in the session
+        for pair in self.pairs.image_pairs:
+            for img in (pair.image1, pair.image2):
+                if img.img_path and img.img_path.exists():
+                    # relative path inside dataset_dir (so server can place it correctly)
+                    relative_path = str(img.img_path.relative_to(self.dataset_dir))
+                    try:
+                        with open(img.img_path, "rb") as f:
+                            files = {"file": (img.img_name, f)}
+                            data = {"relative_path": relative_path}
+                            url = f"{self.api_base.rstrip('/')}/upload_image"
+                            resp = requests.post(url, files=files, data=data, timeout=30)
+                            resp.raise_for_status()
+                            print(f"✅ Uploaded image {relative_path}")
+                    except Exception as e:
+                        print(f"❌ Failed to upload {img.img_path}: {e}")
+        
+
+    def ask_upload(self) -> bool:
+            confirm = messagebox.askyesno(
+                "Session finished",
+                f"Session {self.current_session_index()} is complete.\n\nDo you want to upload your annotations now?"
+            )
+            if not confirm:
+                return False
+
+            try:
+                self.upload_results()  # will send annotations.json
+                self.upload_images()
+                messagebox.showinfo("Upload complete", "Session uploaded successfully.")
+                return True
+            except Exception as e:
+                messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
+                return False
+    
+
 class BatchDataHandler(BaseDataHandler):
     """
     Gemeinsame Logik für Batch-basierte Review Modi (unsure, inconsistent).
@@ -433,6 +523,24 @@ class BatchDataHandler(BaseDataHandler):
     def has_prev_pair_global(self) -> bool:
         return self.pairs.has_prev() if self.pairs else False
 
+    def has_next_pair_in_scope(self):
+        """
+        In annotation mode, scope = current session.
+        Return True if the next pair is still part of the same session.
+        """
+        i = self.current_session_index()
+        if i is None:
+            return False
+
+        if i + 1 >= len(self.pairs):
+            return False
+
+        cur = self.pairs[i]
+        nxt = self.pairs[i + 1]
+
+        return getattr(cur, "store_session_path", None) == getattr(nxt, "store_session_path", None)
+
+
     def current_session_index(self):
         return None  # no sessions in review mode
     
@@ -479,7 +587,24 @@ class BatchDataHandler(BaseDataHandler):
         resp = requests.post(url, json=results, timeout=30)
         resp.raise_for_status()
         return resp.json()
+    
+    def ask_upload(self):
+            confirm = messagebox.askyesno(
+                "Batch finished",
+                "You have reached the end of this batch.\n\nDo you want to upload your results now?"
+            )
+            if not confirm:
+                return False
 
+            try:
+                results = self.saver.annotations
+                self.upload_results(results)
+                messagebox.showinfo("Upload complete", "Batch has been uploaded and marked completed.")
+                self.load_current_pairs()  # fetch fresh batch
+                return True
+            except Exception as e:
+                messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
+                return False
 
 # ------------------------------
 # Spezialisierungen
