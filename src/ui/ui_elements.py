@@ -32,7 +32,7 @@ class UIElements(tk.Frame):
         if data_handler is not None:
             self.data_handler = data_handler
         else:
-            self.data_handler = SessionDataHandler(dataset_path, skip_completed=skip_completed)
+            self.data_handler = SessionDataHandler(dataset_path,  api_base="http://172.30.20.31:8081", skip_completed=skip_completed)
         
         self.handler = BoxHandler(self.data_handler, self.data_handler.saver, ui=self)
         self.displayer = AnnotationDisplayer()
@@ -217,7 +217,7 @@ class UIElements(tk.Frame):
                 return
 
         # Falls durch Wechsel Scope-Ende erreicht wurde (Session oder Batch)
-        if self.data_handler.has_next_pair_in_scope():
+        if not self.data_handler.has_next_pair_in_scope():
             if not self.data_handler.ask_upload():
                 return
 

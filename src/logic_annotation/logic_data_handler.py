@@ -269,8 +269,10 @@ class SessionList:
 
 
 class SessionDataHandler(BaseDataHandler):
-    def __init__(self, dataset_dir, skip_completed=False):
+    def __init__(self, dataset_dir, api_base, skip_completed=False):
         self.dataset_dir = dataset_dir
+        self.api_base = api_base.rstrip("/")
+        
         self.all_sessions = SessionList(self.dataset_dir, skip_completed=skip_completed)
 
         self.pairs = None
@@ -337,7 +339,7 @@ class SessionDataHandler(BaseDataHandler):
     
 
     def has_next_pair_in_scope(self):
-        return self.has_next_pair_global()
+        return self.pairs.has_next()
 
     def skip_current_session(self):
         """Mark current session unusable and move to the next if available."""
@@ -523,22 +525,10 @@ class BatchDataHandler(BaseDataHandler):
     def has_prev_pair_global(self) -> bool:
         return self.pairs.has_prev() if self.pairs else False
 
+
     def has_next_pair_in_scope(self):
-        """
-        In annotation mode, scope = current session.
-        Return True if the next pair is still part of the same session.
-        """
-        i = self.current_session_index()
-        if i is None:
-            return False
+            return self.has_next_pair_global()
 
-        if i + 1 >= len(self.pairs):
-            return False
-
-        cur = self.pairs[i]
-        nxt = self.pairs[i + 1]
-
-        return getattr(cur, "store_session_path", None) == getattr(nxt, "store_session_path", None)
 
 
     def current_session_index(self):
