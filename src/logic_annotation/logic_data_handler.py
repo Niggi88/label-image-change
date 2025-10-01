@@ -79,7 +79,11 @@ class AnnotatableImage:
 class RemoteAnnotatableImage(AnnotatableImage):
     """For API-served images (http/https)."""
     def __init__(self, url: str, image_id: int, api_base: str = None):
-        self.url = url if url.startswith("http") else f"{api_base.rstrip('/')}/{url.lstrip('/')}"
+        if url.startswith("http"):
+            self.url = url
+        else:
+            # ensure image requests go through /images mount
+            self.url = f"{api_base.rstrip('/')}/images/{url.lstrip('/')}"
         self.img_name = Path(url).name
         self.img_path = None  # no local path
         self.boxes = []
@@ -272,7 +276,7 @@ class SessionDataHandler(BaseDataHandler):
     def __init__(self, dataset_dir, api_base, skip_completed=False):
         self.dataset_dir = dataset_dir
         self.api_base = api_base.rstrip("/")
-        
+
         self.all_sessions = SessionList(self.dataset_dir, skip_completed=skip_completed)
 
         self.pairs = None
