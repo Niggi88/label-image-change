@@ -263,6 +263,7 @@ class UIElements(tk.Frame):
         """Delete the currently selected box safely."""
         try:
             self.handler.delete_box()
+            self.refresh()
         except Exception as e:
             print(f"Delete failed: {e}")
 
