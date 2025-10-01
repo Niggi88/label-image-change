@@ -392,6 +392,10 @@ class SessionDataHandler(BaseDataHandler):
         with open(ann_file, "r") as f:
             data = json.load(f)
         
+        meta = data.get("_meta", {})
+        if not meta.get("completed", False):
+            raise RuntimeError(f"Session {self.current_session_info().session} not marked completed – refusing upload.")
+        
         info = self.current_session_info()
         session_id = f"{info.store}_{info.session}"
 
@@ -408,10 +412,10 @@ class SessionDataHandler(BaseDataHandler):
                 if response.status_code == 200:
                     print(f"✅ Uploaded {session_id}.json")
                 else:
-                    print(f"❌ Failed to upload {session_id}.json — Status {response.status_code}")
+                    print(f"Failed to upload {session_id}.json — Status {response.status_code}")
                     print(response.text)
         except Exception as e:
-            print(f"💥 Error uploading {ann_file}: {e}")
+            print(f"Error uploading {ann_file}: {e}")
 
         response.raise_for_status()
         return response.json()
