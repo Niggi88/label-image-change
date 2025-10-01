@@ -216,10 +216,6 @@ class UIElements(tk.Frame):
                 self.refresh()
                 return
 
-        # Falls durch Wechsel Scope-Ende erreicht wurde (Session oder Batch)
-        if not self.data_handler.has_next_pair_in_scope():
-            if not self.data_handler.ask_upload():
-                return
 
         self.flickerer._flicker_running = False
 
@@ -236,6 +232,12 @@ class UIElements(tk.Frame):
 
         self.refresh()
 
+
+        # Falls durch Wechsel Scope-Ende erreicht wurde (Session oder Batch)
+        if not self.data_handler.has_next_pair_in_scope():
+            if not self.data_handler.ask_upload():
+                return
+            
         # Optional: Sessionwechsel anzeigen
         new_info = self.data_handler.context_info()
         if new_info["progress"]["label"] != old_info["progress"]["label"]:
