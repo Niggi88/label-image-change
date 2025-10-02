@@ -22,7 +22,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build
-        run: pyinstaller --onefile --hidden-import --windowed src/ui/ui_app.py
+        run: pyinstaller --onefile --hidden-import PIL._tkinter_finder --windowed src/ui/ui_app.py
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
