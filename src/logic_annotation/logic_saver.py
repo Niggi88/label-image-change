@@ -1,10 +1,11 @@
 import json
 from pathlib import Path
 import uuid
-import src.config
+from src.config import USERNAME, DATASET_DIR, LOCAL_LOG_DIR
 from datetime import datetime
 from urllib.parse import urlparse
-
+from src.utils import report_annotation, make_relative_path
+import os
 
 def _shorten_path(path_or_url: str) -> str:
     """
@@ -127,6 +128,10 @@ class AnnotationSaver:
 
     def save_pair(self, pair, state, context):
         pid = str(pair.pair_id)
+        old_state = self.annotations.get(pid, {}).get("pair_state")
+
+        print(f"[DEBUG] save_pair for {pid}: old_state={old_state}, new_state={state}")
+
         entry = {
             "pair_state": state,
             "boxes": pair.image1.boxes + pair.image2.boxes,
@@ -139,6 +144,23 @@ class AnnotationSaver:
         self.update_meta(context["progress"]["total"])
         self._flush()
 
+        # 🔑 Build unique pair id = session + index
+        session_id = str(context["session_info"].session).replace(os.sep, "_")
+        pair_id_unique = f"{session_id}_{pid}"
+
+        if state != old_state:
+            # Skip first-time default (None → no_annotation)
+            if not (old_state is None and state == "no_annotation"):
+                print(f"[DEBUG] Reporting annotation change: {old_state} → {state}")
+                report_annotation(
+                    class_name=state,
+                    pair_id=pair_id_unique   # ✅ use unique ID
+                )
+            else:
+                print(f"[DEBUG] Skipping initial default save for {pid}")
+
+
+
 
     def set_on_change(self, callback):
         """UI can register refresh here."""
@@ -148,6 +170,7 @@ class AnnotationSaver:
         self.file.write_text(json.dumps(self.annotations, indent=2))
         if self._on_change:
             self._on_change()
+
 
     def update_meta(self, total_pairs):
         pid_count = sum(1 for k in self.annotations if k != "_meta")
@@ -159,7 +182,7 @@ class AnnotationSaver:
         self.annotations["_meta"].update({
             "completed": completed,
             "timestamp": datetime.now().isoformat(),
-            "root": str(src.config.DATASET_DIR),
+            "root": str(DATASET_DIR),
             "usable": self.annotations["_meta"].get("usable", True)  # default True
         })
 
@@ -249,7 +272,7 @@ class AnnotationSaver:
 
 
 class ReviewSaver(CommonSaver):
-    def __init__(self, batch_info: dict, local_dir=src.config.LOCAL_LOG_DIR):
+    def __init__(self, batch_info: dict, local_dir=LOCAL_LOG_DIR):
         batch_id = batch_info["batch_id"]
         batch_type = batch_info["batch_type"]
 

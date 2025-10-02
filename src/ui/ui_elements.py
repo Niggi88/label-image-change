@@ -189,7 +189,7 @@ class UIElements(tk.Frame):
         ann_all = self.data_handler.saver.annotations
         entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
 
-        if not entry or "pair_state" not in entry:
+        if not entry:
             self.data_handler.saver.save_pair(
                 current,
                 "no_annotation",
@@ -206,7 +206,8 @@ class UIElements(tk.Frame):
 
     def next_pair(self):
         old_info = self.data_handler.context_info()
-        current = self.data_handler.next_pair()
+        if self.data_handler.has_next_pair_global():
+            current = self.data_handler.next_pair()
 
 
         if current is None:
