@@ -1,6 +1,7 @@
 import socket
 import os
 import json
+import sys
 
 CACHE = True
 IMAGE_SIZE=2000
@@ -15,14 +16,20 @@ DATASET_NAME="gemuese_netz_sub"
 HOSTNAME = socket.gethostname()
 
 
-# 1. Versuch: user_config.json laden
-if os.path.exists("user_config.json"):
-    with open("user_config.json", "r", encoding="utf-8") as f:
+# Basisverzeichnis bestimmen (funktioniert für Python + exe)
+BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+
+json_path = os.path.join(BASE_DIR, "user_config.json")
+
+if os.path.exists(json_path):
+    with open(json_path, "r", encoding="utf-8") as f:
         cfg = json.load(f)
     USERNAME = cfg.get("username", "unknown")
     DATASET_NAME = cfg.get("dataset_name", "default")
     DATASET_DIR = cfg.get("dataset_dir", "./dataset")
-    SERVER = cfg.get("server", SERVER)
+    SERVER = cfg.get("server", "http://172.30.20.31:8010/")
+    LOCAL_LOG_DIR = cfg.get("local_log_dir", "./local_log_dir")
+    SEGMENTATION_PATH = cfg.get("segmentation_path", "./segmented_boxes")
     print(f"[CONFIG] loaded from user_config.json: {USERNAME}, {DATASET_DIR}")
 else:
 
