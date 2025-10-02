@@ -14,12 +14,17 @@ SERVER = "http://172.30.20.31:8010/"
 DATASET_NAME="gemuese_netz_sub"
 
 HOSTNAME = socket.gethostname()
-parent_dir = os.path.dirname(os.path.dirname(sys.executable if getattr(sys,'frozen',False)else os.path.abspath(__file__)))
+
 
 # Basisverzeichnis bestimmen (funktioniert für Python + exe)
-BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+if getattr(sys, 'frozen', False):
+    # Wenn als exe/.app läuft → Ordner der Binary
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    # Wenn im Python-Interpreter läuft → Ordner, wo config.py liegt
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-json_path = os.path.join(parent_dir, "user_config.json")
+json_path = os.path.join(BASE_DIR, "user_config.json")
 
 if os.path.exists(json_path):
     with open(json_path, "r", encoding="utf-8") as f:
@@ -27,7 +32,7 @@ if os.path.exists(json_path):
     USERNAME = cfg.get("username", "unknown")
     DATASET_NAME = cfg.get("dataset_name", "default")
     DATASET_DIR = cfg.get("dataset_dir", "./dataset")
-    SERVER = cfg.get("server", "http://172.30.20.31:8010/")
+    SERVER = cfg.get("server", SERVER)
     LOCAL_LOG_DIR = cfg.get("local_log_dir", "./local_log_dir")
     SEGMENTATION_PATH = cfg.get("segmentation_path", "./segmented_boxes")
     print(f"[CONFIG] loaded from user_config.json: {USERNAME}, {DATASET_DIR}")
