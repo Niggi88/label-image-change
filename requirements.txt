@@ -1,4 +1,7 @@
-Pillow
 numpy
-opencv-python
+pillow
+matplotlib
+fastapi
+uvicorn
 requests
+loguru
