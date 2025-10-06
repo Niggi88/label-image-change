@@ -106,6 +106,7 @@ class SessionUploader(BaseUploader):
                 messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
                 return False
 
+
 class BatchUploader(BaseUploader):
     def __init__(self, handler):
         self.handler = handler
