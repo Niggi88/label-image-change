@@ -9,7 +9,7 @@ from urllib.parse import urljoin
 import requests
 import json
 from tkinter import messagebox
-
+from src.logic_annotation.logic_uploader import SessionUploader, BatchUploader
 
 class BaseDataHandler(ABC):
     """
@@ -286,6 +286,8 @@ class SessionDataHandler(BaseDataHandler):
 
         self.saver = AnnotationSaver(self.current_session_info())
 
+        self.uploader = SessionUploader(self)
+
     def load_current_pairs(self):
         info = self.all_sessions.current()
         self.pairs = ImagePairList(info.path)
@@ -378,91 +380,11 @@ class SessionDataHandler(BaseDataHandler):
     def get_session_text(self):
         return (
             f"Session {self.all_sessions.session_idx+1}/{len(self.all_sessions)} "
-            f"– {self.current_session_info().session}"
+            f"- {self.current_session_info().session}"
         )
     
-    def upload_results(self, results: dict = None):
-        """
-        Upload the annotations.json for the current session.
-        """
-        ann_file = self.saver.file
-        if not ann_file.exists():
-            raise RuntimeError("No annotations.json to upload")
-        
-        with open(ann_file, "r") as f:
-            data = json.load(f)
-        
-        meta = data.get("_meta", {})
-        if not meta.get("completed", False):
-            raise RuntimeError(f"Session {self.current_session_info().session} not marked completed – refusing upload.")
-        
-        info = self.current_session_info()
-        session_id = f"{info.store}_{info.session}"
-
-        try:
-            with open(ann_file, 'rb') as f:
-                files = {'file': (f"{session_id}.json", f)}
-                data = {
-                    'username': USERNAME,
-                    'session_id': session_id
-                }
-                path = f"results/annotations"
-                url = urljoin(self.api_base + "/", path.lstrip("/"))
-                response = requests.post(url, files=files, data=data)
-                if response.status_code == 200:
-                    print(f"✅ Uploaded {session_id}.json")
-                else:
-                    print(f"Failed to upload {session_id}.json — Status {response.status_code}")
-                    print(response.text)
-        except Exception as e:
-            print(f"Error uploading {ann_file}: {e}")
-
-        response.raise_for_status()
-        return response.json()
-    
-
-    def upload_images(self):
-        """
-        Upload all images for the current session to the API.
-        Uses the /upload_image endpoint on the server.
-        """
-        info = self.current_session_info()
-
-        # loop through all pairs in the session
-        for pair in self.pairs.image_pairs:
-            for img in (pair.image1, pair.image2):
-                if img.img_path and img.img_path.exists():
-                    # relative path inside dataset_dir (so server can place it correctly)
-                    relative_path = str(img.img_path.relative_to(self.dataset_dir))
-                    try:
-                        with open(img.img_path, "rb") as f:
-                            files = {"file": (img.img_name, f)}
-                            data = {"relative_path": relative_path}
-                            url = f"{self.api_base.rstrip('/')}/upload_image"
-                            resp = requests.post(url, files=files, data=data, timeout=30)
-                            resp.raise_for_status()
-                            print(f"✅ Uploaded image {relative_path}")
-                    except Exception as e:
-                        print(f"❌ Failed to upload {img.img_path}: {e}")
-        
-
-    def ask_upload(self) -> bool:
-            confirm = messagebox.askyesno(
-                "Session finished",
-                f"Session {self.current_session_index()} is complete.\n\nDo you want to upload your annotations now?"
-            )
-            if not confirm:
-                return False
-
-            try:
-                self.upload_results()  # will send annotations.json
-                self.upload_images()
-                messagebox.showinfo("Upload complete", "Session uploaded successfully.")
-                return True
-            except Exception as e:
-                messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
-                return False
-    
+    def ask_upload(self):
+        return self.uploader.ask_upload()
 
 class BatchDataHandler(BaseDataHandler):
     """
@@ -484,6 +406,8 @@ class BatchDataHandler(BaseDataHandler):
         self.meta = {}
 
         self.load_current_pairs()
+
+        self.uploader = BatchUploader(self)
 
     def load_current_pairs(self):
         """Fetch a new batch from the API and wrap into BatchImagePairList."""
@@ -567,46 +491,9 @@ class BatchDataHandler(BaseDataHandler):
         To be implemented by subclasses (UnsureDataHandler, InconsistentDataHandler).
         """
         return ""
-    
-    # ------------------------------
-    # Review-spezifische Funktion
-    # ------------------------------
 
-    def upload_results(self, results: dict):
-        """
-        Ergebnisse für das Batch hochladen.
-        results: Dict[str, Any], keys = "store_session_path|pair_id"
-        """
-        if not self.batch_id:
-            raise RuntimeError("Kein aktives Batch geladen")
-
-        path = f"/batches/{self.batch_id}/results"
-        url = urljoin(self.api_base + "/", path.lstrip("/"))
-        resp = requests.post(url, json=results, timeout=30)
-        resp.raise_for_status()
-        return resp.json()
-    
     def ask_upload(self):
-            confirm = messagebox.askyesno(
-                "Batch finished",
-                "You have reached the end of this batch.\n\nDo you want to upload your results now?"
-            )
-            if not confirm:
-                return False
-
-            try:
-                results = self.saver.annotations
-                self.upload_results(results)
-                messagebox.showinfo("Upload complete", "Batch has been uploaded and marked completed.")
-                self.load_current_pairs()  # fetch fresh batch
-                return True
-            except Exception as e:
-                messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
-                return False
-
-# ------------------------------
-# Spezialisierungen
-# ------------------------------
+        return self.uploader.ask_upload()
 
 class UnsureDataHandler(BatchDataHandler):
     def __init__(self, api_base: str, user: str, size: int = 20):
