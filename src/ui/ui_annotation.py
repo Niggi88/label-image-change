@@ -155,6 +155,7 @@ class BoxHandler:
      # ---------------- MOVE ----------------
 
     def start_move(self, event, canvas, annot_img):
+        """Starte das Verschieben einer Box (rechte Maustaste)."""
         scale_x = annot_img.img_size[0] / canvas.winfo_width()
         scale_y = annot_img.img_size[1] / canvas.winfo_height()
         x = int(event.x * scale_x)
@@ -166,92 +167,89 @@ class BoxHandler:
                 self.selected_image = annot_img
                 self._moving = True
                 self._move_start_x, self._move_start_y = event.x, event.y
-                print(f"Start moving box {i}")
-                # 1) Entferne Box aus JSON
-                pair = self.data_handler.current_pair()
-                ctx = self.data_handler.context_info()
-                self.data_handler.saver.save_delete_box(pair, b["box_id"], ctx)
+                self._moving_box = dict(b)
+                self._moving_index = i
 
-                # 2) Entferne aus Memory
-                self.selected_image.boxes.pop(i)
+                # Temporäres Rechteck zeichnen
+                img_w, img_h = annot_img.img_size
+                scale_x_c = canvas.winfo_width() / img_w
+                scale_y_c = canvas.winfo_height() / img_h
+                self._moving_box_id = canvas.create_rectangle(
+                    b["x1"] * scale_x_c,
+                    b["y1"] * scale_y_c,
+                    b["x2"] * scale_x_c,
+                    b["y2"] * scale_y_c,
+                    outline="red", width=2, dash=(3, 3), tags="moving_box"
+                )
 
-                # 3) Merke diese Box zum Verschieben
-                self._moving_box = dict(b)   # copy the whole box
-                self._moving_index = i       # remember its index
-                # 4) Redraw übrige Boxes
-                canvas.delete("box")
-                self.displayer._draw_boxes(canvas, annot_img.boxes)
-
+                # Box temporär aus Speicher entfernen (nicht redrawen!)
+                annot_img.boxes.pop(i)
                 return
 
 
     def move_box(self, event, canvas):
-        if not self._moving or not hasattr(self, "_moving_box"):
+        """Bewege die aktuell gezogene Box – aktualisiere nur deren Koordinaten."""
+        if not self._moving or not hasattr(self, "_moving_box_id"):
             return
 
         dx = event.x - self._move_start_x
         dy = event.y - self._move_start_y
         self._move_start_x, self._move_start_y = event.x, event.y
 
-        img_w, img_h = self.selected_image.img_size
-        scale_x = canvas.winfo_width() / img_w
-        scale_y = canvas.winfo_height() / img_h
+        coords = canvas.coords(self._moving_box_id)
+        new_coords = [
+            coords[0] + dx,
+            coords[1] + dy,
+            coords[2] + dx,
+            coords[3] + dy,
+        ]
 
-        box = self._moving_box
-
-        # Canvas coords
-        cx1, cy1 = int(box["x1"] * scale_x), int(box["y1"] * scale_y)
-        cx2, cy2 = int(box["x2"] * scale_x), int(box["y2"] * scale_y)
-
-        # Apply move
-        cx1 += dx; cx2 += dx
-        cy1 += dy; cy2 += dy
-
-        # Clamp inside canvas
+        # Begrenze auf Canvas-Rand
         w, h = canvas.winfo_width(), canvas.winfo_height()
-        cx1 = max(0, min(cx1, w))
-        cy1 = max(0, min(cy1, h))
-        cx2 = max(0, min(cx2, w))
-        cy2 = max(0, min(cy2, h))
+        new_coords = [
+            max(0, min(new_coords[0], w)),
+            max(0, min(new_coords[1], h)),
+            max(0, min(new_coords[2], w)),
+            max(0, min(new_coords[3], h)),
+        ]
 
-        # Back to image coords
-        box["x1"] = int(cx1 / scale_x)
-        box["y1"] = int(cy1 / scale_y)
-        box["x2"] = int(cx2 / scale_x)
-        box["y2"] = int(cy2 / scale_y)
-
-        # Redraw: all existing boxes + moving box
-        canvas.delete("box")
-        all_boxes = self.selected_image.boxes + [box]
-        self.displayer._draw_boxes(canvas, all_boxes, highlight=len(all_boxes)-1)
+        canvas.coords(self._moving_box_id, *new_coords)
 
 
     def end_move(self, event):
-        if not self._moving or not hasattr(self, "_moving_box"):
+        """Abschluss des Bewegens: speichere Box und zeichne final neu."""
+        if not self._moving or not hasattr(self, "_moving_box_id"):
             return
 
-        moved_box = self._moving_box
+        # Canvas-Koordinaten in Bildkoordinaten umwandeln
+        coords = self.selected_canvas.coords(self._moving_box_id)
+        img_w, img_h = self.selected_image.img_size
+        scale_x = self.selected_canvas.winfo_width() / img_w
+        scale_y = self.selected_canvas.winfo_height() / img_h
 
-        # Speichern
+        moved_box = self._moving_box
+        moved_box["x1"] = int(coords[0] / scale_x)
+        moved_box["y1"] = int(coords[1] / scale_y)
+        moved_box["x2"] = int(coords[2] / scale_x)
+        moved_box["y2"] = int(coords[3] / scale_y)
+
+        # In JSON speichern
         pair = self.data_handler.current_pair()
         ctx = self.data_handler.context_info()
         self.data_handler.saver.save_box(pair, moved_box, ctx, state="annotated")
-        print(f"Moved and saved box {moved_box['box_id']}")
 
-        # Insert back at same index
+        # Zurück in die Boxliste einfügen
         self.selected_image.boxes.insert(self._moving_index, moved_box)
 
-        # Final redraw: now only the true box list
+        # Temporäres Rechteck löschen
+        self.selected_canvas.delete(self._moving_box_id)
+        del self._moving_box_id
+
+        # Finaler Redraw (einmalig!)
         self.selected_canvas.delete("box")
         self.displayer._draw_boxes(self.selected_canvas, self.selected_image.boxes)
 
-        # Refresh whole UI so both canvases redraw from JSON
-        root = self.selected_canvas.winfo_toplevel()
-        app = root.children.get("!uielements")
-        if app:
-            app.refresh()
-            
-        # Reset
+        # Zustand zurücksetzen
         self._moving = False
         self._move_start_x = None
         self._move_start_y = None
