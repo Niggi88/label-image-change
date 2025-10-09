@@ -1,5 +1,8 @@
 name: Label Image Change Tool
-on: [push]
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
  
 
