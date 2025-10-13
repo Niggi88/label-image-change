@@ -206,15 +206,24 @@ class UIElements(tk.Frame):
 
     def next_pair(self):
         old_info = self.data_handler.context_info()
+        # Detect if we are currently at the last pair *before* moving on
+        was_last_in_session = self.data_handler.is_last_pair()
+        prev_session = self.data_handler.current_session_info()
+        
         if self.data_handler.has_next_pair_global():
             current = self.data_handler.next_pair()
 
 
         if current is None:
-                # Kein weiteres Pair → Scope ist definitiv zu Ende
-                if not self.data_handler.ask_upload():
-                    return
-                self.refresh()
+            # Kein weiteres Pair → Scope ist definitiv zu Ende
+            if not self.data_handler.ask_upload():
+                return
+            self.refresh()
+            return
+
+        # If we just moved *away* from the last pair, trigger upload prompt
+        if was_last_in_session:
+            if not self.data_handler.ask_upload(prev_session):
                 return
 
 
@@ -232,12 +241,6 @@ class UIElements(tk.Frame):
             )
 
         self.refresh()
-
-
-        # Falls durch Wechsel Scope-Ende erreicht wurde (Session oder Batch)
-        if not self.data_handler.has_next_pair_in_scope():
-            if not self.data_handler.ask_upload():
-                return
             
         # Optional: Sessionwechsel anzeigen
         new_info = self.data_handler.context_info()

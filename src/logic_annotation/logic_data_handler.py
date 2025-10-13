@@ -346,6 +346,9 @@ class SessionDataHandler(BaseDataHandler):
 
     def has_next_pair_in_scope(self):
         return self.pairs.has_next()
+    
+    def is_last_pair(self):
+        return self.pairs.pair_idx == len(self.pairs) - 1
 
     def skip_current_session(self):
         """Mark current session unusable and move to the next if available."""
@@ -383,8 +386,8 @@ class SessionDataHandler(BaseDataHandler):
             f"- {self.current_session_info().session}"
         )
     
-    def ask_upload(self):
-        return self.uploader.ask_upload()
+    def ask_upload(self, session_info=None):
+        return self.uploader.ask_upload(session_info)
 
 class BatchDataHandler(BaseDataHandler):
     """

@@ -24,11 +24,14 @@ class SessionUploader(BaseUploader):
         self.handler = handler
         self.api_base = handler.api_base
 
-    def upload_results(self, results: dict = None):
+    def upload_results(self, session_info=None):
         """
         Upload the annotations.json for the current session.
         """
-        ann_file = self.handler.saver.file
+
+        target_info = session_info or self.handler.current_session_info()
+        ann_file = target_info.path / "annotations.json"
+
         if not ann_file.exists():
             raise RuntimeError("No annotations.json to upload")
         
@@ -37,10 +40,9 @@ class SessionUploader(BaseUploader):
         
         meta = data.get("_meta", {})
         if not meta.get("completed", False):
-            raise RuntimeError(f"Session {self.handler.current_session_info().session} not marked completed – refusing upload.")
-        
-        info = self.handler.current_session_info()
-        session_id = f"{info.store}_{info.session}"
+            raise RuntimeError(f"Session {target_info.session} not marked completed – refusing upload.")
+
+        session_id = f"{target_info.store}_{target_info.session}"
 
         try:
             with open(ann_file, 'rb') as f:
@@ -64,47 +66,49 @@ class SessionUploader(BaseUploader):
         return response.json()
     
 
-    def upload_images(self):
+    def upload_images(self, session_info=None):
         """
         Upload all images for the current session to the API.
         Uses the /upload_image endpoint on the server.
         """
-        info = self.handler.current_session_info()
+        target_info = session_info or self.handler.current_session_info()
 
-        # loop through all pairs in the session
-        for pair in self.handler.pairs.image_pairs:
-            for img in (pair.image1, pair.image2):
-                if img.img_path and img.img_path.exists():
-                    # relative path inside dataset_dir (so server can place it correctly)
-                    relative_path = str(img.img_path.relative_to(self.handler.dataset_dir))
-                    try:
-                        with open(img.img_path, "rb") as f:
-                            files = {"file": (img.img_name, f)}
-                            data = {"relative_path": relative_path}
-                            url = f"{self.api_base.rstrip('/')}/upload_image"
-                            resp = requests.post(url, files=files, data=data, timeout=30)
-                            resp.raise_for_status()
-                            print(f"✅ Uploaded image {relative_path}")
-                    except Exception as e:
-                        print(f"❌ Failed to upload {img.img_path}: {e}")
-        
-
-    def ask_upload(self) -> bool:
-            confirm = messagebox.askyesno(
-                "Session finished",
-                f"Session {self.handler.current_session_index()} is complete.\n\nDo you want to upload your annotations now?"
-            )
-            if not confirm:
-                return False
-
+            
+        for img_file in sorted(target_info.path.glob("*.jpeg")):
+            relative_path = str(img_file.relative_to(self.handler.dataset_dir))
             try:
-                self.upload_results()  # will send annotations.json
-                self.upload_images()
-                messagebox.showinfo("Upload complete", "Session uploaded successfully.")
-                return True
+                with open(img_file, "rb") as f:
+                    files = {"file": (img_file.name, f)}
+                    data = {"relative_path": relative_path}
+                    url = f"{self.api_base.rstrip('/')}/upload_image"
+                    resp = requests.post(url, files=files, data=data, timeout=30)
+                    resp.raise_for_status()
+                    print(f"✅ Uploaded image {relative_path}")
             except Exception as e:
-                messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
-                return False
+                print(f"❌ Failed to upload {img_file}: {e}")
+            
+
+    def ask_upload(self, session_info=None) -> bool:
+        target_info = session_info or self.handler.current_session_info()
+
+        confirm = messagebox.askyesno(
+            "Session finished",
+            f"Session {target_info.session} is complete.\n\n"
+            "Do you want to upload your annotations now?"
+        )
+        if not confirm:
+            return False
+
+        try:
+            self.upload_results(target_info)
+            self.upload_images(target_info)
+            messagebox.showinfo(
+                "Upload complete", f"Session {target_info.session} uploaded successfully."
+            )
+            return True
+        except Exception as e:
+            messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
+            return False
 
 
 class BatchUploader(BaseUploader):
