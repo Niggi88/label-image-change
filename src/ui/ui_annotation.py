@@ -33,6 +33,10 @@ class BoxHandler:
         canvas.bind("<B3-Motion>", lambda e: self.move_box(e, canvas))
         canvas.bind("<ButtonRelease-3>", lambda e: self.end_move(e))
 
+        canvas.bind("<Alt-Button-1>", lambda e: self.start_move(e, canvas, image))
+        canvas.bind("<Alt-B1-Motion>", lambda e: self.move_box(e, canvas))
+        canvas.bind("<Alt-ButtonRelease-1>", lambda e: self.end_move(e))
+
     def start_action(self, event, canvas, annot_img):
         """Entry point: decides if this is a selection or a new box draw."""
         scale_x = annot_img.img_size[0] / canvas.winfo_width()
