@@ -45,6 +45,7 @@ else:
         DATASET_NAME="tmp"
         DATASET_DIR = f"/media/fast/dataset/bildunterschied/test_mini/new_label_tool/{DATASET_NAME}"
         USERNAME = "niklas"
+        LOCAL_LOG_DIR = f"/tmp"
     elif HOSTNAME == "niklas-XPS-15-9530":
         UI_SCALING=2.5
         FONT_SCALING=2.5
