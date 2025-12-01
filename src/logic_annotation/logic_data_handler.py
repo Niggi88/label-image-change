@@ -83,7 +83,8 @@ class RemoteAnnotatableImage(AnnotatableImage):
             self.url = url
         else:
             # ensure image requests go through /images mount
-            self.url = f"{api_base.rstrip('/')}/images/{url.lstrip('/')}"
+            # self.url = f"{api_base.rstrip('/')}/images/{url.lstrip('/')}"
+            self.url = f"{api_base.rstrip('/')}{url}"
         self.img_name = Path(url).name
         self.img_path = None  # no local path
         self.boxes = []
@@ -414,7 +415,7 @@ class BatchDataHandler(BaseDataHandler):
 
     def load_current_pairs(self):
         """Fetch a new batch from the API and wrap into BatchImagePairList."""
-        path = f"/batch/{self.batch_type}"
+        path = f"{self.batch_type}/batch"
         url = urljoin(self.api_base + "/", path.lstrip("/"))
         resp = requests.get(url, params={"user": self.user, "size": self.size}, timeout=30)
         resp.raise_for_status()
@@ -423,8 +424,10 @@ class BatchDataHandler(BaseDataHandler):
         self.batch_id = data.get("batch_id")
         self.meta = data
 
+        items = data.get("items") or []
         pairs = []
-        for key, item in (data.get("items") or {}).items():
+
+        for item in items:
             pair = ImagePair(
                 pair_id=item["pair_id"],
                 img1_path=item["im1_url"],
@@ -439,7 +442,6 @@ class BatchDataHandler(BaseDataHandler):
             pair.source_item = item
             pairs.append(pair)
 
-        # Wrap in BatchImagePairList
         self.pairs = BatchImagePairList(pairs)
         print("Loaded batch with", len(self.pairs), "pairs, starting at index", self.pairs.pair_idx)
 
@@ -464,6 +466,9 @@ class BatchDataHandler(BaseDataHandler):
     def has_next_pair_in_scope(self):
             return self.has_next_pair_global()
 
+    def is_last_pair(self) -> bool:
+        """Return True if the current pair is the last in the batch."""
+        return self.pairs.pair_idx >= len(self.pairs) - 1
 
 
     def current_session_index(self):
@@ -506,14 +511,24 @@ class UnsureDataHandler(BatchDataHandler):
 
     def get_session_text(self):
         pair = self.current_pair()
-        key = f"{pair.source_item['store_session_path']}|{pair.pair_id}"
+        key_store = pair.source_item["store_session_path"]
+        key_pid = pair.pair_id
+
+        # Local annotations
+        key = f"{key_store}|{key_pid}"
         ann = self.saver.annotations["items"].get(key, {})
 
-        annotated_by = ann.get("unsure_by")
-        if not annotated_by and "items" in self.meta:
-            ann = self.meta["items"].get(f"{pair.source_item['store_session_path']}|{pair.pair_id}", {})
-            annotated_by = ann.get("unsure_by")
+        # Server meta fallback
+        if not ann and isinstance(self.meta.get("items"), list):
+            for item in self.meta["items"]:
+                if (
+                    item.get("store_session_path") == key_store and
+                    int(item.get("pair_id", -1)) == key_pid
+                ):
+                    ann = item
+                    break
 
+        annotated_by = ann.get("unsure_by")
         if isinstance(annotated_by, dict):
             annotated_by = annotated_by.get("name")
 
@@ -531,21 +546,32 @@ class InconsistentDataHandler(BatchDataHandler):
 
     def get_session_text(self):
         pair = self.current_pair()
-        ann = self.saver.annotations["items"].get(str(pair.pair_id), {})
 
-        reviewed_by = ann.get("reviewed_by")
-        if isinstance(reviewed_by, dict):
-            reviewed_by = reviewed_by.get("name")
+        # 1) Korrekt zusammengesetzter Schlüssel
+        key = f"{pair.source_item['store_session_path']}|{pair.pair_id}"
 
-        # fallback: check server meta
-        if not ann and "items" in self.meta:
-            ann = self.meta["items"].get(f"{pair.source_item['store_session_path']}|{pair.pair_id}", {})
-            reviewed_by = ann.get("reviewed_by")
+        # 2) Lokale review-Annotation (falls schon gespeichert)
+        ann_local = self.saver.annotations["items"].get(key, {})
+
+        # 3) Server-Basisdaten für dieses Pair
+        ann_server = pair.source_item  
+
+        # 4) Original annotator
+        annotated_by = ann_server.get("annotated_by", {}).get("name", "unknown")
+
+        # 5) Reviewer (nur wenn lokal gespeichert)
+        reviewed_by = None
+        if isinstance(ann_local.get("reviewed_by"), dict):
+            reviewed_by = ann_local["reviewed_by"].get("name")
+
+        # 6) expected/predicted
+        expected = ann_local.get("expected", ann_server.get("expected"))
+        predicted = ann_local.get("predicted", ann_server.get("predicted"))
+        model_name = ann_server.get("model_name")
 
         return (
             f"Batch ID: {self.batch_id}"
-            f"\nExpected: {ann.get('expected')} "
-            f"by: {reviewed_by or 'unknown'}"
-            f"\nPredicted: {ann.get('predicted')} "
-            f"by model: {ann.get('model_name')}"
+            f"\nExpected: {expected} by {annotated_by}"
+            f"\nPredicted: {predicted} by model: {model_name})"
+            # f"\nReviewed by: {reviewed_by or 'nobody yet'}"
         )

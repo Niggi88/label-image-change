@@ -207,9 +207,19 @@ class UIElements(tk.Frame):
     def next_pair(self):
         old_info = self.data_handler.context_info()
         # Detect if we are currently at the last pair *before* moving on
-        was_last_in_session = self.data_handler.is_last_pair()
-        prev_session = self.data_handler.current_session_info()
+        mode = self.data_handler.mode
+
+        if mode == "annotation":
+            # klassisches Session-Verhalten
+            was_last = self.data_handler.is_last_pair()
+            prev_session = self.data_handler.current_session_info()
+        else:
+            # batch review mode → keine Sessions
+            was_last = self.data_handler.is_last_pair()
+            prev_session = None
         
+        current = None
+
         if self.data_handler.has_next_pair_global():
             current = self.data_handler.next_pair()
 
@@ -222,8 +232,14 @@ class UIElements(tk.Frame):
             return
 
         # If we just moved *away* from the last pair, trigger upload prompt
-        if was_last_in_session:
-            if not self.data_handler.ask_upload(prev_session):
+        if was_last:
+            if mode == "annotation":
+                if not self.data_handler.ask_upload(prev_session):
+                    return
+            else:  # batch mode
+                if not self.data_handler.ask_upload():
+                    return
+                self.refresh()
                 return
 
 
