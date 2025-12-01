@@ -1,0 +1,36 @@
+name: Label Image Change Tool
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+ 
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build
+        run: pyinstaller --onefile --hidden-import PIL._tkinter_finder --windowed src/ui/ui_app.py
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.os }}
+          path: dist/*
+
+ 

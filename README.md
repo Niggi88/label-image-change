@@ -76,10 +76,22 @@ This will automatically search for annotations.json files in the dataset directo
 
 # review inconsistent pairs
 
-* run /opt/datasets/change_detection/unsure_api_server_batch.py on m01 to start the server-side
-* to start the reviewing_mode:
-    * run src/review_unsure.py in label-image-change
+* start server with:
+    python3 /opt/software/change_detection/api/review_mode/review_api_batch.py
+* to start the reviewing mode:
+    - navigate to: src/ui/ui_review_app.py
+    - adjust for inconsistent mode (at the bottom):
+        app = UIReviewApp(batch_type="inconsistent" <- put here "inconsistent", api_base="http://172.30.20.31:8081", user=USERNAME)
 
+works like:
+- server erstellt alle batches aus /opt/datasets/change_detection/change_data/review_batches/inconsistent_reviews.json
+    -> run for extraction:  /opt/software/change_detection/cart_dataScience_snapshotChangeModel/server_scripts/extract_false_labeling_server.py
+
+- server checks for active batch
+    -> if there is none: create new batch
+    -> if there is one: use that batch
+
+- after batch completion client uploads to server: /opt/datasets/change_detection/change_data/review_batches/inconsistent_results/ -> marks json as complete (so no items from there show up again)
 
 
 ## Options for annotating:

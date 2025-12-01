@@ -1,50 +1,32 @@
 from PIL import Image
+from pathlib import Path
 import requests
 import os
 import json
-import config
+from src import config
 try:
     resample_filter = Image.Resampling.LANCZOS
 except AttributeError:
     resample_filter = Image.ANTIALIAS
 
-def resize_with_aspect_ratio(pil_img, base_width=None, base_height=None):
+
+def make_relative_path(abs_path, dataset_root=None):
     """
-    Resize an image while maintaining its aspect ratio.
-
-    Args:
-        pil_img: A Pillow Image object.
-        base_width: The desired width while maintaining aspect ratio (optional).
-        base_height: The desired height while maintaining aspect ratio (optional).
-
-    Returns:
-        A resized Pillow Image object.
+    Return a path relative to the dataset root.
+    If dataset_root is None, falls back to config.DATASET_DIR.
     """
-    original_width, original_height = pil_img.size
+    from config import DATASET_DIR  # local import to avoid stale globals
+    root = Path(dataset_root or DATASET_DIR).resolve()
+    return Path(abs_path).resolve().relative_to(root).as_posix()
 
-    if base_width is not None:  # Resize by width
-        w_ratio = base_width / float(original_width)
-        new_width = base_width
-        new_height = int((original_height * w_ratio))
-    elif base_height is not None:  # Resize by height
-        h_ratio = base_height / float(original_height)
-        new_width = int((original_width * h_ratio))
-        new_height = base_height
-    else:
-        raise ValueError("You must specify either base_width or base_height.")
-
-    return pil_img.resize((new_width, new_height), resample_filter)
-
-
-def report_annotation(user, class_name="unknown", pair_id=None):
+def report_annotation(class_name="unknown", pair_id=None):
     annotation_payload = {
-        "username": user,
+        "username": config.USERNAME,
         "className": class_name,
         "pairId": pair_id,
         "count": 1
     }
 
-    # ⛔ Server bereits als nicht verfügbar markiert?
     if config.SERVER_AVAILABLE is False:
         print("[SKIP] Server offline, writing to cache")
         cache_annotation(annotation_payload)
@@ -58,11 +40,12 @@ def report_annotation(user, class_name="unknown", pair_id=None):
         )
         response.raise_for_status()
         print("[INFO] Reported annotation:", response.status_code)
-        config.SERVER_AVAILABLE = True  # ✅ Server OK
+        config.SERVER_AVAILABLE = True  # ✅ sets global flag
     except Exception as e:
         print(f"[WARN] Could not send annotation, caching: {e}")
-        config.SERVER_AVAILABLE = False  # ❌ Server als offline markieren
+        config.SERVER_AVAILABLE = False  # ❌ sets global flag
         cache_annotation(annotation_payload)
+
 
 import requests
 
