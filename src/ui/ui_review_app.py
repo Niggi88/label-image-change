@@ -5,6 +5,7 @@ from src.logic_annotation.logic_data_handler import (
     UnsureDataHandler,
     InconsistentDataHandler,
 )
+from src.config import USERNAME
 
 
 class UIReviewApp(tk.Tk):
@@ -51,5 +52,5 @@ class UIReviewApp(tk.Tk):
 
 if __name__ == "__main__":
     # Choose review mode: "unsure" or "inconsistent"
-    app = UIReviewApp(batch_type="inconsistent", api_base="http://172.30.20.31:8081", user="sarah")
+    app = UIReviewApp(batch_type="inconsistent", api_base="http://172.30.20.31:8081", user=USERNAME)
     app.run()
