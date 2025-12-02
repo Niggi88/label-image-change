@@ -1,4 +1,4 @@
-# server.py - Updated to use SQLite database (NO ASYNC CHANGES!)
+# annotation_api_server.py - Updated to use SQLite database (NO ASYNC CHANGES!)
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -16,12 +16,12 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 # where to store things on the server (adjust if needed)
-DATA_ROOT = Path(os.getenv("ANNOTATION_DATA_ROOT", "/srv/label_data")).resolve()
-ANNOTATIONS_DIR = DATA_ROOT / "annotations"  # <session_id>.json uploaded here
-IMAGES_DIR = DATA_ROOT / "images"            # images stored by their relative_path
+# DATA_ROOT = Path(os.getenv("ANNOTATION_DATA_ROOT", "/srv/label_data")).resolve()
+# ANNOTATIONS_DIR = DATA_ROOT / "annotations"  # <session_id>.json uploaded here
+# IMAGES_DIR = DATA_ROOT / "images"            # images stored by their relative_path
 
-ANNOTATIONS_DIR.mkdir(parents=True, exist_ok=True)
-IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+# ANNOTATIONS_DIR.mkdir(parents=True, exist_ok=True)
+# IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ONLY CHANGE: Replace JSON import with database import
@@ -41,7 +41,7 @@ app.add_middleware(
 )
 
 # Serve files under: http(s)://<host>:<port>/images/<relative_path>
-app.mount("/images", StaticFiles(directory=str(IMAGES_DIR)), name="images")
+# app.mount("/images", StaticFiles(directory=str(IMAGES_DIR)), name="images")
 
 
 # REMOVE: No more DATA_FILE needed!
@@ -264,9 +264,50 @@ def list_unsure_pairs(limit: int = 1000):
 
 
 
+## for inconsistent highscore reporting ##
 
 
 
+from review_db import (
+    init_review_db,
+    insert_review,
+    get_user_review_stats,
+    get_model_review_stats
+)
+
+class InconsistentReview(BaseModel):
+    pairId: str
+    predicted: str
+    expected: str
+    reviewer: str
+    decision: str
+    modelName: str
+
+
+@app.post("/api/inconsistent/review")
+async def receive_inconsistent_review(rec: InconsistentReview):
+    try:
+        insert_review(
+            pair_id=rec.pairId,
+            reviewer=rec.reviewer,
+            predicted=rec.predicted,
+            expected=rec.expected,
+            decision=rec.decision,
+            model_name=rec.modelName
+        )
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to save review: {e}")
+
+
+@app.get("/api/inconsistent/userstats")
+async def inconsistent_user_stats():
+    return get_user_review_stats()
+
+
+@app.get("/api/inconsistent/modelstats")
+async def inconsistent_model_stats():
+    return get_model_review_stats()
 
 
 

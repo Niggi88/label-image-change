@@ -172,6 +172,17 @@
             <div id="leaderboardList" class="loading">Loading...</div>
             <div class="last-updated" id="lastUpdated"></div>
         </div>
+
+        <div class="leaderboard" style="margin-top:40px">
+            <h2>Inconsistent Review – User Stats</h2>
+            <div id="reviewUserList" class="loading">Loading...</div>
+        </div>
+
+        <div class="leaderboard" style="margin-top:40px">
+            <h2>Inconsistent Review – Model Stats</h2>
+            <div id="reviewModelList" class="loading">Loading...</div>
+        </div>
+
     </div>
 
     <script>
@@ -230,11 +241,82 @@
             }
         }
 
+
+        async function updateInconsistentStats() {
+            try {
+                // USER STATS
+                const userResp = await fetch(`${API_URL}/api/inconsistent/userstats`);
+                const userStats = await userResp.json();
+
+                const userList = document.getElementById('reviewUserList');
+                userList.innerHTML = '';
+
+                Object.entries(userStats).forEach(([username, stats], index) => {
+
+                    const item = document.createElement('div');
+                    item.className = 'leaderboard-item';
+
+                    const total = stats.total;
+                    const corrected = stats.corrected;
+                    const accepted = stats.accepted;
+
+                    item.innerHTML = `
+                        <div class="rank">#${index + 1}</div>
+                        <div class="user-info">
+                            <div class="username">${username}</div>
+                            <div class="classes">
+                                <span class="class-badge">Total: ${total}</span>
+                                <span class="class-badge">Accepted: ${accepted}</span>
+                                <span class="class-badge">Corrected: ${corrected}</span>
+                            </div>
+                        </div>
+                        <div class="score">${total}</div>
+                    `;
+                    userList.appendChild(item);
+                });
+
+                // MODEL STATS
+                const modelResp = await fetch(`${API_URL}/api/inconsistent/modelstats`);
+                const modelStats = await modelResp.json();
+
+                const modelList = document.getElementById('reviewModelList');
+                modelList.innerHTML = '';
+
+                Object.entries(modelStats).forEach(([modelName, stats], index) => {
+
+                    const item = document.createElement('div');
+                    item.className = 'leaderboard-item';
+
+                    item.innerHTML = `
+                        <div class="rank">#${index + 1}</div>
+                        <div class="user-info">
+                            <div class="username">${modelName}</div>
+                            <div class="classes">
+                                <span class="class-badge">Accepted: ${stats.accepted}</span>
+                                <span class="class-badge">Corrected: ${stats.corrected}</span>
+                            </div>
+                        </div>
+                        <div class="score">${stats.correct}</div>
+                    `;
+                    modelList.appendChild(item);
+                });
+
+            } catch (err) {
+                console.error("Failed to load inconsistent review stats:", err);
+            }
+        }
+
         // Initial load
         updateLeaderboard();
+        updateInconsistentStats();
 
         // Auto-refresh
-        setInterval(updateLeaderboard, REFRESH_INTERVAL);
+        setInterval(() => {
+            updateLeaderboard();
+            updateInconsistentStats();
+        }, REFRESH_INTERVAL);
+
+        
     </script>
 </body>
 </html>
