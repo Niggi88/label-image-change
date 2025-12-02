@@ -327,7 +327,8 @@ class UIElements(tk.Frame):
     def mark_correct(self):
         if hasattr(self.data_handler, "mark_correct"):
             self.data_handler.mark_correct()
-            self.refresh()
+            # self.refresh()
+            self.next_pair()
 
 class CanvasFrame(tk.Frame):
     def __init__(self, master, parent_ui):

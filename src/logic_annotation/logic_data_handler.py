@@ -556,7 +556,6 @@ class InconsistentDataHandler(BatchDataHandler):
         print("save as: ", expected)
         ctx = self.context_info()
         self.saver.save_correct(pair, expected, ctx)
-        self.next_pair()
 
         self.saver.save_correct(pair, expected, ctx)
         # self.next_pair()
