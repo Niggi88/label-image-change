@@ -142,6 +142,8 @@ async def update_annotation(annotation: AnnotationUpdate):
 
         # Always track the pair's latest state
         user_data["pairs"][pair_id] = new_class
+        user_data["pairTimestamps"] = user_data.get("pairTimestamps", {})
+        user_data["pairTimestamps"][pair_id] = datetime.now().isoformat()
         now = datetime.now().isoformat()
         user_data["lastAnnotation"] = now
         data["lastUpdated"] = now
