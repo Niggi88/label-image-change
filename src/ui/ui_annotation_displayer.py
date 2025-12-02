@@ -5,7 +5,7 @@ class AnnotationDisplayer:
     def __init__(self):
         self._images = []  # keep refs to Tk images
 
-    def display_pair(self, canvas_left, canvas_right, pair, annotations, max_w=1200, max_h=800):
+    def display_pair(self, canvas_left, canvas_right, pair, annotations, boxes_expected=None, max_w=1200, max_h=800):
         """
         Show images + annotations for a given ImagePair.
         Scales images to half the width and full height of available space.
@@ -42,6 +42,15 @@ class AnnotationDisplayer:
                         self._draw_boxes(canvas_left, [b], highlight=False)                        
                         self._draw_boxes(canvas_right, [b], highlight=True)
 
+        if boxes_expected:
+            for canvas in (canvas_left, canvas_right):
+                for b in boxes_expected:
+                    if b["annotation_type"] == "item_removed":
+                        self._draw_boxes(canvas_left, [b], highlight=True)
+                        self._draw_boxes(canvas_right, [b], highlight=False)
+                    elif b["annotation_type"] == "item_added":
+                        self._draw_boxes(canvas_left, [b], highlight=False)                        
+                        self._draw_boxes(canvas_right, [b], highlight=True)
 
 
     def _scale_image(self, pil_img, max_w, max_h):

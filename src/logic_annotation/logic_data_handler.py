@@ -544,6 +544,11 @@ class InconsistentDataHandler(BatchDataHandler):
         super().__init__(api_base, "inconsistent", user, size, saver_cls=InconsistentSaver)
         self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR)
 
+
+    def get_expected_boxes(self):
+        pair = self.current_pair()
+        return pair.source_item.get("boxes_expected", [])
+
     def get_session_text(self):
         pair = self.current_pair()
 

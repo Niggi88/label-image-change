@@ -143,6 +143,11 @@ class UIElements(tk.Frame):
         print("refreshing")
         pair = self.data_handler.current_pair()
 
+        if self.data_handler.mode == "review":
+            boxes_expected = self.data_handler.get_expected_boxes()
+        else:
+            boxes_expected = []
+
         root = self.winfo_toplevel()
         root.update_idletasks()
         root_w, root_h = root.winfo_width(), root.winfo_height()
@@ -157,6 +162,7 @@ class UIElements(tk.Frame):
             self.canvas_frame.canvas_right,
             pair,
             ann_lookup,
+            boxes_expected,
             max_w=root_w,
             max_h=root_h
         )
@@ -222,7 +228,6 @@ class UIElements(tk.Frame):
 
         if self.data_handler.has_next_pair_global():
             current = self.data_handler.next_pair()
-
 
         if current is None:
             # Kein weiteres Pair → Scope ist definitiv zu Ende
