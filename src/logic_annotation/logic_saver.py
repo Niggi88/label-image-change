@@ -289,20 +289,20 @@ class ReviewSaver(CommonSaver):
         self._flush()
 
     def update_meta(self, total_pairs):
-        """Update progress meta information."""
         self.annotations.setdefault("_meta", {})
 
-        # Always update timestamp
-        self.annotations["_meta"]["timestamp"] = datetime.now().isoformat()
+        # prefer stored total_pairs from batch metadata
+        total_pairs = self.annotations["_meta"].get("total_pairs", total_pairs)
 
+        self.annotations["_meta"]["timestamp"] = datetime.now().isoformat()
+        self.annotations["_meta"]["reviewed_by"] = USERNAME
 
         annotated = len(self.annotations.get("items", {}))
-        self.annotations["_meta"]["completed"] = (
-            annotated >= total_pairs and total_pairs > 0
-        )
+        self.annotations["_meta"]["completed"] = (annotated >= total_pairs)
+
+        print(f"completed? {self.annotations['_meta']['completed']}")
 
         self._flush()
-
 
 
 class InconsistentSaver(ReviewSaver):
