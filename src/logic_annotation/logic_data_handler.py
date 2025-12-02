@@ -557,9 +557,6 @@ class InconsistentDataHandler(BatchDataHandler):
         ctx = self.context_info()
         self.saver.save_correct(pair, expected, ctx)
 
-        self.saver.save_correct(pair, expected, ctx)
-        # self.next_pair()
-
     def get_session_text(self):
         pair = self.current_pair()
 

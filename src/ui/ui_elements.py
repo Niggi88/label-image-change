@@ -94,7 +94,7 @@ class UIElements(tk.Frame):
         # Annotation buttons
         self.ann_frame = AnnotationFrame(self.content_frame,
                                         on_mark=self.mark_state,
-                                        on_correct=self.mark_correct,
+                                        on_correct=self.mark_state,
                                         on_delete=self.delete_box,
                                         on_reset=self.reset_pair)
         
@@ -119,6 +119,7 @@ class UIElements(tk.Frame):
         root.bind("n", lambda e: self.mark_state("nothing"))     # N = Nothing
         root.bind("c", lambda e: self.mark_state("chaos"))       # C = Chaos
         root.bind("u", lambda e: self.mark_state("no_annotation")) # U = Unsure/No Annotation
+        root.bind("<Return>", lambda e: self.mark_state("accepted"))
         root.bind("d", lambda e: self.delete_box())              # D = Delete selected box
         root.bind("x", lambda e: self.reset_pair())              # X = Reset pair
         root.bind("f", lambda e: self.next_pair())               # F = Next pair
@@ -278,6 +279,7 @@ class UIElements(tk.Frame):
     def mark_state(self, state):
         pair = self.data_handler.current_pair()
         total_pairs = len(self.data_handler.pairs)
+
         self.data_handler.saver.save_pair(pair, state, self.data_handler.context_info())
         if state == "annotated":
             # enable box drawing only when "Annotate" pressed
@@ -385,7 +387,7 @@ class AnnotationFrame(tk.Frame):
             ("Annotate", lambda: on_mark("annotated"), STYLE_ANNOTATE),
             ("Delete Selected Box", on_delete, STYLE_DELETE),
             ("Reset", on_reset, STYLE_RESET),
-            ("Labeled Correctly", lambda: on_correct(), STYLE_NOTHING)
+            ("Labeled Correctly", lambda: on_mark("accepted"), STYLE_NOTHING)
         ]):
             btn = ttk.Button(self, text=text, command=cmd, style=style)
             btn.grid(row=0, column=col,
