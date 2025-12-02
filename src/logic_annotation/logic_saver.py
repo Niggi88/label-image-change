@@ -357,6 +357,9 @@ class InconsistentSaver(ReviewSaver):
 
         pair.source_item["boxes_expected"] = expected_entry.get("boxes_expected", [])
 
+        total = ctx["progress"]["total"]
+        self.update_meta(total)
+
         self._flush()
 
 
