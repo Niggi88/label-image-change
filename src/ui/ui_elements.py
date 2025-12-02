@@ -53,6 +53,7 @@ class UIElements(tk.Frame):
         self.status = StatusFrame(self.bottom_frame)
         self.ann_frame = AnnotationFrame(self.bottom_frame,
                                          on_mark=self.mark_state,
+                                         on_correct=self.mark_correct,
                                          on_delete=self.delete_box,
                                          on_reset=self.reset_pair)
 
@@ -93,6 +94,7 @@ class UIElements(tk.Frame):
         # Annotation buttons
         self.ann_frame = AnnotationFrame(self.content_frame,
                                         on_mark=self.mark_state,
+                                        on_correct=self.mark_correct,
                                         on_delete=self.delete_box,
                                         on_reset=self.reset_pair)
         
@@ -322,7 +324,10 @@ class UIElements(tk.Frame):
         # toggle flicker on the right canvas
         self.flickerer.toggle_flicker(self.canvas_frame.canvas_right, pair, root_w // 2, root_h, interval=150)
 
-
+    def mark_correct(self):
+        if hasattr(self.data_handler, "mark_correct"):
+            self.data_handler.mark_correct()
+            self.refresh()
 
 class CanvasFrame(tk.Frame):
     def __init__(self, master, parent_ui):
@@ -369,17 +374,8 @@ class NavigationFrame(tk.Frame):
 
 
 class AnnotationFrame(tk.Frame):
-    def __init__(self, parent, on_mark, on_delete, on_reset):
+    def __init__(self, parent, on_mark, on_correct, on_delete, on_reset):
         super().__init__(parent)
-
-        buttons = [
-            ("Nothing Changed", lambda: on_mark("nothing")),
-            ("Chaos", lambda: on_mark("chaos")),
-            ("Unsure", lambda: on_mark("no_annotation")),
-            ("Annotate", lambda: on_mark("annotate")),
-            ("Delete Selected Box", on_delete),
-            ("Reset", on_reset),
-        ]
 
         for col, (text, cmd, style) in enumerate([
             ("Nothing Changed", lambda: on_mark("nothing"), STYLE_NOTHING),
@@ -388,6 +384,7 @@ class AnnotationFrame(tk.Frame):
             ("Annotate", lambda: on_mark("annotated"), STYLE_ANNOTATE),
             ("Delete Selected Box", on_delete, STYLE_DELETE),
             ("Reset", on_reset, STYLE_RESET),
+            ("Labeled Correctly", lambda: on_correct(), STYLE_NOTHING)
         ]):
             btn = ttk.Button(self, text=text, command=cmd, style=style)
             btn.grid(row=0, column=col,

@@ -306,62 +306,63 @@ class ReviewSaver(CommonSaver):
 
 
 class InconsistentSaver(ReviewSaver):
-    def save_pair(self, pair, state, context):
-        pid = str(pair.pair_id)
 
-        self.annotations["items"][pid] = {
+    def __init__(self, batch_meta, root_dir):
+        self.root = Path(root_dir)
+        self.batch_id = batch_meta.get("batch_id", "unknown")
+        self.logfile = self.root / f"inconsistent_{self.batch_id}.json"
+
+        if self.logfile.exists():
+            self.annotations = json.loads(self.logfile.read_text())
+        else:
+            self.annotations = {"_meta": {"completed": False, "timestamp": None}}
+
+        # Guarantee items dict
+        if "items" not in self.annotations:
+            self.annotations["items"] = {}
+
+    def _key(self, pair):
+        return str(pair.pair_id)
+
+    def save_pair(self, pair, state, ctx):
+        key = self._key(pair)
+
+        self.annotations["items"][key] = {
             "pair_state": state,
-            "timestamp": datetime.now().isoformat(),
-            "boxes": pair.image1.boxes + pair.image2.boxes,
-            "im1_path": _shorten_path(getattr(pair.image1, "url", str(pair.image1.img_path))),
-            "im2_path": _shorten_path(getattr(pair.image2, "url", str(pair.image2.img_path))),
-            "im1_size": pair.image1.img_size,
-            "im2_size": pair.image2.img_size,
-            "expected": getattr(pair, "expected", None),
-            "predicted": getattr(pair, "predicted", None),
-            "reviewed_by": context.get("user"),
-            "model_name": getattr(pair, "model_name", None),
-            "store_session_path": getattr(pair, "source_item", {}).get("store_session_path")
-                if hasattr(pair, "source_item") else None,
+            "im1_path": pair.source_item["im1_url"],
+            "im2_path": pair.source_item["im2_url"],
+            "image1_size": pair.image1.img_size,
+            "image2_size": pair.image2.img_size,
+            "boxes": pair.image1.boxes  # oder kombiniert, je nachdem
         }
 
-        self.update_meta(context["progress"]["total"])
         self._flush()
 
-    def save_box(self, pair, box, context, state="annotated"):
-        pid = str(pair.pair_id)
+    def save_correct(self, pair, expected_entry, ctx):
+        """Reviewer bestätigt expected."""
+        key = str(pair.pair_id)
 
-        if pid not in self.annotations["items"]:
-            self.annotations["items"][pid] = {
-                "pair_state": state,
-                "boxes": [],
-                "expected": getattr(pair, "expected", None),
-                "predicted": getattr(pair, "predicted", None),
-                "reviewed_by": context.get("user"),
-                "model_name": getattr(pair, "model_name", None),
-                "store_session_path": pair.source_item.get("store_session_path")
-                    if hasattr(pair, "source_item") else None,
-            }
+        old = self.annotations["items"].get(key, {})
+        pair_state = expected_entry.get("expected", "no_annotation")
 
-        full_box = {
-            "x1": box["x1"], "y1": box["y1"], "x2": box["x2"], "y2": box["y2"],
-            "box_id": box.get("box_id", str(uuid.uuid4())),
-            "annotation_type": box["annotation_type"],
+        # Update local JSON
+        self.annotations["items"][key] = {
+            "pair_state": pair_state,
+            "im1_path": expected_entry["im1_url"],
+            "im2_path": expected_entry["im2_url"],
+            "image1_size": pair.image1.img_size,
+            "image2_size": pair.image2.img_size,
+            "boxes": expected_entry.get("boxes_expected", []),
         }
 
-        # Save to JSON + ensure pair_state is 'annotated'
-        self.annotations["items"][pid]["boxes"].append(full_box)
-        self.annotations["items"][pid]["pair_state"] = state
+        pair.source_item["boxes_expected"] = expected_entry.get("boxes_expected", [])
 
-        # Keep in-memory boxes in sync (helps immediate UI)
-        if box.get("image_id") == 1:
-            pair.image1.boxes.append(full_box)
-        elif box.get("image_id") == 2:
-            pair.image2.boxes.append(full_box)
-
-        self.update_meta(context["progress"]["total"])
         self._flush()
 
+
+    def _flush(self):
+        self.annotations["_meta"]["timestamp"] = datetime.now().isoformat()
+        self.logfile.write_text(json.dumps(self.annotations, indent=2))
 
 
 class UnsureSaver(ReviewSaver):

@@ -429,7 +429,7 @@ class BatchDataHandler(BaseDataHandler):
 
         for item in items:
             pair = ImagePair(
-                pair_id=item["pair_id"],
+                pair_id = f"{item['store_session_path']}|{item['pair_id']}",
                 img1_path=item["im1_url"],
                 img2_path=item["im2_url"],
                 remote=True,
@@ -548,6 +548,18 @@ class InconsistentDataHandler(BatchDataHandler):
     def get_expected_boxes(self):
         pair = self.current_pair()
         return pair.source_item.get("boxes_expected", [])
+    
+    def mark_correct(self):
+        pair = self.current_pair()
+        expected = pair.source_item
+        print("expected: ", expected)
+        print("save as: ", expected)
+        ctx = self.context_info()
+        self.saver.save_correct(pair, expected, ctx)
+        self.next_pair()
+
+        self.saver.save_correct(pair, expected, ctx)
+        # self.next_pair()
 
     def get_session_text(self):
         pair = self.current_pair()
