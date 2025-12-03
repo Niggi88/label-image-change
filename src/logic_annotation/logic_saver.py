@@ -135,11 +135,21 @@ class AnnotationSaver:
         entry = {
             "pair_state": state,
             "boxes": pair.image1.boxes + pair.image2.boxes,
-            "im1_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.image1.img_name),
-            "im2_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.image2.img_name),
+            "im1_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.img1_name),
+            "im2_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.img2_name),
             "image1_size": pair.image1.img_size,
             "image2_size": pair.image2.img_size,
         }
+
+
+        print("\n=== DEBUG SAVE_PAIR ===")
+        print("PAIR:", pid)
+        print(" IMG1 DISPLAYED:", pair.img1_name)
+        print(" IMG2 DISPLAYED:", pair.img2_name)
+        print(" IMG1 ACTUALLY SAVED:", str(Path(context["session_info"].store) / context["session_info"].session / pair.img1_name))
+        print(" IMG2 ACTUALLY SAVED:", str(Path(context["session_info"].store) / context["session_info"].session / pair.img2_name))
+        print("----------")
+
         self.annotations[pid] = entry
         self.update_meta(context["progress"]["total"])
         self._flush()
@@ -208,8 +218,8 @@ class AnnotationSaver:
             self.annotations[pid] = {
                 "pair_state": state,
                 "boxes": [],
-                "im1_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.image1.img_name),
-                "im2_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.image2.img_name),
+                "im1_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.img1_name),
+                "im2_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.img2_name),
                 "image1_size": pair.image1.img_size,
                 "image2_size": pair.image2.img_size,
             }
