@@ -4,7 +4,7 @@ import uuid
 from src.config import USERNAME, DATASET_DIR, LOCAL_LOG_DIR
 from datetime import datetime
 from urllib.parse import urlparse
-from src.utils import report_annotation, make_relative_path
+from src.utils import report_annotation, report_inconsistent_review
 import os
 
 def _shorten_path(path_or_url: str) -> str:
@@ -135,11 +135,21 @@ class AnnotationSaver:
         entry = {
             "pair_state": state,
             "boxes": pair.image1.boxes + pair.image2.boxes,
-            "im1_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.image1.img_name),
-            "im2_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.image2.img_name),
+            "im1_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.img1_name),
+            "im2_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.img2_name),
             "image1_size": pair.image1.img_size,
             "image2_size": pair.image2.img_size,
         }
+
+
+        print("\n=== DEBUG SAVE_PAIR ===")
+        print("PAIR:", pid)
+        print(" IMG1 DISPLAYED:", pair.img1_name)
+        print(" IMG2 DISPLAYED:", pair.img2_name)
+        print(" IMG1 ACTUALLY SAVED:", str(Path(context["session_info"].store) / context["session_info"].session / pair.img1_name))
+        print(" IMG2 ACTUALLY SAVED:", str(Path(context["session_info"].store) / context["session_info"].session / pair.img2_name))
+        print("----------")
+
         self.annotations[pid] = entry
         self.update_meta(context["progress"]["total"])
         self._flush()
@@ -208,8 +218,8 @@ class AnnotationSaver:
             self.annotations[pid] = {
                 "pair_state": state,
                 "boxes": [],
-                "im1_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.image1.img_name),
-                "im2_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.image2.img_name),
+                "im1_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.img1_name),
+                "im2_path": str(Path(context["session_info"].store) / context["session_info"].session / pair.img2_name),
                 "image1_size": pair.image1.img_size,
                 "image2_size": pair.image2.img_size,
             }
@@ -325,6 +335,7 @@ class InconsistentSaver(ReviewSaver):
         return str(pair.pair_id)
 
     def save_pair(self, pair, state, ctx):
+        print("inconsistent saver is saving")
         key = self._key(pair)
 
         self.annotations["items"][key] = {
@@ -336,31 +347,58 @@ class InconsistentSaver(ReviewSaver):
             "boxes": pair.image1.boxes  # oder kombiniert, je nachdem
         }
 
-        self._flush()
+        predicted = pair.source_item.get("predicted")
+        expected = pair.source_item.get("expected")
+        model_name = pair.source_item.get("model_name")
 
-    def save_correct(self, pair, expected_entry, ctx):
-        """Reviewer bestätigt expected."""
-        key = str(pair.pair_id)
+        decision = "accepted" if state=="accepted" else "corrected"
 
-        old = self.annotations["items"].get(key, {})
-        pair_state = expected_entry.get("expected", "no_annotation")
+        report_inconsistent_review(
+            pair_id=key,
+            predicted=predicted,
+            expected=expected,
+            reviewer=ctx.get("user"),
+            decision=decision,
+            model_name=model_name
+        )
 
-        # Update local JSON
-        self.annotations["items"][key] = {
-            "pair_state": pair_state,
-            "im1_path": expected_entry["im1_url"],
-            "im2_path": expected_entry["im2_url"],
-            "image1_size": pair.image1.img_size,
-            "image2_size": pair.image2.img_size,
-            "boxes": expected_entry.get("boxes_expected", []),
-        }
 
-        pair.source_item["boxes_expected"] = expected_entry.get("boxes_expected", [])
-
-        total = ctx["progress"]["total"]
-        self.update_meta(total)
 
         self._flush()
+
+    # def save_correct(self, pair, expected_entry, ctx):
+    #     """Reviewer bestätigt expected."""
+    #     key = str(pair.pair_id)
+
+    #     old = self.annotations["items"].get(key, {})
+    #     pair_state = expected_entry.get("expected", "no_annotation")
+
+    #     # Update local JSON
+    #     self.annotations["items"][key] = {
+    #         "pair_state": pair_state,
+    #         "im1_path": expected_entry["im1_url"],
+    #         "im2_path": expected_entry["im2_url"],
+    #         "image1_size": pair.image1.img_size,
+    #         "image2_size": pair.image2.img_size,
+    #         "boxes": expected_entry.get("boxes_expected", []),
+    #     }
+
+    #     report_inconsistent_review(
+    #         pair_id=key,
+    #         predicted=pair.source_item.get("predicted", []),
+    #         expected=expected_entry.get("expected", []),
+    #         reviewer= USERNAME,
+    #         decision="accepted",
+    #         model_name=ctx.get("model_name", "unknown-model"),
+    #     )
+
+
+    #     pair.source_item["boxes_expected"] = expected_entry.get("boxes_expected", [])
+
+    #     total = ctx["progress"]["total"]
+    #     self.update_meta(total)
+
+    #     self._flush()
 
 
     def _flush(self):

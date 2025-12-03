@@ -10,6 +10,7 @@ import requests
 import json
 from tkinter import messagebox
 from src.logic_annotation.logic_uploader import SessionUploader, BatchUploader
+from urllib.parse import urlparse
 
 class BaseDataHandler(ABC):
     """
@@ -104,9 +105,19 @@ class RemoteAnnotatableImage(AnnotatableImage):
         return Image.open(BytesIO(resp.content))
     
 
+
+def _get_name(path_or_url):
+    if isinstance(path_or_url, str) and path_or_url.startswith("http"):
+        return Path(urlparse(path_or_url).path).name
+    return Path(path_or_url).name
+
 class ImagePair:
     def __init__(self, pair_id, img1_path, img2_path, remote=False, api_base=None):
         self.pair_id = pair_id
+
+        self.img1_name = _get_name(img1_path)
+        self.img2_name = _get_name(img2_path)
+        
         if remote:
             self.image1 = RemoteAnnotatableImage(img1_path, image_id=1, api_base=api_base)
             self.image2 = RemoteAnnotatableImage(img2_path, image_id=2, api_base=api_base)
@@ -435,6 +446,9 @@ class BatchDataHandler(BaseDataHandler):
                 remote=True,
                 api_base=self.api_base
             )
+
+            print("im1: ", item["im1_url"])
+            print("im2: ", item["im2_url"])
             pair.expected = item.get("expected")
             pair.predicted = item.get("predicted")
             pair.annotated_by = item.get("annotated_by")
@@ -556,9 +570,6 @@ class InconsistentDataHandler(BatchDataHandler):
         print("save as: ", expected)
         ctx = self.context_info()
         self.saver.save_correct(pair, expected, ctx)
-
-        self.saver.save_correct(pair, expected, ctx)
-        # self.next_pair()
 
     def get_session_text(self):
         pair = self.current_pair()

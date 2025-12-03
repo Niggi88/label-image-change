@@ -40,10 +40,10 @@ def report_annotation(class_name="unknown", pair_id=None):
         )
         response.raise_for_status()
         print("[INFO] Reported annotation:", response.status_code)
-        config.SERVER_AVAILABLE = True  # ✅ sets global flag
+        config.SERVER_AVAILABLE = True 
     except Exception as e:
         print(f"[WARN] Could not send annotation, caching: {e}")
-        config.SERVER_AVAILABLE = False  # ❌ sets global flag
+        config.SERVER_AVAILABLE = False
         cache_annotation(annotation_payload)
 
 
@@ -108,3 +108,28 @@ def flush_annotation_cache():
 
     with open(cache_file, "w") as f:
         json.dump(remaining, f, indent=2)
+
+
+
+## for inconsistent ##
+
+def report_inconsistent_review(pair_id, predicted, expected, reviewer, decision, model_name):
+    payload = {
+        "pairId": pair_id,
+        "predicted": predicted,
+        "expected": expected,
+        "reviewer": reviewer,
+        "decision": decision,
+        "modelName": model_name
+    }
+
+    try:
+        response = requests.post(
+            f"{config.SERVER}/api/inconsistent/review",
+            json=payload,
+            timeout=1
+        )
+        response.raise_for_status()
+        print("[INFO] Sent inconsistent review for", pair_id)
+    except Exception as e:
+        print("[WARN] Failed to send inconsistent review:", e)
