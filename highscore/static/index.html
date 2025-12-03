@@ -183,6 +183,11 @@
             <div id="reviewModelList" class="loading">Loading...</div>
         </div>
 
+        <div class="leaderboard" style="margin-top:40px">
+            <h2>Model Class Performance</h2>
+            <div id="modelClassList" class="loading">Loading...</div>
+        </div>
+
     </div>
 
     <script>
@@ -276,13 +281,55 @@
                 });
 
                 // MODEL STATS
+                // MODEL STATS
                 const modelResp = await fetch(`${API_URL}/api/inconsistent/modelstats`);
                 const modelStats = await modelResp.json();
 
                 const modelList = document.getElementById('reviewModelList');
                 modelList.innerHTML = '';
 
-                Object.entries(modelStats).forEach(([modelName, stats], index) => {
+                modelStats.forEach((stat, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'leaderboard-item';
+
+                    item.innerHTML = `
+                        <div class="rank">#${index + 1}</div>
+                        <div class="user-info">
+                            <div class="username">${stat.modelName}</div>
+                            <div class="classes">
+                                <span class="class-badge">Accepted: ${stat.accepted}</span>
+                                <span class="class-badge">Corrected: ${stat.corrected}</span>
+                                <span class="class-badge">Accuracy: ${(stat.accuracy * 100).toFixed(1)}%</span>
+                            </div>
+                        </div>
+                        <div class="score">${stat.accepted}</div>
+                    `;
+                    modelList.appendChild(item);
+                });
+
+
+            } catch (err) {
+                console.error("Failed to load inconsistent review stats:", err);
+            }
+        }
+
+        async function updateModelClassStats() {
+            try {
+                // For now, assume we analyze only the first model (or change this later)
+                const modelResp = await fetch(`${API_URL}/api/inconsistent/modelstats`);
+                const modelStats = await modelResp.json();
+                if (modelStats.length === 0) return;
+
+                const modelName = modelStats[0].modelName;
+
+                const classResp = await fetch(`${API_URL}/api/inconsistent/modelstats/${modelName}/classes`);
+                const classStats = await classResp.json();
+
+                const modelClassList = document.getElementById('modelClassList');
+                modelClassList.innerHTML = '';
+
+                classStats.forEach((stat, index) => {
+                    const errorPct = (stat.errorRate * 100).toFixed(1);
 
                     const item = document.createElement('div');
                     item.className = 'leaderboard-item';
@@ -290,30 +337,36 @@
                     item.innerHTML = `
                         <div class="rank">#${index + 1}</div>
                         <div class="user-info">
-                            <div class="username">${modelName}</div>
+                            <div class="username">${stat.class}</div>
                             <div class="classes">
-                                <span class="class-badge">Accepted: ${stats.accepted}</span>
-                                <span class="class-badge">Corrected: ${stats.corrected}</span>
+                                <span class="class-badge">Correct: ${stat.correct}</span>
+                                <span class="class-badge">Incorrect: ${stat.incorrect}</span>
+                                <span class="class-badge">Error Rate: ${errorPct}%</span>
                             </div>
                         </div>
-                        <div class="score">${stats.correct}</div>
+                        <div class="score">${errorPct}%</div>
                     `;
-                    modelList.appendChild(item);
+                    modelClassList.appendChild(item);
                 });
 
             } catch (err) {
-                console.error("Failed to load inconsistent review stats:", err);
+                console.error("Failed to load model class stats:", err);
             }
         }
+
+
+
 
         // Initial load
         updateLeaderboard();
         updateInconsistentStats();
+        updateModelClassStats();
 
         // Auto-refresh
         setInterval(() => {
             updateLeaderboard();
             updateInconsistentStats();
+            updateModelClassStats();
         }, REFRESH_INTERVAL);
 
         

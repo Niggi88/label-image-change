@@ -272,7 +272,8 @@ from review_db import (
     init_review_db,
     insert_review,
     get_user_review_stats,
-    get_model_review_stats
+    get_model_review_stats,
+    get_model_class_stats,
 )
 
 class InconsistentReview(BaseModel):
@@ -309,6 +310,9 @@ async def inconsistent_user_stats():
 async def inconsistent_model_stats():
     return get_model_review_stats()
 
+@app.get("/api/inconsistent/modelstats/{model_name}/classes")
+async def model_class_stats(model_name: str):
+    return get_model_class_stats(model_name)
 
 
 if __name__ == "__main__":
