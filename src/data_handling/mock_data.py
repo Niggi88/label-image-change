@@ -75,18 +75,17 @@ class MockDataset():
 
         width = self.size
         height = np.random.randint(int(0.5*width), width)
-        img1 = np.zeros(shape=(height, width, 3))
+        img1 = np.ones(shape=(height, width, 3)) * 128.
         img2 = img1.copy()
         cl = self.random_class()
 
         label = np.zeros(7)
-
+        label[cl] = 1
         if cl == 2:
             box = self.random_box()
             boxes = [box]
             x1, y1, x2, y2 = self.pct2px(self.xywh2xyxy(box), width, height)
-            print(x1, y1, x2, y2)
-            img2[x1:x2, y1:y2, :] = 255.
+            img2[y1:y2, x1:x2, :] = 255.
             label[3:] = box[:]
         else:
             boxes = []
@@ -95,7 +94,7 @@ class MockDataset():
 
         img1 = img1.astype(np.uint8)
         img2 = img2.astype(np.uint8)
-
+        print(label)
         return img1, img2, label
 
 class YoloPaths:
@@ -127,9 +126,6 @@ class YoloPathsSplit:
     
 
 def export_session(dataset: MockDataset, yolo_splitted_paths: YoloPathsSplit, n_samples=20):
-    # Load your annotations
-
-
 
     for index in range(n_samples):
         img1, img2, label = dataset.get_item()
@@ -149,7 +145,14 @@ def export_session(dataset: MockDataset, yolo_splitted_paths: YoloPathsSplit, n_
 
         # === Save YOLO labels ONLY for images1 ===
 
-        label_lines = [str(label)]
+        cl = int(label[:3].argmax())
+        
+        label_line = str(cl)
+        print("class", cl)
+        if cl == 2:
+            box = label[3:]
+            label_line = " ".join([label_line]+[f"{round(float(item), 5)}" for item in box])
+        label_lines = [label_line]
 
         cv2.imwrite(im1_target, img1)
         cv2.imwrite(im2_target, img2)
@@ -175,8 +178,6 @@ def export_session(dataset: MockDataset, yolo_splitted_paths: YoloPathsSplit, n_
 
 # Simple test
 if __name__ == '__main__':
-    dataset_name = "mock_tiny"
-
     yolo_splitted_paths = YoloPathsSplit(config.out_datasets_dir)
     # Create output folders
     for yolo_paths in [yolo_splitted_paths.val, yolo_splitted_paths.train]:
@@ -186,5 +187,19 @@ if __name__ == '__main__':
     # location = Path("/home/niklas/dataset/snapshot_change_detection/datasets/datasets")
     dataset = MockDataset()
     
-    export_session(dataset, yolo_splitted_paths, n_samples=20_000)
+    export_session(dataset, yolo_splitted_paths, n_samples=1_000)
     
+    from yolo_config import generate_dataset_config
+    
+    class_names = [
+        "nothing",          # 0
+        "chaos",            # 1
+        "annotated",        # 2
+    ]
+    
+    generate_dataset_config(
+        class_names=class_names,
+        train_path=str(yolo_splitted_paths.train.images1),
+        val_path=str(yolo_splitted_paths.val.images1),
+        output_file=yolo_splitted_paths.yaml
+    )
