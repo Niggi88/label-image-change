@@ -370,11 +370,18 @@ class InconsistentSaver(ReviewSaver):
     def reset_pair(self, pair, context):
 
         pid = str(pair.pair_id)
-        if pid not in self.annotations:
+        print("pid: ", pid)
+        key = f"{pair.source_item['store_session_path']}|{pair.source_item['pair_id']}"
+        print("source_item: ", key)
+        if pid != key:
+            print("False")
             return False
+        print("True")
+        key = self._key(pair)
+        self.annotations["items"][key]["pair_state"] = pair.source_item.get("expected")
+        print("state after reset: ", self.annotations["items"][key]["pair_state"])
         
-        self.annotations[pid]["pair_state"] = "no_annotation"
-        self.annotations[pid]["boxes"] = []
+        # self.annotations[pid]["boxes"] = []
         # clear in-memory boxes
         pair.image1.boxes.clear()
         pair.image2.boxes.clear()
