@@ -366,6 +366,21 @@ class InconsistentSaver(ReviewSaver):
 
         self._flush()
 
+
+    def reset_pair(self, pair, context):
+
+        pid = str(pair.pair_id)
+        if pid not in self.annotations:
+            return False
+        
+        self.annotations[pid]["pair_state"] = "no_annotation"
+        self.annotations[pid]["boxes"] = []
+        # clear in-memory boxes
+        pair.image1.boxes.clear()
+        pair.image2.boxes.clear()
+
+        self._flush()
+        
     # def save_correct(self, pair, expected_entry, ctx):
     #     """Reviewer bestätigt expected."""
     #     key = str(pair.pair_id)

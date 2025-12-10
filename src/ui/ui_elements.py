@@ -280,6 +280,8 @@ class UIElements(tk.Frame):
         pair = self.data_handler.current_pair()
         total_pairs = len(self.data_handler.pairs)
 
+        if state == "accepted":
+            state = pair.source_item["expected"]
         self.data_handler.saver.save_pair(pair, state, self.data_handler.context_info())
         if state == "annotated":
             # enable box drawing only when "Annotate" pressed

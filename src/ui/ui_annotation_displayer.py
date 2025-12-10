@@ -26,13 +26,34 @@ class AnnotationDisplayer:
         self._draw_image(canvas_left, pair.image1, half_w, max_h)
         self._draw_image(canvas_right, pair.image2, half_w, max_h)
 
+
+
+
         # check saved annotation state
+        
+        
+        
         state = data.get("pair_state")
+        if state == ("no_annotation" or None) and boxes_expected:
+            for canvas in (canvas_left, canvas_right):
+                for b in boxes_expected:
+                    if b["annotation_type"] == "item_removed":
+                        self._draw_boxes(canvas_left, [b], highlight=True)
+                        self._draw_boxes(canvas_right, [b], highlight=False)
+                    elif b["annotation_type"] == "item_added":
+                        self._draw_boxes(canvas_left, [b], highlight=False)                        
+                        self._draw_boxes(canvas_right, [b], highlight=True)
+
+
+
+
         if state in ("chaos", "nothing", "no_annotation"):
             self._draw_outline(canvas_left, state)
             self._draw_outline(canvas_right, state)
         elif state == "annotated":
             for canvas in (canvas_left, canvas_right):
+
+                
                 boxes = data.get("boxes", [])
                 for b in boxes:
                     if b["annotation_type"] == "item_removed":
@@ -42,15 +63,6 @@ class AnnotationDisplayer:
                         self._draw_boxes(canvas_left, [b], highlight=False)                        
                         self._draw_boxes(canvas_right, [b], highlight=True)
 
-        if boxes_expected:
-            for canvas in (canvas_left, canvas_right):
-                for b in boxes_expected:
-                    if b["annotation_type"] == "item_removed":
-                        self._draw_boxes(canvas_left, [b], highlight=True)
-                        self._draw_boxes(canvas_right, [b], highlight=False)
-                    elif b["annotation_type"] == "item_added":
-                        self._draw_boxes(canvas_left, [b], highlight=False)                        
-                        self._draw_boxes(canvas_right, [b], highlight=True)
 
 
     def _scale_image(self, pil_img, max_w, max_h):
