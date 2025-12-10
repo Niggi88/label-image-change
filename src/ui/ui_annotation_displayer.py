@@ -31,7 +31,8 @@ class AnnotationDisplayer:
 
         # check saved annotation state
         state = data.get("pair_state")
-        if state == ("no_annotation" or None) and boxes_expected:
+
+        if state not in ("chaos", "nothing") and boxes_expected:
             for canvas in (canvas_left, canvas_right):
                 for b in boxes_expected:
                     if b["annotation_type"] == "item_removed":
