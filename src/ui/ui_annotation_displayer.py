@@ -30,9 +30,6 @@ class AnnotationDisplayer:
 
 
         # check saved annotation state
-        
-        
-        
         state = data.get("pair_state")
         if state == ("no_annotation" or None) and boxes_expected:
             for canvas in (canvas_left, canvas_right):
@@ -43,8 +40,6 @@ class AnnotationDisplayer:
                     elif b["annotation_type"] == "item_added":
                         self._draw_boxes(canvas_left, [b], highlight=False)                        
                         self._draw_boxes(canvas_right, [b], highlight=True)
-
-
 
 
         if state in ("chaos", "nothing", "no_annotation"):
