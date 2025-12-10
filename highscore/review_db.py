@@ -199,6 +199,44 @@ class ReviewDatabaseManager:
             return out
 
 
+    def get_model_class_stats(self, model_name):
+        if not self._initialized:
+            self.initialize()
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT
+                    expected AS class,
+                    SUM(CASE WHEN decision='accepted' THEN 1 ELSE 0 END) AS correct,
+                    SUM(CASE WHEN decision='corrected' THEN 1 ELSE 0 END) AS incorrect
+                FROM reviews
+                WHERE model_name = ?
+                GROUP BY expected
+            """, (model_name,))
+
+            rows = cursor.fetchall()
+
+            out = []
+            for class_name, correct, incorrect in rows:
+                correct = correct or 0
+                incorrect = incorrect or 0
+                total = correct + incorrect
+                error_rate = (incorrect / total) if total > 0 else 0.0
+
+                out.append({
+                    "class": class_name,
+                    "correct": correct,
+                    "incorrect": incorrect,
+                    "errorRate": error_rate
+                })
+
+            # sort by error rate descending
+            out.sort(key=lambda x: x["errorRate"], reverse=True)
+
+            return out
+
+
+
 # global singleton
 _review_manager = ReviewDatabaseManager()
 
@@ -213,3 +251,6 @@ def get_user_review_stats():
 
 def get_model_review_stats():
     return _review_manager.get_model_stats()
+
+def get_model_class_stats():
+    return _review_manager.get_model_class_stats()
