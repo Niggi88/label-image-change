@@ -334,7 +334,7 @@ class InconsistentSaver(ReviewSaver):
     def _key(self, pair):
         return str(pair.pair_id)
 
-    def save_pair(self, pair, state, ctx):
+    def save_pair(self, pair, state, decision, ctx):
         print("inconsistent saver is saving")
         key = self._key(pair)
 
@@ -350,8 +350,6 @@ class InconsistentSaver(ReviewSaver):
         predicted = pair.source_item.get("predicted")
         expected = pair.source_item.get("expected")
         model_name = pair.source_item.get("model_name")
-
-        decision = "accepted" if state=="accepted" else "corrected"
 
         report_inconsistent_review(
             pair_id=key,

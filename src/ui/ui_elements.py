@@ -119,7 +119,7 @@ class UIElements(tk.Frame):
         root.bind("n", lambda e: self.mark_state("nothing"))     # N = Nothing
         root.bind("c", lambda e: self.mark_state("chaos"))       # C = Chaos
         root.bind("u", lambda e: self.mark_state("no_annotation")) # U = Unsure/No Annotation
-        root.bind("<Return>", lambda e: self.mark_state("accepted"))
+        root.bind("v", lambda e: self.mark_state("accepted"))
         root.bind("d", lambda e: self.delete_box())              # D = Delete selected box
         root.bind("x", lambda e: self.reset_pair())              # X = Reset pair
         root.bind("f", lambda e: self.next_pair())               # F = Next pair
@@ -284,9 +284,13 @@ class UIElements(tk.Frame):
         pair = self.data_handler.current_pair()
         total_pairs = len(self.data_handler.pairs)
 
-        if state == "accepted":
+        if state == "accepted" or state == pair.source_item["expected"]:
             state = pair.source_item["expected"]
-        self.data_handler.saver.save_pair(pair, state, self.data_handler.context_info())
+            decision = "accepted"
+        else:
+            decision = "corrected"
+
+        self.data_handler.saver.save_pair(pair, state, decision, self.data_handler.context_info())
         if state == "annotated":
             # enable box drawing only when "Annotate" pressed
             self.canvas_frame.attach_boxes(self.handler, pair)
