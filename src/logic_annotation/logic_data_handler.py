@@ -407,7 +407,8 @@ class BatchDataHandler(BaseDataHandler):
     Holt Paare vom API-Server in Batches und erlaubt Navigation.
     """
 
-    def __init__(self, api_base: str, batch_type: str, user: str, size: int = 5, saver_cls=None):
+    def __init__(self, api_base: str, batch_type: str, user: str, selected_users=None, size: int = 5, saver_cls=None):
+        self.selected_users = selected_users
         self.api_base = api_base.rstrip("/")
         self.batch_type = batch_type
         self.user = user
@@ -428,7 +429,7 @@ class BatchDataHandler(BaseDataHandler):
         """Fetch a new batch from the API and wrap into BatchImagePairList."""
         path = f"{self.batch_type}/batch"
         url = urljoin(self.api_base + "/", path.lstrip("/"))
-        resp = requests.get(url, params={"user": self.user, "size": self.size}, timeout=30)
+        resp = requests.get(url, params={"user": self.user, "size": self.size, "selected_users": self.selected_users}, timeout=30)
         resp.raise_for_status()
         data = resp.json()
 
@@ -555,7 +556,7 @@ class UnsureDataHandler(BatchDataHandler):
 
 class InconsistentDataHandler(BatchDataHandler):
     def __init__(self, api_base: str, user: str, selected_users=None, size: int = 20):
-        super().__init__(api_base, "inconsistent", user, size, saver_cls=InconsistentSaver)
+        super().__init__(api_base, "inconsistent", user, selected_users, size, saver_cls=InconsistentSaver)
         self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR, selected_users)
         self.selected_users = selected_users
 

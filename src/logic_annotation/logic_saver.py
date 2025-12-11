@@ -353,7 +353,6 @@ class InconsistentSaver(ReviewSaver):
         model_name = pair.source_item.get("model_name")
 
         report_inconsistent_review(
-            selected_users=self.selected_users,
             pair_id=key,
             predicted=predicted,
             expected=expected,

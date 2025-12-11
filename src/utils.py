@@ -113,9 +113,8 @@ def flush_annotation_cache():
 
 ## for inconsistent ##
 
-def report_inconsistent_review(selected_users, pair_id, predicted, expected, reviewer, decision, model_name):
+def report_inconsistent_review(pair_id, predicted, expected, reviewer, decision, model_name):
     payload = {
-        "selected_users": selected_users,
         "pairId": pair_id,
         "predicted": predicted,
         "expected": expected,
