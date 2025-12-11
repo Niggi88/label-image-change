@@ -5,7 +5,7 @@ class AnnotationDisplayer:
     def __init__(self):
         self._images = []  # keep refs to Tk images
 
-    def display_pair(self, canvas_left, canvas_right, pair, annotations, boxes_expected=None, max_w=1200, max_h=800):
+    def display_pair(self, canvas_left, canvas_right, pair, annotations, expected, boxes_expected=None, max_w=1200, max_h=800):
         """
         Show images + annotations for a given ImagePair.
         Scales images to half the width and full height of available space.
@@ -14,8 +14,14 @@ class AnnotationDisplayer:
         self._images.clear()
 
         pid = str(pair.pair_id)
-        data = annotations.get(pid, {})
 
+        data = annotations.get(pid, {})
+        state = data.get("pair_state")
+
+        print("local state: ", state)
+        if not state:
+            state = expected
+            print("expected state: ", state)
         # clear old drawings
         for canvas in (canvas_left, canvas_right):
             canvas.delete("all")
@@ -28,9 +34,6 @@ class AnnotationDisplayer:
 
 
 
-
-        # check saved annotation state
-        state = data.get("pair_state")
 
         if state not in ("chaos", "nothing") and boxes_expected:
             for canvas in (canvas_left, canvas_right):

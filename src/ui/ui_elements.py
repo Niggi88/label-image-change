@@ -145,26 +145,28 @@ class UIElements(tk.Frame):
     def refresh(self):
         print("refreshing")
         pair = self.data_handler.current_pair()
+        ann_all = self.data_handler.saver.annotations
+        ann_lookup = ann_all.get("items", ann_all)
 
         if self.data_handler.mode == "review":
             boxes_expected = self.data_handler.get_expected_boxes()
         else:
             boxes_expected = []
 
+        expected = pair.source_item.get("expected")
         root = self.winfo_toplevel()
         root.update_idletasks()
         root_w, root_h = root.winfo_width(), root.winfo_height()
         if root_w <= 1 or root_h <= 1:
             root_w, root_h = 1200, 800
 
-        ann_all = self.data_handler.saver.annotations
-        ann_lookup = ann_all.get("items", ann_all)
 
         self.displayer.display_pair(
             self.canvas_frame.canvas_left,
             self.canvas_frame.canvas_right,
             pair,
             ann_lookup,
+            expected,
             boxes_expected,
             max_w=root_w,
             max_h=root_h
@@ -198,12 +200,13 @@ class UIElements(tk.Frame):
         ann_all = self.data_handler.saver.annotations
         entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
 
-        if not entry:
-            self.data_handler.saver.save_pair(
-                current,
-                "no_annotation",
-                self.data_handler.context_info(),
-            )
+        if self.data_handler.mode == "annotation":
+            if not entry:
+                self.data_handler.saver.save_pair(
+                    current,
+                    "no_annotation",
+                    self.data_handler.context_info(),
+                )
 
         self.refresh()
 
@@ -253,16 +256,17 @@ class UIElements(tk.Frame):
 
         self.flickerer._flicker_running = False
 
-        # Default save if necessary
-        pid = str(current.pair_id)
-        ann_all = self.data_handler.saver.annotations
-        entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
-        if not entry or "pair_state" not in entry:
-            self.data_handler.saver.save_pair(
-                current,
-                "no_annotation",
-                self.data_handler.context_info(),
-            )
+        if mode == "annotation":
+            # Default save if necessary
+            pid = str(current.pair_id)
+            ann_all = self.data_handler.saver.annotations
+            entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
+            if not entry or "pair_state" not in entry:
+                self.data_handler.saver.save_pair(
+                    current,
+                    "no_annotation",
+                    self.data_handler.context_info(),
+                )
 
         self.refresh()
             
