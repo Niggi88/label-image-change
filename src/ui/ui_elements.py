@@ -307,6 +307,7 @@ class UIElements(tk.Frame):
         pair = self.data_handler.current_pair()
         ctx = self.data_handler.context_info()
         self.data_handler.saver.reset_pair(pair, ctx)
+        self.refresh()
         print("Reset boxes")
 
 
