@@ -26,7 +26,7 @@ class UIReviewApp(tk.Tk):
         if batch_type == "unsure":
             handler = UnsureDataHandler(api_base=api_base, user=user, size=5)
         elif batch_type == "inconsistent":
-            handler = InconsistentDataHandler(api_base=api_base, user=user, size=5)
+            handler = InconsistentDataHandler(api_base=api_base, user=user, selected_users=user_filter, size=5)
         else:
             raise ValueError("batch_type must be 'unsure' or 'inconsistent'")
 

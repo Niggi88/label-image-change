@@ -317,7 +317,8 @@ class ReviewSaver(CommonSaver):
 
 class InconsistentSaver(ReviewSaver):
 
-    def __init__(self, batch_meta, root_dir):
+    def __init__(self, batch_meta, root_dir, selected_users=None):
+        self.selected_users = selected_users
         self.root = Path(root_dir)
         self.batch_id = batch_meta.get("batch_id", "unknown")
         self.logfile = self.root / f"inconsistent_{self.batch_id}.json"
@@ -352,6 +353,7 @@ class InconsistentSaver(ReviewSaver):
         model_name = pair.source_item.get("model_name")
 
         report_inconsistent_review(
+            selected_users=self.selected_users,
             pair_id=key,
             predicted=predicted,
             expected=expected,
