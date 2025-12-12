@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import messagebox
 import tkinter.simpledialog as sd
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.ui.ui_elements import UIElements
 from src.ui.ui_styles import init_ttk_styles
