@@ -17,6 +17,7 @@ class ReviewDatabaseManager:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS reviews (
                     pair_id TEXT NOT NULL,
+                    annotated_by TEXT NOT NULL,
                     reviewer TEXT NOT NULL,
                     predicted TEXT,
                     expected TEXT,
@@ -46,7 +47,7 @@ class ReviewDatabaseManager:
 
     # ------------ INSERT -----------------
 
-    def insert_review(self, pair_id, reviewer, predicted, expected, decision, model_name):
+    def insert_review(self, pair_id, annotated_by, reviewer, predicted, expected, decision, model_name):
         if not self._initialized:
             self.initialize()
 
@@ -130,10 +131,11 @@ class ReviewDatabaseManager:
                     # review Insert
                     conn.execute("""
                         INSERT INTO reviews
-                        (pair_id, reviewer, predicted, expected, decision, model_name, timestamp)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (pair_id, annotated_by, reviewer, predicted, expected, decision, model_name, timestamp)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         pair_id,
+                        annotated_by,
                         reviewer,
                         predicted,
                         expected,
@@ -166,6 +168,29 @@ class ReviewDatabaseManager:
             stats = {}
             for reviewer, accepted, corrected in cursor.fetchall():
                 stats[reviewer] = {
+                    "accepted": accepted or 0,
+                    "corrected": corrected or 0,
+                    "total": (accepted or 0) + (corrected or 0)
+                }
+
+            return stats
+
+    def get_annotator_stats(self):
+        if not self._initialized:
+            self.initialize()
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT annotated_by,
+                    SUM(CASE WHEN decision='accepted' THEN 1 ELSE 0 END) AS accepted,
+                    SUM(CASE WHEN decision='corrected' THEN 1 ELSE 0 END) AS corrected
+                FROM reviews
+                GROUP BY annotated_by
+            """)
+
+            stats = {}
+            for annotated_by, accepted, corrected in cursor.fetchall():
+                stats[annotated_by] = {
                     "accepted": accepted or 0,
                     "corrected": corrected or 0,
                     "total": (accepted or 0) + (corrected or 0)
@@ -249,8 +274,11 @@ def insert_review(**kwargs):
 def get_user_review_stats():
     return _review_manager.get_user_stats()
 
+def get_annotator_review_stats():
+    return _review_manager.get_annotator_stats()
+
 def get_model_review_stats():
     return _review_manager.get_model_stats()
 
-def get_model_class_stats():
-    return _review_manager.get_model_class_stats()
+def get_model_class_stats(model_name):
+    return _review_manager.get_model_class_stats(model_name)

@@ -31,6 +31,10 @@ from highscore_db import initialize_data_file, read_data, write_data, get_databa
 
 app = FastAPI(title="Annotation Leaderboard API")
 
+from review_db import init_review_db
+init_review_db()
+
+
 # Enable CORS (UNCHANGED)
 app.add_middleware(
     CORSMiddleware,
@@ -272,6 +276,7 @@ from review_db import (
     init_review_db,
     insert_review,
     get_user_review_stats,
+    get_annotator_review_stats,
     get_model_review_stats,
     get_model_class_stats,
 )
@@ -280,6 +285,7 @@ class InconsistentReview(BaseModel):
     pairId: str
     predicted: str
     expected: str
+    annotated_by: str
     reviewer: str
     decision: str
     modelName: str
@@ -287,9 +293,11 @@ class InconsistentReview(BaseModel):
 
 @app.post("/api/inconsistent/review")
 async def receive_inconsistent_review(rec: InconsistentReview):
+    print("rec: ", rec)
     try:
         insert_review(
             pair_id=rec.pairId,
+            annotated_by=rec.annotated_by,
             reviewer=rec.reviewer,
             predicted=rec.predicted,
             expected=rec.expected,
@@ -303,7 +311,53 @@ async def receive_inconsistent_review(rec: InconsistentReview):
 
 @app.get("/api/inconsistent/userstats")
 async def inconsistent_user_stats():
-    return get_user_review_stats()
+    """
+    Groups reviewers into two categories:
+    - 'has': more (or equal) accepted predictions than corrected
+    - 'was': more corrected predictions than accepted
+    """
+
+    raw = get_user_review_stats()  # already returns { user: {accepted, corrected, total} }
+
+    print("raw user stats: ", raw)
+    grouped = {
+        "has": {},
+    }
+
+    for user, stats in raw.items():
+        accepted = stats.get("accepted", 0)
+        corrected = stats.get("corrected", 0)
+        total = stats.get("total", accepted + corrected)
+
+        grouped["has"][user] = {
+            "total": total,
+            "accepted": accepted,
+            "corrected": corrected
+        }
+
+    return grouped
+
+@app.get("/api/inconsistent/stats/annotators")
+async def inconsistent_annotator_stats():
+
+    raw = get_annotator_review_stats()
+
+    grouped = {
+        "was": {}
+    }
+
+    for annotated_by, stats in raw.items():
+        accepted = stats.get("accepted", 0)
+        corrected = stats.get("corrected", 0)
+        total = stats.get("total", accepted + corrected)
+
+        grouped["was"][annotated_by] = {
+            "total": total,
+            "accepted": accepted,
+            "corrected": corrected
+        }
+
+    return grouped
 
 
 @app.get("/api/inconsistent/modelstats")

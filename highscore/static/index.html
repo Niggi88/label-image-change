@@ -143,6 +143,41 @@
             font-size: 24px;
         }
 
+
+        .review-table {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .review-header {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .review-divider {
+            height: 1px;
+            background: #ccc;
+            margin: 10px 0;
+        }
+
+        .review-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            padding: 6px 0;
+        }
+
+        .leaderboard-subtitle {
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: #667eea;
+        }
+
+
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -175,8 +210,36 @@
 
         <div class="leaderboard" style="margin-top:40px">
             <h2>Inconsistent Review – User Stats</h2>
-            <div id="reviewUserList" class="loading">Loading...</div>
+
+            <div id="reviewUserList">
+                <!-- Group A -->
+                <div class="leaderboard-subtitle">User Stats – has</div>
+                <div class="review-table">
+                    <div class="review-header">
+                        <span>Reviewer</span>
+                        <span>Total</span>
+                        <span>Accepted</span>
+                        <span>Corrected</span>
+                    </div>
+                    <div class="review-divider"></div>
+                    <div id="reviewUserHas"></div>
+                </div>
+
+                <!-- Group B -->
+                <div class="leaderboard-subtitle" style="margin-top:25px">User Stats – was</div>
+                <div class="review-table">
+                    <div class="review-header">
+                        <span>Annotator</span>
+                        <span>Total</span>
+                        <span>Accepted</span>
+                        <span>Corrected</span>
+                    </div>
+                    <div class="review-divider"></div>
+                    <div id="reviewUserWas"></div>
+                </div>
+            </div>
         </div>
+
 
         <div class="leaderboard" style="margin-top:40px">
             <h2>Inconsistent Review – Model Stats</h2>
@@ -249,69 +312,40 @@
 
         async function updateInconsistentStats() {
             try {
-                // USER STATS
                 const userResp = await fetch(`${API_URL}/api/inconsistent/userstats`);
+                const annotatorResp = await fetch(`${API_URL}/api/inconsistent/stats/annotators`);
                 const userStats = await userResp.json();
+                const annotatorStats = await annotatorResp.json();
 
-                const userList = document.getElementById('reviewUserList');
-                userList.innerHTML = '';
+                // GRUPPEN annehmen:
+                // userStats.has = { userA: {total, accepted, corrected}, ... }
+                // userStats.was = { userB: {...}, ... }
 
-                Object.entries(userStats).forEach(([username, stats], index) => {
-
-                    const item = document.createElement('div');
-                    item.className = 'leaderboard-item';
-
-                    const total = stats.total;
-                    const corrected = stats.corrected;
-                    const accepted = stats.accepted;
-
-                    item.innerHTML = `
-                        <div class="rank">#${index + 1}</div>
-                        <div class="user-info">
-                            <div class="username">${username}</div>
-                            <div class="classes">
-                                <span class="class-badge">Total: ${total}</span>
-                                <span class="class-badge">Accepted: ${accepted}</span>
-                                <span class="class-badge">Corrected: ${corrected}</span>
-                            </div>
-                        </div>
-                        <div class="score">${total}</div>
-                    `;
-                    userList.appendChild(item);
-                });
-
-                // MODEL STATS
-                // MODEL STATS
-                const modelResp = await fetch(`${API_URL}/api/inconsistent/modelstats`);
-                const modelStats = await modelResp.json();
-
-                const modelList = document.getElementById('reviewModelList');
-                modelList.innerHTML = '';
-
-                modelStats.forEach((stat, index) => {
-                    const item = document.createElement('div');
-                    item.className = 'leaderboard-item';
-
-                    item.innerHTML = `
-                        <div class="rank">#${index + 1}</div>
-                        <div class="user-info">
-                            <div class="username">${stat.modelName}</div>
-                            <div class="classes">
-                                <span class="class-badge">Accepted: ${stat.accepted}</span>
-                                <span class="class-badge">Corrected: ${stat.corrected}</span>
-                                <span class="class-badge">Accuracy: ${(stat.accuracy * 100).toFixed(1)}%</span>
-                            </div>
-                        </div>
-                        <div class="score">${stat.accepted}</div>
-                    `;
-                    modelList.appendChild(item);
-                });
-
+                renderUserGroup("reviewUserHas", userStats.has);
+                renderUserGroup("reviewUserWas", annotatorStats.was);
 
             } catch (err) {
                 console.error("Failed to load inconsistent review stats:", err);
             }
         }
+
+        function renderUserGroup(targetId, groupData) {
+            const container = document.getElementById(targetId);
+            container.innerHTML = "";
+
+            Object.entries(groupData).forEach(([user, stats]) => {
+                const row = document.createElement("div");
+                row.className = "review-row";
+                row.innerHTML = `
+                    <span>${user}</span>
+                    <span>${stats.total}</span>
+                    <span>${stats.accepted}</span>
+                    <span>${stats.corrected}</span>
+                `;
+                container.appendChild(row);
+            });
+        }
+
 
         async function updateModelClassStats() {
             try {
