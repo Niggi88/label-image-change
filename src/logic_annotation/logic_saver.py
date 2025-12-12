@@ -350,12 +350,17 @@ class InconsistentSaver(ReviewSaver):
 
         predicted = pair.source_item.get("predicted")
         expected = pair.source_item.get("expected")
+        annotated_by = pair.source_item.get("annotated_by")
+        annotated_by = annotated_by["name"]
         model_name = pair.source_item.get("model_name")
 
+        print("annotated_by: ", annotated_by)
+        print("decision is: ", decision)
         report_inconsistent_review(
             pair_id=key,
             predicted=predicted,
             expected=expected,
+            annotated_by=annotated_by,
             reviewer=ctx.get("user"),
             decision=decision,
             model_name=model_name
