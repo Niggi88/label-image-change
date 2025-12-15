@@ -104,13 +104,13 @@ class UIElements(tk.Frame):
         self.nav_bar = tk.Frame(self.content_frame)
         self.nav_bar.grid(row=2, column=0, columnspan=2, pady=(10, 20))
 
-        self.prev_btn = ttk.Button(self.nav_bar, text="Prev", style=STYLE_NAV, command=self.prev_pair)
+        self.prev_btn = ttk.Button(self.nav_bar, text="Prev (s)", style=STYLE_NAV, command=self.prev_pair)
         self.prev_btn.pack(side="left", padx=30, pady=15)
 
         self.status = StatusFrame(self.nav_bar)
         self.status.pack(side="left", padx=10)
 
-        self.next_btn = ttk.Button(self.nav_bar, text="Next", style=STYLE_NAV, command=self.next_pair)
+        self.next_btn = ttk.Button(self.nav_bar, text="Next (f)", style=STYLE_NAV, command=self.next_pair)
         self.next_btn.pack(side="left", padx=30, pady=15)
 
 
@@ -119,7 +119,7 @@ class UIElements(tk.Frame):
         root.bind("n", lambda e: self.mark_state("nothing"))     # N = Nothing
         root.bind("c", lambda e: self.mark_state("chaos"))       # C = Chaos
         root.bind("u", lambda e: self.mark_state("no_annotation")) # U = Unsure/No Annotation
-        root.bind("v", lambda e: self.mark_state("accepted"))
+        root.bind("b", lambda e: self.mark_state("accepted"))
         root.bind("d", lambda e: self.delete_box())              # D = Delete selected box
         root.bind("x", lambda e: self.reset_pair())              # X = Reset pair
         root.bind("f", lambda e: self.next_pair())               # F = Next pair
@@ -392,13 +392,13 @@ class AnnotationFrame(tk.Frame):
         super().__init__(parent)
 
         for col, (text, cmd, style) in enumerate([
-            ("Nothing Changed", lambda: on_mark("nothing"), STYLE_NOTHING),
-            ("Chaos", lambda: on_mark("chaos"), STYLE_CHAOS),
-            ("Unsure", lambda: on_mark("no_annotation"), STYLE_UNSURE),
-            ("Annotate", lambda: on_mark("annotated"), STYLE_ANNOTATE),
-            ("Delete Selected Box", on_delete, STYLE_DELETE),
-            ("Reset", on_reset, STYLE_RESET),
-            ("Labeled Correctly", lambda: on_mark("accepted"), STYLE_NOTHING)
+            ("Nothing Changed (n)", lambda: on_mark("nothing"), STYLE_NOTHING),
+            ("Chaos (c)", lambda: on_mark("chaos"), STYLE_CHAOS),
+            ("Unsure (u)", lambda: on_mark("no_annotation"), STYLE_UNSURE),
+            ("Annotate (a)", lambda: on_mark("annotated"), STYLE_ANNOTATE),
+            ("Delete Selected Box (d)", on_delete, STYLE_DELETE),
+            ("Reset (x)", on_reset, STYLE_RESET),
+            ("Labeled Correctly (b)", lambda: on_mark("accepted"), STYLE_NOTHING)
         ]):
             btn = ttk.Button(self, text=text, command=cmd, style=style)
             btn.grid(row=0, column=col,
