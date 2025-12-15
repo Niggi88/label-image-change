@@ -145,13 +145,20 @@ class UIElements(tk.Frame):
     def refresh(self):
         print("refreshing")
         pair = self.data_handler.current_pair()
+        pid = str(pair.pair_id)
         ann_all = self.data_handler.saver.annotations
         ann_lookup = ann_all.get("items", ann_all)
+        data = ann_lookup.get(pid, {})
+        state = data.get("pair_state")
 
+
+        print("local: ", state)
         if self.data_handler.mode == "review":
             boxes_expected = self.data_handler.get_expected_boxes()
             boxes_predicted = self.data_handler.get_predicted_boxes()
-            print("boxes predicted: ", boxes_predicted)
+            if state in ["nothing", "chaos", "annotated"]:
+                boxes_predicted = []
+                print("boxes predicted: ", boxes_predicted)
         else:
             boxes_expected = []
             boxes_predicted = []

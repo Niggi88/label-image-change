@@ -382,7 +382,8 @@ class InconsistentSaver(ReviewSaver):
             return False
         print("True")
         key = self._key(pair)
-        self.annotations["items"][key]["pair_state"] = pair.source_item.get("expected")
+        if self.annotations["items"][key]["pair_state"]:
+            self.annotations["items"][key]["pair_state"] = None # pair.source_item.get("expected")
         print("state after reset: ", self.annotations["items"][key]["pair_state"])
         
         # self.annotations[pid]["boxes"] = []
