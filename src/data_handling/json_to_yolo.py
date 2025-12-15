@@ -132,17 +132,10 @@ if __name__ == "__main__":
         for p in [yolo_paths.images1, yolo_paths.images2, yolo_paths.labels]:
             p.mkdir(parents=True, exist_ok=True)
 
-    #  = SESSION_PATH / "converted_data.json"
-    in_dataset_files = (config.raw_data / config._src_data_name).glob("*.json")
+    in_dataset_file_names = [(config.raw_data / dataset_name).glob("*.json") for dataset_name in config.src_data_names]
     
     annotation_files = list(chain(
-        # dataset_small_set,
-        # dataset_small_set2,
-        in_dataset_files,
-        # dataset_small_set2,
-        # dataset_small_set3,
-        # folder_path.glob("**/*.json")
-        # dataset_config
+        *in_dataset_file_names
     ))
     
     
@@ -153,10 +146,15 @@ if __name__ == "__main__":
     print(len(annotation_files))
     from yolo_config import generate_dataset_config
     
+    # class_names = [
+    #     "nothing",          # 0
+    #     "chaos",            # 1
+    #     "annotated",        # 2
+    # ]
     class_names = [
         "nothing",          # 0
-        "chaos",            # 1
-        "annotated",        # 2
+        "no_idea",            # 1
+        "added",        # 2
     ]
     
     generate_dataset_config(
