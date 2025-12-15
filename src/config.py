@@ -45,7 +45,7 @@ else:
         DATASET_NAME="tmp"
         DATASET_DIR = f"/media/fast/dataset/bildunterschied/test_mini/new_label_tool/{DATASET_NAME}"
         USERNAME = "niklas"
-        LOCAL_LOG_DIR = f"/tmp"
+        LOCAL_LOG_DIR = "/tmp"
     elif HOSTNAME == "niklas-XPS-15-9530":
         UI_SCALING=2.5
         FONT_SCALING=2.5
@@ -56,8 +56,8 @@ else:
         USERNAME = "sarah"
         DATASET_NAME = "sarah_20250801-20250816"
         # DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
-        LOCAL_LOG_DIR = f"/home/sarah/Documents/change_detection/label-image-chang/local_log_dir"
-        SEGMENTATION_PATH = f"/home/sarah/Documents/change_detection/local_paths/segmented_boxes"
+        LOCAL_LOG_DIR = "/home/sarah/Documents/change_detection/label-image-chang/local_log_dir"
+        SEGMENTATION_PATH = "/home/sarah/Documents/change_detection/local_paths/segmented_boxes"
         DATASET_DIR = f"/home/sarah/Documents/data/{DATASET_NAME}"
 
     elif HOSTNAME == "NB-ENDRES":
@@ -65,6 +65,11 @@ else:
         DATASET_NAME = "example_sessions"
         # DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
         DATASET_DIR = rf"C:\Users\sarah.endres\Documents\{DATASET_NAME}"
+    elif HOSTNAME == "ml02":
+            DATASET_DIR = f"/home/niklas.unverricht/dataset/dataset/snapshot_change_detection/{DATASET_NAME}"
+
+        # _base_data_dir = Path("/home/niklas.unverricht/dataset/snapshot_change_detection")
+
 
     else:
         raise Exception("Unknown host", HOSTNAME)
