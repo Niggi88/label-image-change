@@ -65,6 +65,10 @@ else:
         DATASET_NAME = "example_sessions"
         # DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
         DATASET_DIR = rf"C:\Users\sarah.endres\Documents\{DATASET_NAME}"
+    elif HOSTNAME == "ml02":
+        pass
+        # _base_data_dir = Path("/home/niklas.unverricht/dataset/snapshot_change_detection")
+
 
     else:
         raise Exception("Unknown host", HOSTNAME)
