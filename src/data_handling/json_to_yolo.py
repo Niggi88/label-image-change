@@ -145,12 +145,7 @@ if __name__ == "__main__":
         index = export_session(f, index, yolo_splitted_paths, override_root=config.override_root)
     print(len(annotation_files))
     from yolo_config import generate_dataset_config
-    
-    # class_names = [
-    #     "nothing",          # 0
-    #     "chaos",            # 1
-    #     "annotated",        # 2
-    # ]
+ 
     class_names = [
         "nothing",          # 0
         "no_idea",            # 1
