@@ -5,7 +5,7 @@ class AnnotationDisplayer:
     def __init__(self):
         self._images = []  # keep refs to Tk images
 
-    def display_pair(self, canvas_left, canvas_right, pair, annotations, expected, boxes_expected=None, max_w=1200, max_h=800):
+    def display_pair(self, canvas_left, canvas_right, pair, annotations, expected, boxes_expected=None, boxes_predicted=None, max_w=1200, max_h=800):
         """
         Show images + annotations for a given ImagePair.
         Scales images to half the width and full height of available space.
@@ -33,7 +33,15 @@ class AnnotationDisplayer:
         self._draw_image(canvas_right, pair.image2, half_w, max_h)
 
 
-
+        if boxes_predicted:
+            for canvas in (canvas_left, canvas_right):
+                for b in boxes_predicted:
+                    if b["annotation_type"] == "item_removed":
+                        self._draw_boxes(canvas_left, [b], highlight=True, predicted=True)
+                        self._draw_boxes(canvas_right, [b], highlight=False, predicted=True)
+                    elif b["annotation_type"] == "item_added":
+                        self._draw_boxes(canvas_left, [b], highlight=False, predicted=True)                        
+                        self._draw_boxes(canvas_right, [b], highlight=True, predicted=True)
 
         if state not in ("chaos", "nothing") and boxes_expected:
             for canvas in (canvas_left, canvas_right):
@@ -95,7 +103,7 @@ class AnnotationDisplayer:
         w, h = canvas.winfo_width(), canvas.winfo_height()
         canvas.create_rectangle(0, 0, w, h, outline=color, width=5, tags="outline")
 
-    def _draw_boxes(self, canvas, boxes, highlight=None):
+    def _draw_boxes(self, canvas, boxes, highlight=None, predicted=False):
         if not hasattr(canvas, "img_size"):
             return  # image not loaded/scaled yet
 
@@ -103,18 +111,35 @@ class AnnotationDisplayer:
         scale_x = canvas.winfo_width() / img_w
         scale_y = canvas.winfo_height() / img_h
 
-        for i, b in enumerate(boxes):
-            if highlight:
-                outline = "green"
-            elif not highlight:
-                outline = "red"
-            elif highlight is None:
-                outline = "blue"
+        if not predicted:
+
+            for i, b in enumerate(boxes):
+                if highlight:
+                    outline = "green"
+                elif not highlight:
+                    outline = "red"
+                elif highlight is None:
+                    outline = "blue"
+
+                canvas.create_rectangle(
+                    int(b["x1"] * scale_x),
+                    int(b["y1"] * scale_y),
+                    int(b["x2"] * scale_x),
+                    int(b["y2"] * scale_y),
+                    outline=outline, width=2, tags="box"
+                )
+        else:
+
+            for i, b in enumerate(boxes):
+                        if highlight:
+                            dash_style = None
+                        elif not highlight:
+                            dash_style = (8, 8)
 
             canvas.create_rectangle(
                 int(b["x1"] * scale_x),
                 int(b["y1"] * scale_y),
                 int(b["x2"] * scale_x),
                 int(b["y2"] * scale_y),
-                outline=outline, width=2, tags="box"
+                outline="gray", width=5, dash=dash_style, tags="box"
             )

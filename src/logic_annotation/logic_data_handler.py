@@ -438,6 +438,8 @@ class BatchDataHandler(BaseDataHandler):
         self.meta = data
 
         items = data.get("items") or []
+
+        print("item: ", items)
         pairs = []
 
         for item in items:
@@ -457,6 +459,7 @@ class BatchDataHandler(BaseDataHandler):
             pair.model_name = item.get("model_name")
             pair.source_item = item
             pairs.append(pair)
+
 
         self.pairs = BatchImagePairList(pairs)
         print("Loaded batch with", len(self.pairs), "pairs, starting at index", self.pairs.pair_idx)
@@ -567,6 +570,10 @@ class InconsistentDataHandler(BatchDataHandler):
     def get_expected_boxes(self):
         pair = self.current_pair()
         return pair.source_item.get("boxes_expected", [])
+    
+    def get_predicted_boxes(self):
+        pair = self.current_pair()
+        return pair.source_item.get("boxes_predicted", [])
     
     def mark_correct(self):
         pair = self.current_pair()

@@ -150,8 +150,11 @@ class UIElements(tk.Frame):
 
         if self.data_handler.mode == "review":
             boxes_expected = self.data_handler.get_expected_boxes()
+            boxes_predicted = self.data_handler.get_predicted_boxes()
+            print("boxes predicted: ", boxes_predicted)
         else:
             boxes_expected = []
+            boxes_predicted = []
 
         expected = pair.source_item.get("expected")
         root = self.winfo_toplevel()
@@ -168,6 +171,7 @@ class UIElements(tk.Frame):
             ann_lookup,
             expected,
             boxes_expected,
+            boxes_predicted,
             max_w=root_w,
             max_h=root_h
         )
