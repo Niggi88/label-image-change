@@ -407,7 +407,7 @@ class BatchDataHandler(BaseDataHandler):
     Holt Paare vom API-Server in Batches und erlaubt Navigation.
     """
 
-    def __init__(self, api_base: str, batch_type: str, user: str, selected_users=None, size: int = 5, saver_cls=None):
+    def __init__(self, api_base: str, batch_type: str, user: str, selected_users=None, size: int = 5, model=None, saver_cls=None):
         self.selected_users = selected_users
         self.api_base = api_base.rstrip("/")
         self.batch_type = batch_type
@@ -415,6 +415,7 @@ class BatchDataHandler(BaseDataHandler):
         self.size = size
         self.saver = None  # attach later
         self.saver_cls = saver_cls
+        self.model = model
 
         self.pairs = []
         self.idx = 0
@@ -555,9 +556,9 @@ class UnsureDataHandler(BatchDataHandler):
 
 
 class InconsistentDataHandler(BatchDataHandler):
-    def __init__(self, api_base: str, user: str, selected_users=None, size: int = 20):
-        super().__init__(api_base, "inconsistent", user, selected_users, size, saver_cls=InconsistentSaver)
-        self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR, selected_users)
+    def __init__(self, api_base: str, user: str, selected_users=None, size: int = 20, model = None):
+        super().__init__(api_base, "inconsistent", user, selected_users, size, model=model, saver_cls=InconsistentSaver)
+        self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR, selected_users, model)
         self.selected_users = selected_users
 
     def save_as_ann_local(self, expected):

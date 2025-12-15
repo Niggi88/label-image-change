@@ -317,7 +317,7 @@ class ReviewSaver(CommonSaver):
 
 class InconsistentSaver(ReviewSaver):
 
-    def __init__(self, batch_meta, root_dir, selected_users=None):
+    def __init__(self, batch_meta, root_dir, selected_users=None, size: int = 20, model = None):
         self.selected_users = selected_users
         self.root = Path(root_dir)
         self.batch_id = batch_meta.get("batch_id", "unknown")
