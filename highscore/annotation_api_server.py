@@ -279,6 +279,7 @@ from review_db import (
     get_annotator_review_stats,
     get_model_review_stats,
     get_model_class_stats,
+    get_total_review_count,
 )
 
 class InconsistentReview(BaseModel):
@@ -354,10 +355,22 @@ async def inconsistent_annotator_stats():
         grouped["was"][annotated_by] = {
             "total": total,
             "accepted": accepted,
-            "corrected": corrected
+            "corrected": corrected,
+            "errorRate": stats["errorRate"]
         }
 
     return grouped
+
+@app.get("/api/inconsistent/total")
+async def inconsistent_total():
+    """
+    Returns the total number of reviewed items in the database.
+    """
+    try:
+        total = get_total_review_count()
+        return {"total": total}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load total count: {e}")
 
 
 @app.get("/api/inconsistent/modelstats")
