@@ -322,6 +322,7 @@ class InconsistentSaver(ReviewSaver):
         self.root = Path(root_dir)
         self.batch_id = batch_meta.get("batch_id", "unknown")
         self.logfile = self.root / f"inconsistent_{self.batch_id}.json"
+        self.model = model
 
         if self.logfile.exists():
             self.annotations = json.loads(self.logfile.read_text())
@@ -345,7 +346,8 @@ class InconsistentSaver(ReviewSaver):
             "im2_path": pair.source_item["im2_url"],
             "image1_size": pair.image1.img_size,
             "image2_size": pair.image2.img_size,
-            "boxes": pair.image1.boxes  # oder kombiniert, je nachdem
+            "boxes": pair.image1.boxes,  # oder kombiniert, je nachdem
+            "selected_model": self.model
         }
 
         predicted = pair.source_item.get("predicted")

@@ -430,7 +430,7 @@ class BatchDataHandler(BaseDataHandler):
         """Fetch a new batch from the API and wrap into BatchImagePairList."""
         path = f"{self.batch_type}/batch"
         url = urljoin(self.api_base + "/", path.lstrip("/"))
-        resp = requests.get(url, params={"user": self.user, "size": self.size, "selected_users": self.selected_users}, timeout=30)
+        resp = requests.get(url, params={"user": self.user, "size": self.size, "selected_users": self.selected_users, "selected_model": self.model}, timeout=30)
         resp.raise_for_status()
         data = resp.json()
 

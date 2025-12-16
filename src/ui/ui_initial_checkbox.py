@@ -13,7 +13,7 @@ class Checkbox:
             "sarah",
         ]
 
-        self.model_list = [1, 2, 3]
+        self.model_list = ["main_real_data_large_xl-images_v1_20251215_133019", "real_data_v9_medium_santionly_20251127_181108", 3]
 
 
     def _build_annotator_checkboxes(self, parent, default_user):
