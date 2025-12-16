@@ -27,19 +27,19 @@ class UIReviewApp(tk.Tk):
 
         selection = self.checkbox.ask_user_filter(USERNAME)
         
-        selected_users = selection.get("annotators")
-        selected_model = selection.get("model")
-        selected_batch_size = selection.get("batch_size")
+        self.selected_users = selection.get("annotators")
+        self.selected_model = selection.get("model")
+        self.selected_batch_size = selection.get("batch_size")
 
-        print("User selection:", selected_users)
-        print("selected model: ", selected_model)
-        print("selected batch size: ", selected_batch_size)
+        print("User selection:", self.selected_users)
+        print("selected model: ", self.selected_model)
+        print("selected batch size: ", self.selected_batch_size)
 
         # Choose the right handler
         if batch_type == "unsure":
             handler = UnsureDataHandler(api_base=api_base, user=user, size=5)
         elif batch_type == "inconsistent":
-            handler = InconsistentDataHandler(api_base=api_base, user=user, selected_users=selected_users, size=selected_batch_size, model = selected_model)
+            handler = InconsistentDataHandler(api_base=api_base, user=user, selected_users=self.selected_users, size=self.selected_batch_size, model=self.selected_model)
         else:
             raise ValueError("batch_type must be 'unsure' or 'inconsistent'")
 

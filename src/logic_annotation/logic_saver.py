@@ -307,12 +307,18 @@ class ReviewSaver(CommonSaver):
         self.annotations["_meta"]["timestamp"] = datetime.now().isoformat()
         self.annotations["_meta"]["reviewed_by"] = USERNAME
 
-        annotated = len(self.annotations.get("items", {}))
+        # count only actually reviewed items
+        annotated = sum(
+            1 for item in self.annotations.get("items", {}).values()
+            if item.get("pair_state") not in (None, "", "no_annotation")
+        )
+
         self.annotations["_meta"]["completed"] = (annotated >= total_pairs)
 
         print(f"completed? {self.annotations['_meta']['completed']}")
 
         self._flush()
+
 
 
 class InconsistentSaver(ReviewSaver):
@@ -340,15 +346,27 @@ class InconsistentSaver(ReviewSaver):
         print("inconsistent saver is saving")
         key = self._key(pair)
 
+        local_boxes = pair.image1.boxes
+        expected_boxes = pair.source_item.get("boxes_expected")
+
+        if local_boxes:
+            boxes = local_boxes
+            print("gotten local boxes: ", boxes)
+        else:
+            boxes = expected_boxes
+            print("gotten expected boxes: ", boxes)
+
         self.annotations["items"][key] = {
             "pair_state": state,
             "im1_path": pair.source_item["im1_url"],
             "im2_path": pair.source_item["im2_url"],
             "image1_size": pair.image1.img_size,
             "image2_size": pair.image2.img_size,
-            "boxes": pair.image1.boxes,  # oder kombiniert, je nachdem
+            "boxes": boxes,  # oder kombiniert, je nachdem
             "selected_model": self.model
         }
+
+
 
         predicted = pair.source_item.get("predicted")
         expected = pair.source_item.get("expected")

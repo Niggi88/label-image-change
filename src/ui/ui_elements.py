@@ -229,8 +229,29 @@ class UIElements(tk.Frame):
 
     def next_pair(self):
         old_info = self.data_handler.context_info()
+        old_pair = self.data_handler.current_pair() 
         # Detect if we are currently at the last pair *before* moving on
         mode = self.data_handler.mode
+
+        pid = str(old_pair.pair_id)
+        ann_all = self.data_handler.saver.annotations
+        entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
+        print("#### entry: ", entry)
+
+        if not entry or "pair_state" not in entry:
+            if mode == "review":
+                decision = "accepted"
+                state = old_pair.source_item.get("expected")
+                print("##### state after skipping: ", state)
+                self.data_handler.saver.save_pair(
+                    old_pair,
+                    state,
+                    decision,
+                    self.data_handler.context_info()
+                )
+                if state == "annotation":
+                    expected_boxes = old_pair.source_item.get("expected_boxes")
+
 
         if mode == "annotation":
             # klassisches Session-Verhalten
@@ -267,17 +288,18 @@ class UIElements(tk.Frame):
 
         self.flickerer._flicker_running = False
 
-        if mode == "annotation":
-            # Default save if necessary
-            pid = str(current.pair_id)
-            ann_all = self.data_handler.saver.annotations
-            entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
-            if not entry or "pair_state" not in entry:
+        # Default save if necessary
+        pid = str(current.pair_id)
+        ann_all = self.data_handler.saver.annotations
+        entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
+        if not entry or "pair_state" not in entry:
+            if mode == "annotation":
                 self.data_handler.saver.save_pair(
                     current,
                     "no_annotation",
                     self.data_handler.context_info(),
                 )
+
 
         self.refresh()
             
