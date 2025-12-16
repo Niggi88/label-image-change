@@ -153,7 +153,7 @@
 
         .review-header {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             font-weight: bold;
             margin-bottom: 8px;
         }
@@ -166,7 +166,7 @@
 
         .review-row {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             padding: 6px 0;
         }
 
@@ -212,10 +212,20 @@
             <h2>Inconsistent Review – User Stats</h2>
 
             <div id="reviewUserList">
+
+                <div class="leaderboard" style="margin-top:40px">
+                    <h2>Inconsistent Review – User Stats</h2>
+
+                    <div class="total-counter" 
+                        style="margin-bottom: 20px; padding: 15px; font-size: 22px; background:#eef2ff; border-radius:12px; text-align:center;">
+                        Total Reviewed: <span id="totalReviewed">0</span>
+                </div>
+
                 <!-- Group A -->
                 <div class="leaderboard-subtitle">User Stats – has</div>
                 <div class="review-table">
                     <div class="review-header">
+                        <span>Rank</span>
                         <span>Reviewer</span>
                         <span>Total</span>
                         <span>Accepted</span>
@@ -229,16 +239,19 @@
                 <div class="leaderboard-subtitle" style="margin-top:25px">User Stats – was</div>
                 <div class="review-table">
                     <div class="review-header">
+                        <span>Rank</span>
                         <span>Annotator</span>
                         <span>Total</span>
                         <span>Accepted</span>
                         <span>Corrected</span>
+                        <span>Error Rate</span>
                     </div>
                     <div class="review-divider"></div>
                     <div id="reviewUserWas"></div>
                 </div>
             </div>
         </div>
+
 
 
         <div class="leaderboard" style="margin-top:40px">
@@ -317,35 +330,69 @@
                 const userStats = await userResp.json();
                 const annotatorStats = await annotatorResp.json();
 
-                // GRUPPEN annehmen:
-                // userStats.has = { userA: {total, accepted, corrected}, ... }
-                // userStats.was = { userB: {...}, ... }
+                // --- Sortierung HAS (Reviewer) DESC nach total ---
+                const has_sorted = Object.fromEntries(
+                    Object.entries(userStats.has).sort((a, b) => b[1].total - a[1].total)
+                );
 
-                renderUserGroup("reviewUserHas", userStats.has);
-                renderUserGroup("reviewUserWas", annotatorStats.was);
+                // --- Sortierung WAS (Annotators) ASC nach errorRate ---
+                const was_sorted = Object.fromEntries(
+                    Object.entries(annotatorStats.was).sort((a, b) => a[1].errorRate - b[1].errorRate)
+                );
+
+                renderUserGroup("reviewUserHas", has_sorted, false, true);
+                renderUserGroup("reviewUserWas", was_sorted, true, true);
 
             } catch (err) {
                 console.error("Failed to load inconsistent review stats:", err);
             }
         }
 
-        function renderUserGroup(targetId, groupData) {
+
+        function renderUserGroup(targetId, groupData, showErrorRate = false, showRank = false) {
             const container = document.getElementById(targetId);
             container.innerHTML = "";
+
+            let rank = 1;
 
             Object.entries(groupData).forEach(([user, stats]) => {
                 const row = document.createElement("div");
                 row.className = "review-row";
-                row.innerHTML = `
+
+                let html = "";
+
+                if (showRank) {
+                    html += `<span>#${rank}</span>`;
+                }
+
+                html += `
                     <span>${user}</span>
                     <span>${stats.total}</span>
                     <span>${stats.accepted}</span>
                     <span>${stats.corrected}</span>
                 `;
+
+                if (showErrorRate) {
+                    const rate = (stats.errorRate * 100).toFixed(1) + "%";
+                    html += `<span>${rate}</span>`;
+                }
+
+                row.innerHTML = html;
                 container.appendChild(row);
+
+                rank++;
             });
         }
 
+        async function updateTotalReviewed() {
+            try {
+                const resp = await fetch(`${API_URL}/api/inconsistent/total`);
+                const data = await resp.json();
+                document.getElementById("totalReviewed").textContent = data.total;
+            } catch (err) {
+                console.error("Failed to load total reviewed:", err);
+            }
+        }
 
         async function updateModelClassStats() {
             try {
@@ -395,12 +442,14 @@
         updateLeaderboard();
         updateInconsistentStats();
         updateModelClassStats();
+        updateTotalReviewed();
 
         // Auto-refresh
         setInterval(() => {
             updateLeaderboard();
             updateInconsistentStats();
             updateModelClassStats();
+            updateTotalReviewed();
         }, REFRESH_INTERVAL);
 
         

@@ -193,10 +193,20 @@ class ReviewDatabaseManager:
                 stats[annotated_by] = {
                     "accepted": accepted or 0,
                     "corrected": corrected or 0,
-                    "total": (accepted or 0) + (corrected or 0)
+                    "total": (accepted or 0) + (corrected or 0),
+                    "errorRate": (corrected / ((accepted or 0) + (corrected or 0)))
+                        if (accepted or 0) + (corrected or 0) > 0 else 0.0
                 }
 
             return stats
+
+    def get_total_reviews(self):
+        if not self._initialized:
+            self.initialize()
+
+        with sqlite3.connect(self.db_path) as conn:
+            (count,) = conn.execute("SELECT COUNT(*) FROM reviews").fetchone()
+            return count
 
 
 
@@ -276,6 +286,9 @@ def get_user_review_stats():
 
 def get_annotator_review_stats():
     return _review_manager.get_annotator_stats()
+
+def get_total_review_count():
+    return _review_manager.get_total_reviews()
 
 def get_model_review_stats():
     return _review_manager.get_model_stats()
