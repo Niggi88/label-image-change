@@ -437,6 +437,15 @@ class BatchDataHandler(BaseDataHandler):
         self.batch_id = data.get("batch_id")
         self.meta = data
 
+        if self.saver_cls:
+                self.saver = self.saver_cls(
+                    self.meta,
+                    LOCAL_LOG_DIR,
+                    selected_users=self.selected_users,
+                    size=len(self.pairs),
+                    model=self.model
+                )
+
         items = data.get("items") or []
 
         print("item: ", items)
@@ -561,8 +570,9 @@ class UnsureDataHandler(BatchDataHandler):
 class InconsistentDataHandler(BatchDataHandler):
     def __init__(self, api_base: str, user: str, selected_users=None, size: int = 20, model = None):
         self.model=model
-        super().__init__(api_base, "inconsistent", user, selected_users, size, model=self.model, saver_cls=InconsistentSaver)
-        self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR, selected_users, model=self.model)
+        self.size=int(size)
+        super().__init__(api_base, "inconsistent", user, selected_users, size=self.size, model=self.model, saver_cls=InconsistentSaver)
+        # self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR, selected_users, size=self.size, model=self.model)
         self.selected_users = selected_users
 
     def save_as_ann_local(self, expected):
@@ -612,6 +622,6 @@ class InconsistentDataHandler(BatchDataHandler):
         return (
             f"Batch ID: {self.batch_id}"
             f"\nExpected: {expected} by {annotated_by}"
-            f"\nPredicted: {predicted} by model: {model_name})"
+            f"\nPredicted: {predicted} by model: {model_name}"
             # f"\nReviewed by: {reviewed_by or 'nobody yet'}"
         )

@@ -323,17 +323,22 @@ class ReviewSaver(CommonSaver):
 
 class InconsistentSaver(ReviewSaver):
 
-    def __init__(self, batch_meta, root_dir, selected_users=None, size: int = 20, model=None):
+    def __init__(self, batch_meta, root_dir, selected_users=None, size=None, model=None):
         self.selected_users = selected_users
         self.root = Path(root_dir)
         self.batch_id = batch_meta.get("batch_id", "unknown")
         self.logfile = self.root / f"inconsistent_{self.batch_id}.json"
         self.model = model
-
+        self.size=size
+        
         if self.logfile.exists():
             self.annotations = json.loads(self.logfile.read_text())
         else:
             self.annotations = {"_meta": {"completed": False, "timestamp": None}}
+
+        # Guarantee meta fields
+        self.annotations["_meta"].setdefault("total_pairs", self.size)
+
 
         # Guarantee items dict
         if "items" not in self.annotations:
@@ -341,6 +346,18 @@ class InconsistentSaver(ReviewSaver):
 
     def _key(self, pair):
         return str(pair.pair_id)
+
+    def _update_completed(self):
+        total_pairs = self.annotations["_meta"]["total_pairs"]
+        reviewed = len(self.annotations.get("items", {}))
+        print(f"update sagt: {reviewed} / {total_pairs}", )
+        completed = (reviewed >= total_pairs)
+
+        self.annotations["_meta"]["completed"] = completed
+        if completed:
+            self.annotations["_meta"]["timestamp"] = datetime.now().isoformat()
+
+
 
     def save_pair(self, pair, state, decision, ctx):
         print("inconsistent saver is saving")
@@ -387,7 +404,7 @@ class InconsistentSaver(ReviewSaver):
         )
 
 
-
+        self._update_completed()
         self._flush()
 
 
