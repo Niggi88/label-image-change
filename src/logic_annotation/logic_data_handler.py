@@ -560,8 +560,9 @@ class UnsureDataHandler(BatchDataHandler):
 
 class InconsistentDataHandler(BatchDataHandler):
     def __init__(self, api_base: str, user: str, selected_users=None, size: int = 20, model = None):
-        super().__init__(api_base, "inconsistent", user, selected_users, size, model=model, saver_cls=InconsistentSaver)
-        self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR, selected_users, model)
+        self.model=model
+        super().__init__(api_base, "inconsistent", user, selected_users, size, model=self.model, saver_cls=InconsistentSaver)
+        self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR, selected_users, model=self.model)
         self.selected_users = selected_users
 
     def save_as_ann_local(self, expected):
