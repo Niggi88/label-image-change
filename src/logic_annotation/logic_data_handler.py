@@ -437,15 +437,6 @@ class BatchDataHandler(BaseDataHandler):
         self.batch_id = data.get("batch_id")
         self.meta = data
 
-        if self.saver_cls:
-                self.saver = self.saver_cls(
-                    self.meta,
-                    LOCAL_LOG_DIR,
-                    selected_users=self.selected_users,
-                    size=len(self.pairs),
-                    model=self.model
-                )
-
         items = data.get("items") or []
 
         print("item: ", items)
@@ -473,6 +464,15 @@ class BatchDataHandler(BaseDataHandler):
         self.pairs = BatchImagePairList(pairs)
         print("Loaded batch with", len(self.pairs), "pairs, starting at index", self.pairs.pair_idx)
 
+
+        if self.saver_cls:
+                self.saver = self.saver_cls(
+                    self.meta,
+                    LOCAL_LOG_DIR,
+                    selected_users=self.selected_users,
+                    size=len(self.pairs),
+                    model=self.model
+                )
 
     # --- Delegate to BatchImagePairList instead of indexing ---
     def current_pair(self):
@@ -570,7 +570,7 @@ class UnsureDataHandler(BatchDataHandler):
 class InconsistentDataHandler(BatchDataHandler):
     def __init__(self, api_base: str, user: str, selected_users=None, size: int = 20, model = None):
         self.model=model
-        self.size=int(size)
+        self.size=size
         super().__init__(api_base, "inconsistent", user, selected_users, size=self.size, model=self.model, saver_cls=InconsistentSaver)
         # self.saver = InconsistentSaver(self.meta, LOCAL_LOG_DIR, selected_users, size=self.size, model=self.model)
         self.selected_users = selected_users
