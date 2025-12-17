@@ -307,7 +307,12 @@ class ReviewSaver(CommonSaver):
         self.annotations["_meta"]["timestamp"] = datetime.now().isoformat()
         self.annotations["_meta"]["reviewed_by"] = USERNAME
 
-        annotated = len(self.annotations.get("items", {}))
+        # count only actually reviewed items
+        annotated = sum(
+            1 for item in self.annotations.get("items", {}).values()
+            if item.get("pair_state") not in (None, "", "no_annotation")
+        )
+
         self.annotations["_meta"]["completed"] = (annotated >= total_pairs)
 
         print(f"completed? {self.annotations['_meta']['completed']}")
@@ -315,30 +320,62 @@ class ReviewSaver(CommonSaver):
         self._flush()
 
 
+
 class InconsistentSaver(ReviewSaver):
 
-    def __init__(self, batch_meta, root_dir, selected_users=None, size: int = 20, model = None):
+    def __init__(self, batch_meta, root_dir, selected_users=None, size: int = 20, model=None):
         self.selected_users = selected_users
         self.root = Path(root_dir)
         self.batch_id = batch_meta.get("batch_id", "unknown")
         self.logfile = self.root / f"inconsistent_{self.batch_id}.json"
         self.model = model
+        self.size=size
 
+        print("batch size: ", self.size)
+        # Load or init annotations
         if self.logfile.exists():
             self.annotations = json.loads(self.logfile.read_text())
         else:
-            self.annotations = {"_meta": {"completed": False, "timestamp": None}}
+            self.annotations = {"_meta": {}}
 
-        # Guarantee items dict
-        if "items" not in self.annotations:
-            self.annotations["items"] = {}
+        total_pairs = batch_meta.get("total_pairs", self.size)
+        print("total pairs: ", total_pairs)
+        self.annotations["_meta"]["total_pairs"] = total_pairs
+
+        self.annotations["_meta"].setdefault("completed", False)
+        self.annotations["_meta"].setdefault("timestamp", None)
+
+        self.annotations.setdefault("items", {})
+
 
     def _key(self, pair):
         return str(pair.pair_id)
 
+    def _update_completed(self):
+        total_pairs = self.annotations["_meta"]["total_pairs"]
+        reviewed = len(self.annotations.get("items", {}))
+        print(f"update sagt: {reviewed} / {total_pairs}", )
+        completed = (reviewed >= total_pairs)
+
+        self.annotations["_meta"]["completed"] = completed
+        if completed:
+            self.annotations["_meta"]["timestamp"] = datetime.now().isoformat()
+
+
+
     def save_pair(self, pair, state, decision, ctx):
         print("inconsistent saver is saving")
         key = self._key(pair)
+
+        local_boxes = pair.image1.boxes
+        expected_boxes = pair.source_item.get("boxes_expected")
+
+        if local_boxes:
+            boxes = local_boxes
+            print("gotten local boxes: ", boxes)
+        else:
+            boxes = expected_boxes
+            print("gotten expected boxes: ", boxes)
 
         self.annotations["items"][key] = {
             "pair_state": state,
@@ -346,9 +383,11 @@ class InconsistentSaver(ReviewSaver):
             "im2_path": pair.source_item["im2_url"],
             "image1_size": pair.image1.img_size,
             "image2_size": pair.image2.img_size,
-            "boxes": pair.image1.boxes,  # oder kombiniert, je nachdem
+            "boxes": boxes,  # oder kombiniert, je nachdem
             "selected_model": self.model
         }
+
+
 
         predicted = pair.source_item.get("predicted")
         expected = pair.source_item.get("expected")
@@ -369,7 +408,7 @@ class InconsistentSaver(ReviewSaver):
         )
 
 
-
+        self._update_completed()
         self._flush()
 
 
