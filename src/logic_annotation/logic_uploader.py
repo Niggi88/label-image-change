@@ -142,7 +142,7 @@ class BatchUploader(BaseUploader):
                 results = self.handler.saver.annotations
                 self.upload_results(results)
                 messagebox.showinfo("Upload complete", "Batch has been uploaded and marked completed.")
-                self.handler.load_current_pairs()  # fetch fresh batch
+                # self.handler.load_current_pairs()  # fetch fresh batch
                 return True
             except Exception as e:
                 messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
