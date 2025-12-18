@@ -141,3 +141,19 @@ works like:
 - Annotate specific changes with bounding boxes 'a'
 
 
+## weitere features:
+x box für predicted anzeigen
+x box von predicted soll grau sein
+x boxes auch wieder removen
+
+x tastenkürzel in button schrift rein
+x labeled correctly soll b sein
+
+higscore:
+- globales ranking für review in highscore
+- error rate pro user
+
+
+- messagebox add:
+    x batchgröße
+    - model
