@@ -62,6 +62,11 @@ class ReviewDatabaseManager:
                 print("[DEBUG] incoming reviewer:", reviewer)
                 print("[DEBUG] incoming decision:", repr(normalized_new))
 
+
+                model_name = model_name or "unknown"
+                predicted = predicted or "unknown"
+                expected = expected or "unknown"
+
                 # 1. existierende Review holen
                 row = conn.execute("""
                     SELECT decision
@@ -216,11 +221,12 @@ class ReviewDatabaseManager:
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("""
-                SELECT model_name, 
-                       SUM(CASE WHEN decision='accepted' THEN 1 ELSE 0 END),
-                       SUM(CASE WHEN decision='corrected' THEN 1 ELSE 0 END)
+                SELECT
+                        COALESCE(model_name, 'unknown') AS model_name,
+                        SUM(CASE WHEN decision='accepted' THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN decision='corrected' THEN 1 ELSE 0 END)
                 FROM reviews 
-                GROUP BY model_name
+                GROUP BY COALESCE(model_name, 'unknown')
             """)
 
             out = []
@@ -241,7 +247,7 @@ class ReviewDatabaseManager:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("""
                 SELECT
-                    expected AS class,
+                    COALESCE(expected, 'unknown') AS class,
                     SUM(CASE WHEN decision='accepted' THEN 1 ELSE 0 END) AS correct,
                     SUM(CASE WHEN decision='corrected' THEN 1 ELSE 0 END) AS incorrect
                 FROM reviews
