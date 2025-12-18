@@ -183,3 +183,5 @@ src/models/
 src/sam2/
 
 annotation_cache.json
+
+*.bak
