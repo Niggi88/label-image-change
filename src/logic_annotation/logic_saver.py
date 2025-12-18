@@ -367,24 +367,47 @@ class InconsistentSaver(ReviewSaver):
         print("inconsistent saver is saving")
         key = self._key(pair)
 
+        boxes = []
         local_boxes = pair.image1.boxes
         expected_boxes = pair.source_item.get("boxes_expected")
 
-        if local_boxes:
+        if local_boxes and self.annotations["pair_state"] == "annotated":
             boxes = local_boxes
             print("gotten local boxes: ", boxes)
-        else:
+        elif expected_boxes and pair.source_item.get("expected") == "annotated":
             boxes = expected_boxes
             print("gotten expected boxes: ", boxes)
 
+        previous_state = pair.source_item.get("expected")
+        previous_boxes = pair.source_item.get("boxes_expected")
+        
+        predicted_state = pair.source_item.get("predicted")
+        predicted_boxes = pair.source_item.get("boxes_predicted")
+        annotator = pair.source_item.get("annotated_by")
+        reviewer = USERNAME
+
+        datetimeOriginalAnnotation = pair.source_item.get("datetimeOriginal")
+
+
         self.annotations["items"][key] = {
-            "pair_state": state,
             "im1_path": pair.source_item["im1_url"],
             "im2_path": pair.source_item["im2_url"],
             "image1_size": pair.image1.img_size,
             "image2_size": pair.image2.img_size,
+            "previously": {
+                "pair_state": previous_state,
+                "boxes": previous_boxes,
+                "annotator": annotator,
+                "reviewer": reviewer,
+                "timestampOriginalAnnotation": pair.source_item.get("timestampOriginalAnnotation")
+            },
+            "model_predicition": {
+                "pair_state": predicted_state,
+                "boxes": predicted_boxes,
+                "selected_model": self.model
+            },
+            "pair_state": state,
             "boxes": boxes,  # oder kombiniert, je nachdem
-            "selected_model": self.model
         }
 
 
@@ -392,7 +415,6 @@ class InconsistentSaver(ReviewSaver):
         predicted = pair.source_item.get("predicted")
         expected = pair.source_item.get("expected")
         annotated_by = pair.source_item.get("annotated_by")
-        annotated_by = annotated_by["name"]
         model_name = pair.source_item.get("model_name")
 
         print("annotated_by: ", annotated_by)

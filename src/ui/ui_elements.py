@@ -226,6 +226,11 @@ class UIElements(tk.Frame):
         if new_info["progress"]["label"] != old_info["progress"]["label"]:
             messagebox.showinfo("Previous", f"Moving back to previous session")
 
+    def ask_load_next_batch(self):
+        return messagebox.askyesno(
+            "Next Batch",
+            "Do you want to load the next batch?"
+        )
 
     def next_pair(self):
         old_info = self.data_handler.context_info()
@@ -262,18 +267,6 @@ class UIElements(tk.Frame):
             was_last = self.data_handler.is_last_pair()
             prev_session = None
         
-        current = None
-
-        if self.data_handler.has_next_pair_global():
-            current = self.data_handler.next_pair()
-
-        if current is None:
-            # Kein weiteres Pair → Scope ist definitiv zu Ende
-            if not self.data_handler.ask_upload():
-                return
-            self.refresh()
-            return
-
         # If we just moved *away* from the last pair, trigger upload prompt
         if was_last:
             if mode == "annotation":
@@ -282,8 +275,33 @@ class UIElements(tk.Frame):
             else:  # batch mode
                 if not self.data_handler.ask_upload():
                     return
+                elif not self.ask_load_next_batch():
+                    print("first time asking")
+                    return
+                else: self.data_handler.load_current_pairs()
                 self.refresh()
                 return
+            
+        current = None
+
+        if not self.data_handler.has_next_pair_global():
+            self.refresh()
+            return
+
+        current = self.data_handler.next_pair()
+
+        if current is None:
+            # Kein weiteres Pair → Scope ist definitiv zu Ende
+            if not self.data_handler.ask_upload():
+                return
+            
+            elif not self.ask_load_next_batch():
+                print("second time asking")
+                return
+            else: self.handler.load_current_pairs()
+            self.refresh()
+            return
+
 
 
         self.flickerer._flicker_running = False
