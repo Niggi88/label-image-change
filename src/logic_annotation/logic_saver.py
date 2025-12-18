@@ -381,6 +381,8 @@ class InconsistentSaver(ReviewSaver):
         previous_state = pair.source_item.get("expected")
         previous_boxes = pair.source_item.get("boxes_expected")
         
+        predicted_state = pair.source_item.get("predicted")
+        predicted_boxes = pair.source_item.get("boxes_predicted")
         annotator = pair.source_item.get("annotated_by")
         reviewer = USERNAME
 
@@ -399,9 +401,13 @@ class InconsistentSaver(ReviewSaver):
                 "reviewer": reviewer,
                 "timestampOriginalAnnotation": pair.source_item.get("timestampOriginalAnnotation")
             },
+            "model_predicition": {
+                "pair_state": predicted_state,
+                "boxes": predicted_boxes,
+                "selected_model": self.model
+            },
             "pair_state": state,
             "boxes": boxes,  # oder kombiniert, je nachdem
-            "selected_model": self.model
         }
 
 
