@@ -607,7 +607,7 @@ class InconsistentDataHandler(BatchDataHandler):
         ann_server = pair.source_item  
 
         # 4) Original annotator
-        annotated_by = ann_server.get("annotated_by", {}).get("name", "unknown")
+        annotated_by = ann_server.get("annotated_by", "unknown")
 
         # 5) Reviewer (nur wenn lokal gespeichert)
         reviewed_by = None
