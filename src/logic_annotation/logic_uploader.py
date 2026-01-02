@@ -7,6 +7,7 @@ import requests
 import json
 from urllib.parse import urljoin
 from io import BytesIO
+from loguru import logger
 
 
 class BaseUploader:
@@ -91,20 +92,21 @@ class SessionUploader(BaseUploader):
     def ask_upload(self, session_info=None) -> bool:
         target_info = session_info or self.handler.current_session_info()
 
-        confirm = messagebox.askyesno(
-            "Session finished",
-            f"Session {target_info.session} is complete.\n\n"
-            "Do you want to upload your annotations now?"
-        )
-        if not confirm:
-            return False
+        # confirm = messagebox.askyesno(
+        #     "Session finished",
+        #     f"Session {target_info.session} is complete.\n\n"
+        #     "Do you want to upload your annotations now?"
+        # )
+        # if not confirm:
+        #     return False
 
         try:
             self.upload_results(target_info)
             self.upload_images(target_info)
-            messagebox.showinfo(
-                "Upload complete", f"Session {target_info.session} uploaded successfully."
-            )
+            # messagebox.showinfo(
+            #     "Upload complete", f"Session {target_info.session} uploaded successfully."
+            # )
+            logger.success("Uploaded batch successfully")
             return True
         except Exception as e:
             messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")
@@ -131,18 +133,19 @@ class BatchUploader(BaseUploader):
         return resp.json()
     
     def ask_upload(self):
-            confirm = messagebox.askyesno(
-                "Batch finished",
-                "You have reached the end of this batch.\n\nDo you want to upload your results now?"
-            )
-            if not confirm:
-                return False
+            # confirm = messagebox.askyesno(
+            #     "Batch finished",
+            #     "You have reached the end of this batch.\n\nDo you want to upload your results now?"
+            # )
+            # if not confirm:
+            #     return False
 
             try:
                 results = self.handler.saver.annotations
                 self.upload_results(results)
-                messagebox.showinfo("Upload complete", "Batch has been uploaded and marked completed.")
+                # messagebox.showinfo("Upload complete", "Batch has been uploaded and marked completed.")
                 # self.handler.load_current_pairs()  # fetch fresh batch
+                logger.success("batch upload complete")
                 return True
             except Exception as e:
                 messagebox.showerror("Upload failed", f"Something went wrong:\n{e}")

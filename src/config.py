@@ -39,11 +39,11 @@ if os.path.exists(json_path):
 else:
 
     if HOSTNAME == "niggis-brain":
-        DATASET_DIR = f"/media/fast/dataset/bildunterschied/labeling/{DATASET_NAME}"
+        DATASET_DIR = f"/media/fast/dataset/snapshot_change_detection/labeling/{DATASET_NAME}"
         UI_SCALING=2.5
         FONT_SCALING=2.5
         DATASET_NAME="tmp"
-        DATASET_DIR = f"/media/fast/dataset/bildunterschied/test_mini/new_label_tool/{DATASET_NAME}"
+        DATASET_DIR = f"/media/fast/dataset/snapshot_change_detection/test_mini/new_label_tool/{DATASET_NAME}"
         USERNAME = "niklas"
         LOCAL_LOG_DIR = "/tmp"
     elif HOSTNAME == "niklas-XPS-15-9530":
