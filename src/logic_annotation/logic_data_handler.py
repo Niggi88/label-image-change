@@ -457,6 +457,7 @@ class BatchDataHandler(BaseDataHandler):
             pair.predicted = item.get("predicted")
             pair.annotated_by = item.get("annotated_by")
             pair.model_name = item.get("model_name")
+            pair.confidence = item.get("confidence")
             pair.source_item = item
             pairs.append(pair)
 
@@ -619,9 +620,10 @@ class InconsistentDataHandler(BatchDataHandler):
         predicted = ann_local.get("predicted", ann_server.get("predicted"))
         model_name = ann_server.get("model_name")
 
+        confidence = ann_server.get("confidence")
         return (
             f"Batch ID: {self.batch_id}"
             f"\nExpected: {expected} by {annotated_by}"
-            f"\nPredicted: {predicted} by model: {model_name}"
+            f"\nPredicted: {predicted} by model: {model_name} with confidence: {confidence}"
             # f"\nReviewed by: {reviewed_by or 'nobody yet'}"
         )
