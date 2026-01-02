@@ -270,7 +270,11 @@ def list_unsure_pairs(limit: int = 1000):
 
 ## for inconsistent highscore reporting ##
 
-
+from left_for_review import (
+    get_left_for_review_count,
+    get_annotator_review_progress,
+)
+from review_pair_registry import get_total_pairs
 
 from review_db import (
     init_review_db,
@@ -280,6 +284,7 @@ from review_db import (
     get_model_review_stats,
     get_model_class_stats,
     get_total_review_count,
+    get_reviewed_pair_ids_by_model,
 )
 
 class InconsistentReview(BaseModel):
@@ -380,6 +385,39 @@ async def inconsistent_model_stats():
 @app.get("/api/inconsistent/modelstats/{model_name}/classes")
 async def model_class_stats(model_name: str):
     return get_model_class_stats(model_name)
+
+
+@app.get("/api/inconsistent/progress/{model_name}")
+async def inconsistent_progress(model_name: str):
+    reviewed = get_reviewed_pair_ids_by_model(model_name)
+    total = get_total_pairs(model_name)
+    left = get_left_for_review_count(model_name)
+
+    return {
+        "model": model_name,
+        "reviewed": len(reviewed),
+        "total": total,
+        "left": left,
+        "progress": len(reviewed) / total if total > 0 else 0.0
+    }
+
+@app.get("/api/inconsistent/progress/{model_name}/annotators")
+async def annotator_progress(model_name: str):
+    from review_pair_registry import _load_pairs
+
+    data = _load_pairs(model_name)
+
+    annotators = sorted({
+        entry["annotated_by"].strip()
+        for entry in data.values()
+        if isinstance(entry.get("annotated_by"), str)
+           and entry.get("annotated_by").strip()
+    })
+
+    return [
+        get_annotator_review_progress(model_name, annotator)
+        for annotator in annotators
+    ]
 
 
 if __name__ == "__main__":

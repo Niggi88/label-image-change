@@ -212,8 +212,11 @@
             <h2>Inconsistent Review – User Stats</h2>
 
             <div class="total-counter"
-                style="margin-bottom: 20px; padding: 15px; font-size: 22px; background:#eef2ff; border-radius:12px; text-align:center;">
-                Total Reviewed: <span id="totalReviewed">0</span>
+                style="margin-bottom: 20px; padding: 15px; font-size: 20px; background:#eef2ff; border-radius:12px; text-align:left;">
+                <div style="font-weight:600; margin-bottom:10px;">
+                    Review Progress
+                </div>
+                <div id="reviewProgressList">Loading...</div>
             </div>
 
             <!-- Group A -->
@@ -228,6 +231,15 @@
                 </div>
                 <div class="review-divider"></div>
                 <div id="reviewUserHas"></div>
+            </div>
+
+
+            <div class="leaderboard-subtitle" style="margin-top:25px">
+                Review Progress per Reviewer
+            </div>
+
+            <div class="review-table">
+                <div id="reviewerProgressList" class="loading">Loading...</div>
             </div>
 
             <!-- Group B -->
@@ -374,13 +386,99 @@
 
         async function updateTotalReviewed() {
             try {
-                const resp = await fetch(`${API_URL}/api/inconsistent/total`);
-                const data = await resp.json();
-                document.getElementById("totalReviewed").textContent = data.total;
+                // Alle Modelle holen, die bereits Reviews haben
+                const modelResp = await fetch(`${API_URL}/api/inconsistent/modelstats`);
+                const models = await modelResp.json();
+
+                const container = document.getElementById("reviewProgressList");
+                container.innerHTML = "";
+
+                for (const model of models) {
+                    const progressResp = await fetch(
+                        `${API_URL}/api/inconsistent/progress/${model.modelName}`
+                    );
+                    const data = await progressResp.json();
+
+                    const percent = (data.progress * 100).toFixed(1);
+
+                    container.innerHTML += `
+                        <div style="margin-bottom:12px;">
+                            <div style="font-weight:600; color:#2c3e50;">
+                                ${data.model}
+                            </div>
+                            <div style="font-size:16px; color:#333;">
+                                Reviewed:
+                                <strong>${data.reviewed}</strong> /
+                                <strong>${data.total}</strong>
+                                <span style="color:#555;">
+                                    (${data.left} left)
+                                </span>
+                                <span style="margin-left:8px; color:#667eea;">
+                                    ${percent}%
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (models.length === 0) {
+                    container.innerHTML = "<em>No models found</em>";
+                }
+
             } catch (err) {
-                console.error("Failed to load total reviewed:", err);
+                console.error("Failed to load review progress:", err);
+                document.getElementById("reviewProgressList").innerHTML =
+                    "<span style='color:red'>Failed to load review progress</span>";
             }
         }
+
+        async function updateAnnotatorProgress() {
+            try {
+                // Alle Modelle laden
+                const modelResp = await fetch(`${API_URL}/api/inconsistent/modelstats`);
+                const models = await modelResp.json();
+
+                const container = document.getElementById("reviewerProgressList");
+                container.innerHTML = "";
+
+                for (const model of models) {
+                    const resp = await fetch(
+                        `${API_URL}/api/inconsistent/progress/${model.modelName}/annotators`
+                    );
+                    const reviewers = await resp.json();
+
+                    container.innerHTML += `
+                        <div style="margin-bottom:20px;">
+                            <h3 style="color:#667eea;">${model.modelName}</h3>
+                        </div>
+                    `;
+
+                    for (const r of reviewers) {
+                        const pct = (r.progress * 100).toFixed(1);
+
+                        container.innerHTML += `
+                            <div class="leaderboard-item">
+                                <div class="user-info">
+                                    <div class="username">${r.annotator}</div>
+                                    <div class="classes">
+                                        Reviewed: ${r.reviewed} / ${r.total}
+                                        (${r.left} left) – ${pct}%
+                                    </div>
+                                </div>
+                                <div class="score">${pct}%</div>
+                            </div>
+                        `;
+                    }
+                }
+
+            } catch (err) {
+                console.error("Failed to load reviewer progress:", err);
+                document.getElementById("reviewerProgressList").innerHTML =
+                    "<span style='color:red'>Failed to load reviewer progress</span>";
+            }
+        }
+
+
 
         async function updateModelClassStats() {
             try {
@@ -450,6 +548,7 @@
         updateInconsistentStats();
         updateModelClassStats();
         updateTotalReviewed();
+        updateAnnotatorProgress();
 
         // Auto-refresh
         setInterval(() => {
@@ -457,6 +556,7 @@
             updateInconsistentStats();
             updateModelClassStats();
             updateTotalReviewed();
+            updateAnnotatorProgress();
         }, REFRESH_INTERVAL);
 
         
