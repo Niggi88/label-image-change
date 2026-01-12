@@ -47,6 +47,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
     else:
         root_path = Path(override_root)
     # === EXPORT LOOP ===
+    fails = 0
     for i, (pair_id, pair_data) in enumerate(annotations.items()):
         index += 1
         if pair_id == "_meta":
@@ -77,9 +78,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
         try:
             pair_state = pair_data.get("pair_state", "no_annotation").lower()
         except:
-            
-            
-            exit()
+            fails += 1
         boxes = pair_data.get("boxes", [])
         img_w, img_h = map(float, pair_data["image2_size"])  # always use image2 size
 
@@ -125,6 +124,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
         
 
     print("\n🎉 Export finished successfully!")
+    print(f"\n{fails} fails though :-(")
 
     return index
 
