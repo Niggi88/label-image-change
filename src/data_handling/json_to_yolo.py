@@ -71,10 +71,14 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
         im2_target = yolo_paths.images2 / f"{index_string}{im2_path.suffix}"
 
         # === Save YOLO labels ONLY for images1 ===
+        from pprint import pprint
+        pprint(pair_data)
+
         try:
             pair_state = pair_data.get("pair_state", "no_annotation").lower()
         except:
-            print("UNSURE ERROR:", pair_data)
+            
+            
             exit()
         boxes = pair_data.get("boxes", [])
         img_w, img_h = map(float, pair_data["image2_size"])  # always use image2 size
