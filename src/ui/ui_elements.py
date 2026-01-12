@@ -235,6 +235,9 @@ class UIElements(tk.Frame):
     def next_pair(self):
         old_info = self.data_handler.context_info()
         old_pair = self.data_handler.current_pair() 
+        
+        state_before = self.data_handler.saver.annotations
+
         # Detect if we are currently at the last pair *before* moving on
         mode = self.data_handler.mode
 
@@ -249,6 +252,7 @@ class UIElements(tk.Frame):
                 state = old_pair.source_item.get("expected")
                 print("##### state after skipping: ", state)
                 self.data_handler.saver.save_pair(
+                    state_before,
                     old_pair,
                     state,
                     decision,
@@ -333,6 +337,7 @@ class UIElements(tk.Frame):
     # Annotation callbacks (wire to logic_saver later)
     def mark_state(self, state):
         pair = self.data_handler.current_pair()
+        state_before = self.data_handler.saver.annotations
         total_pairs = len(self.data_handler.pairs)
 
         if state == "accepted" or state == pair.source_item["expected"]:
@@ -341,7 +346,7 @@ class UIElements(tk.Frame):
         else:
             decision = "corrected"
 
-        self.data_handler.saver.save_pair(pair, state, decision, self.data_handler.context_info())
+        self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
         if state == "annotated":
             # enable box drawing only when "Annotate" pressed
             self.canvas_frame.attach_boxes(self.handler, pair)

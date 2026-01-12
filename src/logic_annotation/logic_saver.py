@@ -6,6 +6,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 from src.utils import report_annotation, report_inconsistent_review
 import os
+from tkinter import messagebox
 
 def _shorten_path(path_or_url: str) -> str:
     """
@@ -363,9 +364,11 @@ class InconsistentSaver(ReviewSaver):
 
 
 
-    def save_pair(self, pair, state, decision, ctx):
+    def save_pair(self, state_before, pair, state, decision, ctx):
         print("inconsistent saver is saving")
         key = self._key(pair)
+
+
 
         boxes = []
         local_boxes = pair.image1.boxes
@@ -388,6 +391,27 @@ class InconsistentSaver(ReviewSaver):
 
         datetimeOriginalAnnotation = pair.source_item.get("datetimeOriginal")
 
+        if state is None:
+            msg = (
+                "Invalid state detected -> none!\n"
+                "This pair was NOT saved.\n"
+            )
+
+            messagebox.showerror("Save failed", msg)
+
+            print(
+                f"[ERROR] pair_state is None\n"
+                f"[ERROR] state_before: {state_before}\n"
+                # f"[ERROR] pair_id: {key}\n"
+                # f"[ERROR] user: {ctx.get('user') if ctx else None}\n"
+                # f"[ERROR] decision: {decision}"
+                # f"[ERROR] im1_path: pair.source_item['im1_url']\n"
+                # f"[ERROR] im2_path: pair.source_item['im2_url']\n"
+                # f"[ERROR] previous pair_state: {previous_state}\n"
+                # f"[ERROR] predicted pair_state: {predicted_state}\n"
+            )
+
+            return 
 
         self.annotations["items"][key] = {
             "im1_path": pair.source_item["im1_url"],
