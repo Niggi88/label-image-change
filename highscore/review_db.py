@@ -278,6 +278,38 @@ class ReviewDatabaseManager:
 
 
 
+    def get_reviewed_pair_ids_by_model(self, model_name: str) -> set[str]:
+        if not self._initialized:
+            self.initialize()
+
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute("""
+                SELECT DISTINCT pair_id
+                FROM reviews
+                WHERE model_name = ?
+            """, (model_name,)).fetchall()
+
+        return {row[0] for row in rows}
+
+
+    def get_reviewed_pair_ids_by_annotator_and_model(
+        self, model_name: str, annotator: str
+    ) -> set[str]:
+        if not self._initialized:
+            self.initialize()
+
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute("""
+                SELECT DISTINCT pair_id
+                FROM reviews
+                WHERE model_name = ?
+                AND annotated_by = ?
+            """, (model_name, annotator)).fetchall()
+
+        return {row[0] for row in rows}
+
+
+
 # global singleton
 _review_manager = ReviewDatabaseManager()
 
@@ -301,3 +333,11 @@ def get_model_review_stats():
 
 def get_model_class_stats(model_name):
     return _review_manager.get_model_class_stats(model_name)
+
+def get_reviewed_pair_ids_by_model(model_name: str) -> set[str]:
+    return _review_manager.get_reviewed_pair_ids_by_model(model_name)
+
+def get_reviewed_pair_ids_by_annotator_and_model(model_name, annotator):
+    return _review_manager.get_reviewed_pair_ids_by_annotator_and_model(
+        model_name, annotator
+    )
