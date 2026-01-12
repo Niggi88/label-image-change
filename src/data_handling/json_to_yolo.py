@@ -58,11 +58,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
             
         im1_path = root_path / pair_data["im1_path"]
         im2_path = root_path / pair_data["im2_path"]
-        print("img1_path", pair_data["im1_path"])
-        try:
-            store, session, img1_str = pair_data["im1_path"].split("/")
-        except:
-            raise
+        store, session, img1_str = pair_data["im1_path"].split("/")
         img1_str = img1_str.split(".")[0]
         store, session, img2_str = pair_data["im2_path"].split("/")
         img2_str = img2_str.split(".")[0]
