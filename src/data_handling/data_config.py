@@ -13,7 +13,7 @@ elif hostname == "niggis-brain":
 
 
 # _out_dataset_name = "large_xl-images_v1"
-_out_dataset_name = "testset_xl-images_v1"
+_out_dataset_name = "testset_xl-images_v1_1"
 # src_data_names = ["santiago", "sarah", "almas"]
 src_data_names = ["niklas"]
 IMAGE_SIZE = 832
