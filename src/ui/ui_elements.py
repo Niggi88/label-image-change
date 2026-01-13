@@ -238,6 +238,7 @@ class UIElements(tk.Frame):
         
         state_before = self.data_handler.saver.annotations
 
+        
         # Detect if we are currently at the last pair *before* moving on
         mode = self.data_handler.mode
 
@@ -246,6 +247,10 @@ class UIElements(tk.Frame):
         entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
         print("#### entry: ", entry)
 
+        if entry.get("pair_state") is "annotated" and entry.get("boxes") in [[], None]:
+                messagebox.showinfo("box missing", "draw boxes for annotation")
+                return
+        
         if not entry or "pair_state" not in entry:
             if mode == "review":
                 decision = "accepted"
@@ -350,6 +355,7 @@ class UIElements(tk.Frame):
         if state == "annotated":
             # enable box drawing only when "Annotate" pressed
             self.canvas_frame.attach_boxes(self.handler, pair)
+            
         else: self.next_pair()
 
         print(f"Marked: {state}")

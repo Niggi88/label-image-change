@@ -393,7 +393,7 @@ class InconsistentSaver(ReviewSaver):
 
         if state is None:
             msg = (
-                "Invalid state detected -> none!\n"
+                "Invalid state detected\n"
                 "This pair was NOT saved.\n"
             )
 
