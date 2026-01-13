@@ -48,6 +48,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
         root_path = Path(override_root)
     # === EXPORT LOOP ===
     global fails
+    global fail_paths
     for i, (pair_id, pair_data) in enumerate(annotations.items()):
         index += 1
         if pair_id == "_meta":
@@ -76,7 +77,8 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
             pair_state = pair_data.get("pair_state", "no_annotation").lower()
         except:
             fails += 1
-            continue
+            fail_paths.append(img1_str)
+            pair_state = "no_annotation"
         boxes = pair_data.get("boxes", [])
         img_w, img_h = map(float, pair_data["image2_size"])  # always use image2 size
 
@@ -87,6 +89,9 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
         elif pair_state == "chaos":
             label_lines = ["1"]
         elif pair_state == "annotated":
+            if len(boxes) == 0:
+                fail_paths.append([store, session, img1_str, img2_str])
+                continue
             for box in boxes:
                 atype = box.get("annotation_type")
                 if atype not in {"item_added", "item_removed"}:
@@ -129,6 +134,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
 
 if __name__ == "__main__":
     fails = 0
+    fail_paths = []
     # === CONFIG ===
     yolo_splitted_paths = YoloPathsSplit(config.out_datasets_dir)
 
@@ -164,3 +170,6 @@ if __name__ == "__main__":
         val_path=str(yolo_splitted_paths.val.images1),
         output_file=yolo_splitted_paths.yaml
     )
+
+    for fp in fail_paths:
+        print(fp)
