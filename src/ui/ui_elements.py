@@ -245,16 +245,25 @@ class UIElements(tk.Frame):
         pid = str(old_pair.pair_id)
         ann_all = self.data_handler.saver.annotations
         entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
-        print("#### entry: ", entry)
 
-        if entry.get("pair_state") is "annotated" and entry.get("boxes") in [[], None]:
-                messagebox.showinfo("box missing", "draw boxes for annotation")
+        if entry:
+            pair_state = entry.get("pair_state")
+            boxes = entry.get("boxes") or entry.get("annotations")
+
+            if pair_state == "annotated" and not boxes:
+                messagebox.showwarning(
+                    "box missing",
+                    "draw box before skipping to next pair"
+                )
                 return
+
+        print("#### entry: ", entry)
         
         if not entry or "pair_state" not in entry:
             if mode == "review":
                 decision = "accepted"
                 state = old_pair.source_item.get("expected")
+
                 print("##### state after skipping: ", state)
                 self.data_handler.saver.save_pair(
                     state_before,
