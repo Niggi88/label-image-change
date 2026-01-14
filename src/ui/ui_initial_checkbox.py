@@ -55,7 +55,9 @@ class Checkbox:
         tk.Label(parent, text="Choose model:", font=("Arial", 12)).pack(pady=(20, 5))
 
         model_var = tk.StringVar(value=self.model_list[0])
-        dropdown = ttk.Combobox(parent, textvariable=model_var, values=self.model_list, state="readonly")
+        longest = max(len(item) for item in self.model_list)
+
+        dropdown = ttk.Combobox(parent, textvariable=model_var, values=self.model_list, state="readonly", width=longest)
         dropdown.pack()
 
         return model_var
