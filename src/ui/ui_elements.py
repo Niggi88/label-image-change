@@ -362,6 +362,8 @@ class UIElements(tk.Frame):
 
         self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
         if state == "annotated":
+            for canvas in (self.canvas_frame.canvas_left, self.canvas_frame.canvas_right):
+                canvas.delete("expected_box")
             # enable box drawing only when "Annotate" pressed
             self.canvas_frame.attach_boxes(self.handler, pair)
             
