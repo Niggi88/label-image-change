@@ -25,8 +25,6 @@ class UIElements(tk.Frame):
 
         # Make this frame expand
         self.grid(row=0, column=0, sticky="nsew")
-        self.rowconfigure(0, weight=1)   # top frame (images) expands
-        self.rowconfigure(1, weight=0)   # bottom frame (controls) fixed
         self.columnconfigure(0, weight=1)
 
         if data_handler is not None:
@@ -61,16 +59,17 @@ class UIElements(tk.Frame):
         root.bind("<space>", self.toggle_flicker)
         root.bind("<Configure>", self._on_resize)
 
-        # --- Main layout: a 3x3 grid to center everything ---
-        self.rowconfigure(0, weight=1)   # top spacer
-        self.rowconfigure(1, weight=0)   # content row
-        self.rowconfigure(2, weight=1)   # bottom spacer
-        self.columnconfigure(0, weight=1)  # left spacer
-        self.columnconfigure(1, weight=0)  # content col
-        self.columnconfigure(2, weight=1)  # right spacer
+        # === Klares 3-Zeilen-Layout ===
+        self.rowconfigure(0, weight=0)   # top bar (fix)
+        self.rowconfigure(1, weight=1)   # canvas (flex)
+        self.rowconfigure(2, weight=0)   # bottom bar (fix)
+        self.columnconfigure(0, weight=1)
 
         self.top_bar = tk.Frame(self)
-        self.top_bar.grid(row=0, column=0, columnspan=3, sticky="ew")
+        self.top_bar.grid(row=0, column=0, sticky="ew")
+        self.top_bar.configure(height=70)
+        self.top_bar.grid_propagate(False)
+
 
         self.session_frame = SessionFrame(self.top_bar)
         self.session_frame.pack(side="left", padx=10, pady=10)
@@ -84,35 +83,51 @@ class UIElements(tk.Frame):
 
         # --- Content frame (centered) ---
         self.content_frame = tk.Frame(self)
-        self.content_frame.grid(row=1, column=1)
+        self.content_frame.grid(row=1, column=0, sticky="nsew")
 
+        self.content_frame.rowconfigure(0, weight=1)
+        self.content_frame.columnconfigure(0, weight=1)
 
         # Canvases (images)
         self.canvas_frame = CanvasFrame(self.content_frame, parent_ui=self)
-        self.canvas_frame.grid(row=0, column=0, sticky="n")
+        self.canvas_frame.grid(row=0, column=0, sticky="nsew")
+
+
+        # Navigation bar
+        self.nav_bar = tk.Frame(self)
+        self.nav_bar.grid(row=2, column=0)
+        self.nav_bar.configure(height=110)
+        self.nav_bar.grid_propagate(False)
+
+        self.nav_inner = tk.Frame(self.nav_bar)
+        self.nav_inner.pack(expand=True)
+
+
 
         # Annotation buttons
-        self.ann_frame = AnnotationFrame(self.content_frame,
+        self.ann_frame = AnnotationFrame(self.nav_inner,
                                         on_mark=self.mark_state,
                                         on_correct=self.mark_state,
                                         on_delete=self.delete_box,
                                         on_reset=self.reset_pair)
         
-        self.ann_frame.grid(row=1, column=0, columnspan=2, pady=(30, 5))  
+        self.ann_frame.grid(row=0, column=0, pady=(10, 5))
 
-        # Navigation bar
-        self.nav_bar = tk.Frame(self.content_frame)
-        self.nav_bar.grid(row=2, column=0, columnspan=2, pady=(10, 20))
+        self.nav_center = tk.Frame(self.nav_inner)
+        self.nav_center.grid(row=1, column=0)
 
-        self.prev_btn = ttk.Button(self.nav_bar, text="Prev (s)", style=STYLE_NAV, command=self.prev_pair)
+
+        self.prev_btn = ttk.Button(self.nav_center, text="Prev (s)", style=STYLE_NAV, command=self.prev_pair)
         self.prev_btn.pack(side="left", padx=30, pady=15)
+        # self.prev_btn.grid(row=1, column=0, sticky="e", padx=30, pady=15)
 
-        self.status = StatusFrame(self.nav_bar)
+        self.status = StatusFrame(self.nav_center)
         self.status.pack(side="left", padx=10)
+        # self.status.grid(row=1, column=1, padx=10)
 
-        self.next_btn = ttk.Button(self.nav_bar, text="Next (f)", style=STYLE_NAV, command=self.next_pair)
+        self.next_btn = ttk.Button(self.nav_center, text="Next (f)", style=STYLE_NAV, command=self.next_pair)
         self.next_btn.pack(side="left", padx=30, pady=15)
-
+        # self.next_btn.grid(row=1, column=2, sticky="w", padx=30, pady=15)
 
         # --- Keyboard Shortcuts ---
         root.bind("a", lambda e: self.mark_state("annotated"))   # A = Annotate
@@ -164,11 +179,17 @@ class UIElements(tk.Frame):
             boxes_predicted = []
 
         expected = pair.source_item.get("expected")
-        root = self.winfo_toplevel()
-        root.update_idletasks()
-        root_w, root_h = root.winfo_width(), root.winfo_height()
-        if root_w <= 1 or root_h <= 1:
-            root_w, root_h = 1200, 800
+
+        canvas = self.canvas_frame
+
+        canvas.update_idletasks()
+
+        available_w = canvas.winfo_width()
+        available_h = canvas.winfo_height()
+
+        # Fallback beim ersten Render
+        if available_w <= 1 or available_h <= 1:
+            return
 
 
         self.displayer.display_pair(
@@ -179,8 +200,8 @@ class UIElements(tk.Frame):
             expected,
             boxes_expected,
             boxes_predicted,
-            max_w=root_w,
-            max_h=root_h
+            max_w=available_w,
+            max_h=available_h
         )
         if not getattr(self.handler, "_moving", False):
             self.handler.selected_box_index = None
