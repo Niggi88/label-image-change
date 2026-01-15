@@ -455,9 +455,11 @@ class CanvasFrame(tk.Frame):
         self.canvas_left.grid(row=0, column=0)
         self.canvas_right.grid(row=0, column=1)
 
-        self.crosshair_left = Crosshair(self.canvas_left)
-        self.crosshair_right = Crosshair(self.canvas_right)
+        self.crosshair_left = Crosshair(self.canvas_left, self.canvas_right)
+        self.crosshair_right = Crosshair(self.canvas_right, self.canvas_left)
 
+        self.crosshair_left.slave = self.crosshair_right
+        self.crosshair_right= self.crosshair_left
 
     def _scale_image(self, pil_img, max_w, max_h):
         w, h = pil_img.size

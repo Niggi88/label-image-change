@@ -317,10 +317,15 @@ class Flickerer:
 
 
 class Crosshair:
-    def __init__(self, canvas: tk.Canvas, color="gray", width=8):
+    def __init__(self, canvas: tk.Canvas, other_canvas=None, color="gray", width=8):
         self.canvas = canvas
         self.color = color
         self.width = width
+
+
+        self.slave = None # anderes crosshair
+        self.image_bbox = None
+        self._dot = None
 
         self._hline = None
         self._vline = None
@@ -329,6 +334,8 @@ class Crosshair:
         self.canvas.bind("<Motion>", self._on_mouse_move)
         # Crosshair verschwindet, wenn Maus den Canvas verlässt
         self.canvas.bind("<Leave>", self._on_mouse_leave)
+
+        self.other_canvas = other_canvas
 
     def _on_mouse_move(self, event):
         w = self.canvas.winfo_width()
@@ -350,6 +357,32 @@ class Crosshair:
             fill=self.color, width=self.width, dash=(2, 2)
         )
 
+            # --- anderes Canvas ---
+        if not hasattr(self, "_other_hline"):
+            self._other_hline = None
+            self._other_vline = None
+
+        ow = self.other_canvas.winfo_width()
+        oh = self.other_canvas.winfo_height()
+
+        if self._other_hline:
+            self.other_canvas.delete(self._other_hline)
+        if self._other_vline:
+            self.other_canvas.delete(self._other_vline)
+
+        size = 6
+        self._other_hline = self.other_canvas.create_line(
+            event.x - size, event.y,
+            event.x + size, event.y,
+            fill=self.color, width=2
+        )
+
+        self._other_vline = self.other_canvas.create_line(
+            event.x, event.y - size,
+            event.x, event.y + size,
+            fill=self.color, width=2
+        )
+
     def _on_mouse_leave(self, event):
         if self._hline is not None:
             self.canvas.delete(self._hline)
@@ -357,3 +390,24 @@ class Crosshair:
         if self._vline is not None:
             self.canvas.delete(self._vline)
             self._vline = None
+
+    def mirror_crosshair(self, event):
+        """Bewege dieses Crosshair entsprechend dem Event des anderen Canvas."""
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
+
+        # Existierende Linien löschen
+        if self._hline is not None:
+            self.canvas.delete(self._hline)
+        if self._vline is not None:
+            self.canvas.delete(self._vline)
+
+        # Neue Linien zeichnen
+        self._hline = self.canvas.create_line(
+            0, event.y, w, event.y,
+            fill=self.color, width=self.width, dash=(2, 2)
+        )
+        self._vline = self.canvas.create_line(
+            event.x, 0, event.x, h,
+            fill=self.color, width=self.width, dash=(2, 2)
+        )
