@@ -378,7 +378,8 @@ class InconsistentSaver(ReviewSaver):
             boxes = local_boxes
             print("gotten local boxes: ", boxes)
         elif expected_boxes and pair.source_item.get("expected") == "added":
-            boxes = expected_boxes
+            boxes = [dict(b) for b in expected_boxes]
+
             print("gotten expected boxes: ", boxes)
 
         previous_state = pair.source_item.get("expected")
@@ -470,7 +471,10 @@ class InconsistentSaver(ReviewSaver):
         print("True")
         key = self._key(pair)
         if self.annotations["items"][key]["pair_state"]:
-            self.annotations["items"][key]["pair_state"] = None # pair.source_item.get("expected")
+            self.annotations["items"][key]["pair_state"] = None
+            self.annotations["items"][key]["boxes"] = []
+
+
         print("state after reset: ", self.annotations["items"][key]["pair_state"])
         
         # self.annotations[pid]["boxes"] = []

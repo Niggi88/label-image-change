@@ -168,6 +168,8 @@ class UIElements(tk.Frame):
         ann_all = self.data_handler.saver.annotations
         ann_lookup = ann_all.get("items", ann_all)
         data = ann_lookup.get(pid, {})
+
+        print("current data: ", data)
         state = data.get("pair_state")
 
 
@@ -175,7 +177,7 @@ class UIElements(tk.Frame):
         if self.data_handler.mode == "review":
             boxes_expected = self.data_handler.get_expected_boxes()
             boxes_predicted = self.data_handler.get_predicted_boxes()
-            if state in ["nothing", "chaos", "annotated"]:
+            if state in ["nothing", "chaos", "annotated", None]:
                 boxes_predicted = []
                 print("boxes predicted: ", boxes_predicted)
         else:
@@ -284,7 +286,7 @@ class UIElements(tk.Frame):
 
         print("#### entry: ", entry)
         
-        if not entry or "pair_state" not in entry:
+        if not entry or "pair_state" not in entry or not pair_state:
             if mode == "review":
                 decision = "accepted"
                 state = old_pair.source_item.get("expected")
@@ -413,9 +415,11 @@ class UIElements(tk.Frame):
     def reset_pair(self):
         pair = self.data_handler.current_pair()
         ctx = self.data_handler.context_info()
+        for canvas in (self.canvas_frame.canvas_left, self.canvas_frame.canvas_right):
+            canvas.delete("box")
+            print("Reset boxes") 
         self.data_handler.saver.reset_pair(pair, ctx)
         self.refresh()
-        print("Reset boxes")
 
 
     def skip_session(self):
