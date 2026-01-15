@@ -291,16 +291,21 @@ class UIElements(tk.Frame):
                 decision = "accepted"
                 state = old_pair.source_item.get("expected")
 
+                boxes = []
+
+                if old_pair.source_item.get("expected") == "added":
+                    boxes = [dict(b) for b in old_pair.source_item.get("boxes_expected", [])]
+                    
+
                 print("##### state after skipping: ", state)
                 self.data_handler.saver.save_pair(
                     state_before,
                     old_pair,
                     state,
                     decision,
-                    self.data_handler.context_info()
+                    self.data_handler.context_info(),
+                    expected_boxes=boxes
                 )
-                if state == "annotation":
-                    expected_boxes = old_pair.source_item.get("expected_boxes")
 
 
         if mode == "annotation":

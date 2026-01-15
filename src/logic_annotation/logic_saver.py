@@ -364,7 +364,7 @@ class InconsistentSaver(ReviewSaver):
 
 
 
-    def save_pair(self, state_before, pair, state, decision, ctx):
+    def save_pair(self, state_before, pair, state, decision, ctx, expected_boxes=None):
         print("inconsistent saver is saving")
         key = self._key(pair)
 
@@ -372,15 +372,18 @@ class InconsistentSaver(ReviewSaver):
 
         boxes = []
         local_boxes = pair.image1.boxes
-        expected_boxes = pair.source_item.get("boxes_expected")
-
-        if local_boxes and self.annotations["pair_state"] == "annotated":
+        
+        if state == "annotated":
             boxes = local_boxes
-            print("gotten local boxes: ", boxes)
-        elif expected_boxes and pair.source_item.get("expected") == "added":
-            boxes = [dict(b) for b in expected_boxes]
+        elif state == "added" and expected_boxes:
+            boxes = expected_boxes
+        else:
+            boxes = []
 
-            print("gotten expected boxes: ", boxes)
+        # elif expected_boxes and pair.source_item.get("expected") == "added":
+        #     boxes = [dict(b) for b in expected_boxes]
+
+        #     print("gotten expected boxes: ", boxes)
 
         previous_state = pair.source_item.get("expected")
         previous_boxes = pair.source_item.get("boxes_expected")
