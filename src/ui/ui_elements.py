@@ -81,6 +81,10 @@ class UIElements(tk.Frame):
             self.skip_button.pack(side="right", padx=10, pady=10)
 
 
+        elif getattr(self.data_handler, "mode", None) == "review":
+            self.edge_case_button = ttk.Button(self.top_bar, text="Edge Case (e)", style=STYLE_EDGECASE, command=lambda: self.mark_state("edge_case"))
+            self.edge_case_button.pack(side="right", padx=20, pady=20)
+
         # --- Content frame (centered) ---
         self.content_frame = tk.Frame(self)
         self.content_frame.grid(row=1, column=0, sticky="nsew")
@@ -139,7 +143,7 @@ class UIElements(tk.Frame):
         root.bind("x", lambda e: self.reset_pair())              # X = Reset pair
         root.bind("f", lambda e: self.next_pair())               # F = Next pair
         root.bind("s", lambda e: self.prev_pair())               # S = Previous pair
-
+        root.bind("e", lambda e: self.mark_state("edge_case"))   # E = edge case
 
         self.refresh()
 
@@ -375,22 +379,27 @@ class UIElements(tk.Frame):
         state_before = self.data_handler.saver.annotations
         total_pairs = len(self.data_handler.pairs)
 
-        if state == "accepted" or state == pair.source_item["expected"]:
-            state = pair.source_item["expected"]
-            decision = "accepted"
+        if state != "edge_case":
+            if state == "accepted" or state == pair.source_item["expected"]:
+                state = pair.source_item["expected"]
+                decision = "accepted"
+            else:
+                decision = "corrected"
+
+            self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
+            if state == "annotated":
+                for canvas in (self.canvas_frame.canvas_left, self.canvas_frame.canvas_right):
+                    canvas.delete("expected_box")
+                # enable box drawing only when "Annotate" pressed
+                self.canvas_frame.attach_boxes(self.handler, pair)
+                
+            else: self.next_pair()
+
+            print(f"Marked: {state}")
         else:
-            decision = "corrected"
-
-        self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
-        if state == "annotated":
-            for canvas in (self.canvas_frame.canvas_left, self.canvas_frame.canvas_right):
-                canvas.delete("expected_box")
-            # enable box drawing only when "Annotate" pressed
-            self.canvas_frame.attach_boxes(self.handler, pair)
-            
-        else: self.next_pair()
-
-        print(f"Marked: {state}")
+            self.data_handler.saver.save_pair(state_before, pair, "edge_case", "edge_case", self.data_handler.context_info())
+            print("Marked as edge case")
+            self.next_pair()
 
     def delete_box(self):
         """Delete the currently selected box safely."""

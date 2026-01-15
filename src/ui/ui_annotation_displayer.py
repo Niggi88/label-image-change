@@ -55,7 +55,7 @@ class AnnotationDisplayer:
                         self._draw_boxes(canvas_right, [b], highlight=True, tag="expected_box")
 
 
-        if state in ("chaos", "nothing", "no_annotation"):
+        if state in ("chaos", "nothing", "no_annotation", "edge_case"):
             self._draw_outline(canvas_left, state)
             self._draw_outline(canvas_right, state)
         elif state == "annotated":
@@ -100,7 +100,7 @@ class AnnotationDisplayer:
 
 
     def _draw_outline(self, canvas, state):
-        color = {"chaos": "yellow", "nothing": "blue", "no_annotation": "purple"}[state]
+        color = {"chaos": "yellow", "nothing": "blue", "no_annotation": "purple", "edge_case": "red"}[state]
         w, h = canvas.winfo_width(), canvas.winfo_height()
         canvas.create_rectangle(0, 0, w, h, outline=color, width=5, tags="outline")
 
