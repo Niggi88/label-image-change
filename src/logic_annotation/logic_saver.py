@@ -377,7 +377,7 @@ class InconsistentSaver(ReviewSaver):
         if local_boxes and self.annotations["pair_state"] == "annotated":
             boxes = local_boxes
             print("gotten local boxes: ", boxes)
-        elif expected_boxes and pair.source_item.get("expected") == "annotated":
+        elif expected_boxes and pair.source_item.get("expected") == "added":
             boxes = expected_boxes
             print("gotten expected boxes: ", boxes)
 
