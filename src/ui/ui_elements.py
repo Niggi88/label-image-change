@@ -177,7 +177,7 @@ class UIElements(tk.Frame):
         if self.data_handler.mode == "review":
             boxes_expected = self.data_handler.get_expected_boxes()
             boxes_predicted = self.data_handler.get_predicted_boxes()
-            if state in ["nothing", "chaos", "annotated", None]:
+            if state in ["nothing", "chaos", "annotated"]:
                 boxes_predicted = []
                 print("boxes predicted: ", boxes_predicted)
         else:
@@ -382,16 +382,19 @@ class UIElements(tk.Frame):
         total_pairs = len(self.data_handler.pairs)
 
         if state != "edge_case":
-            if state == "accepted" or state == pair.source_item["expected"]:
+            if state == "accepted" or state == pair.source_item["expected"] or (state == "annotated" == pair.source_item["expected"] == "added"):
                 state = pair.source_item["expected"]
                 decision = "accepted"
             else:
                 decision = "corrected"
 
+            print("decision", decision)
+            
             self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
             if state == "annotated":
                 for canvas in (self.canvas_frame.canvas_left, self.canvas_frame.canvas_right):
                     canvas.delete("expected_box")
+                    self.refresh()
                 # enable box drawing only when "Annotate" pressed
                 self.canvas_frame.attach_boxes(self.handler, pair)
                 
