@@ -2,6 +2,7 @@ import requests
 from PIL import Image
 import matplotlib.pyplot as plt
 from io import BytesIO
+import json
 
 
 
@@ -112,9 +113,13 @@ def show_issues():
     items = data.get("examples", [])
 
     summary = data.get("summary", [])
+    added_without_boxes = data.get("added_without_boxes", [])
 
     for key, value in summary.items():
         print(f"{key}: {value}")
+
+    # with open("added_without_boxes.json", "w") as f:
+    #     json.dump(added_without_boxes, f, indent=2)
 
     for pair in items:
         show_pair(pair)
