@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from itertools import chain
-from config import DATASET_DIR
+from loguru import logger
 from data_handling import data_config as config
 
 class YoloPaths:
@@ -37,6 +37,7 @@ class YoloPathsSplit:
 
 def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, override_root=None):
     # Load your annotations
+    global STATS
     with open(annotation_file) as f:
         annotations = json.load(f)
 
@@ -86,8 +87,10 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
 
         if pair_state == "nothing":
             label_lines = ["0"]
+            STATS["nothing"] += 1
         elif pair_state == "chaos":
             label_lines = ["1"]
+            STATS["no_idea"] += 1
         elif pair_state == "annotated":
             if len(boxes) == 0:
                 fail_paths.append([store, session, img1_str, img2_str])
@@ -102,10 +105,15 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
                 w = abs(x2 - x1) / img_w
                 h = abs(y2 - y1) / img_h
                 class_id = "2" if atype == "item_added" else "3"
+                if class_id == "3": 
+                    STATS["removed"] += 1
+                elif class_id == "2":
+                    STATS["added"] += 1
+                else:
+                    raise Exception(f"unknown atype: {atype}: {class_id}")
                 label_lines.append(f"{class_id} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
         elif pair_state == "no_annotation":
             continue
-            #label_lines = ["0"]  # skip saving anything
         else:
             label_lines = ["0"]
 
@@ -135,6 +143,13 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
 if __name__ == "__main__":
     fails = 0
     fail_paths = []
+    STATS = {
+        "nothing"   : 0,
+        "no_idea"   : 0,
+        "added"     : 0,
+        "removed"   : 0,
+    }
+
     # === CONFIG ===
     yolo_splitted_paths = YoloPathsSplit(config.out_datasets_dir)
 
@@ -173,3 +188,5 @@ if __name__ == "__main__":
 
     for fp in fail_paths:
         print(fp)
+
+    print(STATS)
