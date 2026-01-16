@@ -14,7 +14,7 @@ LIMIT = 10
 
 COLOR_PREV = "gray"
 COLOR_REVIEWED = "red"
-
+COLOR_ORIGINAL = "green"
 
 def load_image(url):
     url = BASE_URL + url
@@ -34,6 +34,14 @@ def draw_boxes(ax, boxes, color):
     elif color == COLOR_REVIEWED:
         facecolor = "none"
         edgecolor = "red"
+        fill = False
+        alpha = 1.0
+        linewidth = 2
+        zorder = 2
+
+    elif color == COLOR_ORIGINAL:
+        facecolor = "none"
+        edgecolor = "green"
         fill = False
         alpha = 1.0
         linewidth = 2
@@ -60,27 +68,36 @@ def show_pair(pair):
     im2 = load_image(pair["im2_url"])
 
     fig, axes = plt.subplots(1,2,figsize=(12,6))
-    fig.suptitle(f"{pair['key']} from {pair['reviewed']['batch_timestamp']}" , fontsize=12)
+    fig.suptitle(f"{pair['key']} from {pair['reviewed']}" , fontsize=12)
 
     axes[0].imshow(im1)
     axes[1].imshow(im2)
     axes[0].axis("off")
-    
-    
-    draw_boxes(axes[0], pair["previously"]["boxes"], COLOR_PREV)
-    draw_boxes(axes[1], pair["previously"]["boxes"], COLOR_PREV)
-    draw_boxes(axes[0], pair["reviewed"]["boxes"], COLOR_REVIEWED)
-    draw_boxes(axes[1], pair["reviewed"]["boxes"], COLOR_REVIEWED)
     axes[1].axis("off")
+    
+    if pair["previously"]:
+    
+        draw_boxes(axes[0], pair["previously"]["boxes"], COLOR_PREV)
+        draw_boxes(axes[1], pair["previously"]["boxes"], COLOR_PREV)
+        draw_boxes(axes[0], pair["reviewed"]["boxes"], COLOR_REVIEWED)
+        draw_boxes(axes[1], pair["reviewed"]["boxes"], COLOR_REVIEWED)
+        axes[1].axis("off")
 
-    prev_state = pair["previously"]["pair_state"]
-    rev_state = pair["reviewed"]["pair_state"]
+        prev_state = pair["previously"]["pair_state"]
+        rev_state = pair["reviewed"]["pair_state"]
 
-    plt.figtext(
-        0.5, 0.02,
-        f"previously: {prev_state} | reviewed {rev_state}"
-    )
+        plt.figtext(
+            0.5, 0.02,
+            f"previously: {prev_state} | reviewed {rev_state}"
+        )
 
+    elif pair["original"]:
+        draw_boxes(axes[0], pair["original"]["boxes"], COLOR_ORIGINAL)
+        draw_boxes(axes[1], pair["original"]["boxes"], COLOR_ORIGINAL)
+        plt.figtext(
+            0.5, 0.02,
+            f"original: {pair['original']['pair_state']}"
+        )
     plt.show()
 
 
@@ -124,7 +141,28 @@ def show_issues():
     for pair in items:
         show_pair(pair)
 
+
+def show_issues_change_data():
+    resp = requests.get("http://172.30.20.31:8081/validate/change_data/known_issues")
+    resp.raise_for_status()
+
+    data = resp.json()
+    items = data.get("examples", [])
+
+    summary = data.get("summary", [])
+    # added_without_boxes = data.get("added_without_boxes", [])
+
+    for key, value in summary.items():
+        print(f"{key}: {value}")
+
+    # with open("added_without_boxes.json", "w") as f:
+    #     json.dump(added_without_boxes, f, indent=2)
+
+    for pair in items:
+        show_pair(pair)
+
 if __name__ == "__main__":
     # main()
     # show_issues()
-    show_random(LIMIT)
+    # show_random(LIMIT)
+    show_issues_change_data()
