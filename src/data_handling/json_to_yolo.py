@@ -115,7 +115,8 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
         elif pair_state == "no_annotation":
             continue
         else:
-            label_lines = ["0"]
+            raise Exception(f"unknown pair_state: {pair_state}")
+
 
         shutil.copy(im1_path, im1_target)
         shutil.copy(im2_path, im2_target)
