@@ -161,8 +161,20 @@ def show_issues_change_data():
     for pair in items:
         show_pair(pair)
 
+
+def show_random_change_data(limit):
+    resp = requests.get("http://172.30.20.31:8081//change_data/random", params={"limit": limit})
+    resp.raise_for_status()
+
+    data = resp.json()
+    items = data.get("items", [])
+
+    for pair in items:
+        show_pair(pair)
+
 if __name__ == "__main__":
     # main()
     # show_issues()
     # show_random(LIMIT)
-    show_issues_change_data()
+    # show_issues_change_data()
+    show_random_change_data(LIMIT)
