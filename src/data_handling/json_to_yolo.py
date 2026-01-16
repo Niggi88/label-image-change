@@ -108,11 +108,11 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
                 if class_id == "3": 
                     STATS["removed"] += 1
                 elif class_id == "2":
-                    STATS["added"] += 1
+                    STATS["annotated"] += 1
                 else:
                     raise Exception(f"unknown atype: {atype}: {class_id}")
                 label_lines.append(f"{class_id} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
-        elif pair_state == "no_annotation":
+        elif pair_state in ["no_annotation", "edge_case"]:
             continue
         else:
             raise Exception(f"unknown pair_state: {pair_state}")
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     STATS = {
         "nothing"   : 0,
         "no_idea"   : 0,
-        "added"     : 0,
+        "annotated"     : 0,
         "removed"   : 0,
     }
 
@@ -177,7 +177,7 @@ if __name__ == "__main__":
     class_names = [
         "nothing",          # 0
         "no_idea",            # 1
-        "added",        # 2
+        "annotated",        # 2
     ]
     
     generate_dataset_config(
