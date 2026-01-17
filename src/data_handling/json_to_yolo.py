@@ -112,7 +112,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
                 else:
                     raise Exception(f"unknown atype: {atype}: {class_id}")
                 label_lines.append(f"{class_id} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
-        elif pair_state in ["no_annotation", "edge_case"]:
+        elif pair_state in ["no_annotation", "edge_case", "item_added"]:
             continue
         else:
             raise Exception(f"unknown pair_state: {pair_state}")

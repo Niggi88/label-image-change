@@ -12,10 +12,10 @@ elif hostname == "niggis-brain":
     _base_data_dir = Path("/media/fast/dataset/snapshot_change_detection")
 
 
-_out_dataset_name = "large_xl-images_v1_2"
-# _out_dataset_name = "testset_xl-images_v1_1"
-src_data_names = ["santiago", "sarah", "almas"]
-# src_data_names = ["niklas"]
+# _out_dataset_name = "large_xl-images_v1_2"
+_out_dataset_name = "testset_xl-images_v1_2"
+# src_data_names = ["santiago", "sarah", "almas"]
+src_data_names = ["niklas"]
 IMAGE_SIZE = 832
 raw_data = _base_data_dir / "change_data"
 override_root = raw_data / "images"

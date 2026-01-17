@@ -293,7 +293,7 @@ class UIElements(tk.Frame):
 
                 boxes = []
 
-                if old_pair.source_item.get("expected") == "added":
+                if old_pair.source_item.get("expected") in ("added", "annotated"):
                     boxes = [dict(b) for b in old_pair.source_item.get("boxes_expected", [])]
                     
 
@@ -387,6 +387,7 @@ class UIElements(tk.Frame):
         total_pairs = len(self.data_handler.pairs)
 
         if state != "edge_case":
+            # if state == "accepted" or state == pair.source_item["expected"] or (state == "annotated" == pair.source_item["expected"] == "added"):
             if state == "accepted" or state == pair.source_item["expected"] or (state == "annotated" == pair.source_item["expected"] == "added"):
                 state = pair.source_item["expected"]
                 decision = "accepted"
@@ -395,8 +396,12 @@ class UIElements(tk.Frame):
 
             print("decision", decision)
             
-            self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
-            if state == "annotated":
+            # self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
+            boxes = []
+            if state in ("added", "annotated"):
+                boxes = [dict(b) for b in pair.source_item.get("boxes_expected", [])]
+            self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info(), expected_boxes=boxes)
+            if state in ("annotated", "added") and not boxes:
                 for canvas in (self.canvas_frame.canvas_left, self.canvas_frame.canvas_right):
                     canvas.delete("expected_box")
                     self.refresh()
