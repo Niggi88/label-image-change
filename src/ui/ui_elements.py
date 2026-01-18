@@ -8,6 +8,7 @@ from src.ui.ui_annotation import BoxHandler, Flickerer, Crosshair
 from src.ui.ui_annotation_displayer import AnnotationDisplayer
 from src.config import DATASET_DIR
 from tkinter import messagebox
+from pprint import pprint
 
 
 dataset_path = DATASET_DIR
@@ -169,7 +170,8 @@ class UIElements(tk.Frame):
         ann_lookup = ann_all.get("items", ann_all)
         data = ann_lookup.get(pid, {})
 
-        print("current data: ", data)
+        print("current data:")
+        pprint(data)
         state = data.get("pair_state")
 
 

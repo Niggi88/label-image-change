@@ -95,6 +95,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
             if len(boxes) == 0:
                 fail_paths.append([store, session, img1_str, img2_str])
                 continue
+            atypes = set()
             for box in boxes:
                 atype = box.get("annotation_type")
                 if atype not in {"item_added", "item_removed"}:
@@ -104,14 +105,24 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
                 cy = ((y1 + y2) / 2) / img_h
                 w = abs(x2 - x1) / img_w
                 h = abs(y2 - y1) / img_h
+                if atype not in STATS.keys():
+                    STATS[atype] = 0
+                STATS[atype] += 1
+                atypes.add(atype)
                 class_id = "2" if atype == "item_added" else "3"
                 if class_id == "3": 
+                    
                     STATS["removed"] += 1
                 elif class_id == "2":
                     STATS["annotated"] += 1
                 else:
                     raise Exception(f"unknown atype: {atype}: {class_id}")
                 label_lines.append(f"{class_id} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
+            if len(atypes) > 1: 
+                STATS["added_and_removed"] += 1
+                label_lines = ["1"]
+            if "item_removed" in atypes:
+                continue
         elif pair_state in ["no_annotation", "edge_case", "item_added"]:
             continue
         else:
@@ -149,6 +160,8 @@ if __name__ == "__main__":
         "no_idea"   : 0,
         "annotated"     : 0,
         "removed"   : 0,
+        "added_and_removed": 0,
+        "atypes": []
     }
 
     # === CONFIG ===
