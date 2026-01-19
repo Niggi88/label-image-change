@@ -85,6 +85,7 @@ class CommonSaver(BaseSaver):
             self._on_change()
 
     def save_box(self, pair, box, context, state="annotated"):
+        print("DEBUG: SAVE BOXES FROM COMMONSAVER")
         self.annotations["items"].setdefault(str(pair.pair_id), {}).setdefault("boxes", []).append(box)
         self._flush()
 
@@ -461,6 +462,23 @@ class InconsistentSaver(ReviewSaver):
 
 
         self._update_completed()
+        self._flush()
+
+    def save_box(self, pair, box, context, state="annotated"):
+        pid = str(pair.pair_id)
+        items = self.annotations.setdefault("items", {})
+        entry = items.setdefault(pid, {})
+        boxes = entry.setdefault("boxes", [])
+
+        # UPDATE wenn box_id existiert
+        for i, b in enumerate(boxes):
+            if b.get("box_id") == box.get("box_id"):
+                boxes[i] = box
+                self._flush()
+                return
+
+        # sonst CREATE
+        boxes.append(box)
         self._flush()
 
 
