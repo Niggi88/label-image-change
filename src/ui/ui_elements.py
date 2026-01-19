@@ -8,6 +8,7 @@ from src.ui.ui_annotation import BoxHandler, Flickerer, Crosshair
 from src.ui.ui_annotation_displayer import AnnotationDisplayer
 from src.config import DATASET_DIR
 from tkinter import messagebox
+from pprint import pprint
 
 
 dataset_path = DATASET_DIR
@@ -169,7 +170,8 @@ class UIElements(tk.Frame):
         ann_lookup = ann_all.get("items", ann_all)
         data = ann_lookup.get(pid, {})
 
-        print("current data: ", data)
+        print("current data:")
+        pprint(data)
         state = data.get("pair_state")
 
 
@@ -293,7 +295,7 @@ class UIElements(tk.Frame):
 
                 boxes = []
 
-                if old_pair.source_item.get("expected") == "added":
+                if old_pair.source_item.get("expected") in ("added", "annotated"):
                     boxes = [dict(b) for b in old_pair.source_item.get("boxes_expected", [])]
                     
 
@@ -387,6 +389,7 @@ class UIElements(tk.Frame):
         total_pairs = len(self.data_handler.pairs)
 
         if state != "edge_case":
+            # if state == "accepted" or state == pair.source_item["expected"] or (state == "annotated" == pair.source_item["expected"] == "added"):
             if state == "accepted" or state == pair.source_item["expected"] or (state == "annotated" == pair.source_item["expected"] == "added"):
                 state = pair.source_item["expected"]
                 decision = "accepted"
@@ -395,8 +398,12 @@ class UIElements(tk.Frame):
 
             print("decision", decision)
             
-            self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
-            if state == "annotated":
+            # self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
+            boxes = []
+            if state in ("added", "annotated"):
+                boxes = [dict(b) for b in pair.source_item.get("boxes_expected", [])]
+            self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info(), expected_boxes=boxes)
+            if state in ("annotated", "added") and not boxes:
                 for canvas in (self.canvas_frame.canvas_left, self.canvas_frame.canvas_right):
                     canvas.delete("expected_box")
                     self.refresh()

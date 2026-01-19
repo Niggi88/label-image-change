@@ -142,6 +142,8 @@ class AnnotationSaver:
             "image2_size": pair.image2.img_size,
         }
 
+        assert not (state in ("added", "annotated") and not entry["boxes"]), \
+            f"BUG: pair_state={state} requires boxes but got none for pair {pid}"
 
         print("\n=== DEBUG SAVE_PAIR ===")
         print("PAIR:", pid)
