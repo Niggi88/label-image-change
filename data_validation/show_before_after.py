@@ -10,7 +10,7 @@ BASE_URL = "http://172.30.20.31:8081"
 API_URL = "http://172.30.20.31:8081/review/changed/yesterday" # random
 
 API_URL_RANDOM = "http://172.30.20.31:8081/review/changed/random"
-LIMIT = 10
+LIMIT = 50
 
 COLOR_PREV = "gray"
 COLOR_REVIEWED = "red"
@@ -67,7 +67,7 @@ def show_pair(pair):
     im1 = load_image(pair["im1_url"])
     im2 = load_image(pair["im2_url"])
 
-    fig, axes = plt.subplots(1,2,figsize=(12,6))
+    fig, axes = plt.subplots(1,2,figsize=(20,15))
     fig.suptitle(f"{pair['key']} from {pair['reviewed']}" , fontsize=12)
 
     axes[0].imshow(im1)
@@ -91,13 +91,14 @@ def show_pair(pair):
             f"previously: {prev_state} | reviewed {rev_state}"
         )
 
-    elif pair["original"]:
-        draw_boxes(axes[0], pair["original"]["boxes"], COLOR_ORIGINAL)
-        draw_boxes(axes[1], pair["original"]["boxes"], COLOR_ORIGINAL)
-        plt.figtext(
-            0.5, 0.02,
-            f"original: {pair['original']['pair_state']}"
-        )
+    # elif pair["original"]:
+    #     draw_boxes(axes[0], pair["original"]["boxes"], COLOR_ORIGINAL)
+    #     draw_boxes(axes[1], pair["original"]["boxes"], COLOR_ORIGINAL)
+    #     plt.figtext(
+    #         0.5, 0.02,
+    #         f"original: {pair['original']['pair_state']}"
+    #     )
+    plt.tight_layout()
     plt.show()
 
 
@@ -163,7 +164,7 @@ def show_issues_change_data():
 
 
 def show_random_change_data(limit):
-    resp = requests.get("http://172.30.20.31:8081//change_data/random", params={"limit": limit})
+    resp = requests.get("http://172.30.20.31:8081/change_data/random", params={"limit": limit})
     resp.raise_for_status()
 
     data = resp.json()
