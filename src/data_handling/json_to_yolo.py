@@ -91,7 +91,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
         elif pair_state == "chaos":
             label_lines = ["1"]
             STATS["no_idea"] += 1
-        elif pair_state == "annotated":
+        elif pair_state in ["annotated", "added"]:
             if len(boxes) == 0:
                 fail_paths.append([store, session, img1_str, img2_str])
                 continue

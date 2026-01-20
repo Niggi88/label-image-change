@@ -285,6 +285,8 @@ from review_db import (
     get_model_class_stats,
     get_total_review_count,
     get_reviewed_pair_ids_by_model,
+    get_user_review_stats_by_model,
+    get_annotator_review_stats_by_model,
 )
 
 class InconsistentReview(BaseModel):
@@ -418,6 +420,26 @@ async def annotator_progress(model_name: str):
         get_annotator_review_progress(model_name, annotator)
         for annotator in annotators
     ]
+
+
+from urllib.parse import unquote
+
+
+@app.get("/api/inconsistent/model/{model_name:path}/userstats")
+def inconsistent_userstats_by_model(model_name: str):
+    model_name = unquote(model_name)
+    return {
+        "has": get_user_review_stats_by_model(model_name)
+    }
+
+@app.get("/api/inconsistent/model/{model_name:path}/stats/annotators")
+def inconsistent_annotatorstats_by_model(model_name: str):
+    model_name = unquote(model_name)
+    return {
+        "was": get_annotator_review_stats_by_model(model_name)
+    }
+
+
 
 
 if __name__ == "__main__":

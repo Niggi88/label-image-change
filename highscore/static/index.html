@@ -4,190 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Annotation Leaderboard</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-            color: #333;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
-
-        .header h1 {
-            font-size: 48px;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .total-counter {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 40px;
-            transform: scale(1);
-            transition: transform 0.3s ease;
-        }
-
-        .total-counter:hover {
-            transform: scale(1.02);
-        }
-
-        .total-number {
-            font-size: 72px;
-            font-weight: bold;
-            color: #667eea;
-            margin: 10px 0;
-        }
-
-        .leaderboard {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        .leaderboard h2 {
-            font-size: 32px;
-            margin-bottom: 20px;
-            color: #667eea;
-        }
-
-        .leaderboard-item {
-            display: flex;
-            align-items: center;
-            padding: 20px;
-            margin: 10px 0;
-            background: #f8f9fa;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-        }
-
-        .leaderboard-item:hover {
-            background: #e9ecef;
-            transform: translateX(5px);
-        }
-
-        .rank {
-            font-size: 24px;
-            font-weight: bold;
-            margin-right: 20px;
-            min-width: 40px;
-            color: #667eea;
-        }
-
-        .rank-1 { color: #FFD700; }
-        .rank-2 { color: #C0C0C0; }
-        .rank-3 { color: #CD7F32; }
-
-        .user-info {
-            flex: 1;
-        }
-
-        .username {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 5px;
-	    color: #2c3e50;
-        }
-
-        .classes {
-            font-size: 14px;
-            color: #666;
-        }
-
-        .class-badge {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            margin-right: 5px;
-            font-size: 12px;
-        }
-
-        .score {
-            font-size: 36px;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .last-updated {
-            text-align: center;
-            color: #666;
-            margin-top: 20px;
-            font-size: 14px;
-        }
-
-        .loading {
-            text-align: center;
-            color: white;
-            font-size: 24px;
-        }
-
-
-        .review-table {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 10px;
-        }
-
-        .review-header {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-
-        .review-divider {
-            height: 1px;
-            background: #ccc;
-            margin: 10px 0;
-        }
-
-        .review-row {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            padding: 6px 0;
-        }
-
-        .leaderboard-subtitle {
-            font-weight: 600;
-            font-size: 18px;
-            margin-bottom: 8px;
-            color: #667eea;
-        }
-
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-
-        .updating {
-            animation: pulse 1s ease-in-out;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
     <div class="container">
@@ -196,370 +13,95 @@
             <p>Keep up the great work, team!</p>
         </div>
 
-        <div class="total-counter" id="totalCounter">
-            <h2>Total Annotations</h2>
-            <div class="total-number" id="totalNumber">0</div>
-            <p>Images annotated by the entire team</p>
+        <div class="tabs">
+            <button class="tab active" data-tab="annotations">Annotations</button>
+            <button class="tab" data-tab="reviews">Reviews</button>
         </div>
 
-        <div class="leaderboard">
-            <h2>Top Annotators</h2>
-            <div id="leaderboardList" class="loading">Loading...</div>
-            <div class="last-updated" id="lastUpdated"></div>
+
+
+        <div id="tab-annotations" class="tab-content active">
+            <div class="total-counter" id="totalCounter">
+                <h2>Total Annotations</h2>
+                <div class="total-number" id="totalNumber">0</div>
+                <p>Images annotated by the entire team</p>
+            </div>
+
+            <div class="leaderboard">
+                <h2>Top Annotators</h2>
+                <div id="leaderboardList" class="loading">Loading...</div>
+                <div class="last-updated" id="lastUpdated"></div>
+            </div>
         </div>
 
-        <div class="leaderboard" style="margin-top:40px">
-            <h2>Inconsistent Review – User Stats</h2>
 
-            <div class="total-counter"
-                style="margin-bottom: 20px; padding: 15px; font-size: 20px; background:#eef2ff; border-radius:12px; text-align:left;">
-                <div style="font-weight:600; margin-bottom:10px;">
-                    Review Progress
+        <div id="tab-reviews" class="tab-content">
+            
+            <div class="model-tabs" id="modelTabs"></div>
+            <!-- Model-spezifischer Content -->
+            <div id="modelTabContent"></div>
+
+            <div class="leaderboard" style="margin-top:40px">
+                <h2>Inconsistent Review – User Stats</h2>
+
+                <!-- <div class="total-counter"
+                    style="margin-bottom: 20px; padding: 15px; font-size: 20px; background:#eef2ff; border-radius:12px; text-align:left;">
+                    <div style="font-weight:600; margin-bottom:10px;">
+                        Review Progress
+                    </div>
+                    <div id="reviewProgressList">Loading...</div>
+                </div> -->
+
+                <!-- Group A -->
+                <div class="leaderboard-subtitle">User Stats – has</div>
+                <div class="review-table">
+                    <div class="review-header">
+                        <span>Rank</span>
+                        <span>Reviewer</span>
+                        <span>Total</span>
+                        <span>Accepted</span>
+                        <span>Corrected</span>
+                    </div>
+                    <div class="review-divider"></div>
+                    <div id="reviewUserHas"></div>
                 </div>
-                <div id="reviewProgressList">Loading...</div>
-            </div>
 
-            <!-- Group A -->
-            <div class="leaderboard-subtitle">User Stats – has</div>
-            <div class="review-table">
-                <div class="review-header">
-                    <span>Rank</span>
-                    <span>Reviewer</span>
-                    <span>Total</span>
-                    <span>Accepted</span>
-                    <span>Corrected</span>
+
+                <div class="leaderboard-subtitle" style="margin-top:25px">
+                    Review Progress per Reviewer
                 </div>
-                <div class="review-divider"></div>
-                <div id="reviewUserHas"></div>
-            </div>
 
-
-            <div class="leaderboard-subtitle" style="margin-top:25px">
-                Review Progress per Reviewer
-            </div>
-
-            <div class="review-table">
-                <div id="reviewerProgressList" class="loading">Loading...</div>
-            </div>
-
-            <!-- Group B -->
-            <div class="leaderboard-subtitle" style="margin-top:25px">User Stats – was</div>
-            <div class="review-table">
-                <div class="review-header">
-                    <span>Rank</span>
-                    <span>Annotator</span>
-                    <span>Total</span>
-                    <span>Accepted</span>
-                    <span>Corrected</span>
-                    <span>Error Rate</span>
+                <div class="review-table">
+                    <div id="reviewerProgressList" class="loading">Loading...</div>
                 </div>
-                <div class="review-divider"></div>
-                <div id="reviewUserWas"></div>
+
+                <!-- Group B -->
+                <div class="leaderboard-subtitle" style="margin-top:25px">User Stats – was</div>
+                <div class="review-table">
+                    <div class="review-header">
+                        <span>Rank</span>
+                        <span>Annotator</span>
+                        <span>Total</span>
+                        <span>Accepted</span>
+                        <span>Corrected</span>
+                        <span>Error Rate</span>
+                    </div>
+                    <div class="review-divider"></div>
+                    <div id="reviewUserWas"></div>
+                </div>
+            </div>
+
+
+            <div class="leaderboard" style="margin-top:40px">
+                <h2>Model Class Performance</h2>
+                <div id="modelClassList" class="loading">Loading...</div>
             </div>
         </div>
-
-
-        <div class="leaderboard" style="margin-top:40px">
-            <h2>Model Class Performance</h2>
-            <div id="modelClassList" class="loading">Loading...</div>
-        </div>
-
+        
     </div>
 
-    <script>
-        // Configuration
-        const API_URL = ''; // Will use same origin by default
-        const REFRESH_INTERVAL = 5000; // Refresh every 5 seconds
-
-        // Fetch and display leaderboard
-        async function updateLeaderboard() {
-            try {
-                const response = await fetch(`${API_URL}/api/leaderboard`);
-                const data = await response.json();
-
-                // Update total counter with animation
-                const totalElement = document.getElementById('totalNumber');
-                totalElement.classList.add('updating');
-                totalElement.textContent = data.totalAnnotations.toLocaleString();
-                setTimeout(() => totalElement.classList.remove('updating'), 1000);
-
-                // Update leaderboard
-                const leaderboardList = document.getElementById('leaderboardList');
-                leaderboardList.innerHTML = '';
-
-                data.leaderboard.forEach((user, index) => {
-                    const item = document.createElement('div');
-                    item.className = 'leaderboard-item';
-                    
-                    // Create class badges
-                    const classBadges = Object.entries(user.classes)
-                        .map(([className, count]) => 
-                            `<span class="class-badge">${className}: ${count}</span>`
-                        )
-                        .join('');
-
-                    item.innerHTML = `
-                        <div class="rank rank-${index + 1}">#${index + 1}</div>
-                        <div class="user-info">
-                            <div class="username">${user.username}</div>
-                            <div class="classes">${classBadges}</div>
-                        </div>
-                        <div class="score">${user.total}</div>
-                    `;
-                    
-                    leaderboardList.appendChild(item);
-                });
-
-                // Update last updated time
-                const lastUpdated = document.getElementById('lastUpdated');
-                const updateTime = new Date(data.lastUpdated);
-                lastUpdated.textContent = `Last updated: ${updateTime.toLocaleString()}`;
-
-            } catch (error) {
-                console.error('Failed to fetch leaderboard:', error);
-                document.getElementById('leaderboardList').innerHTML = 
-                    '<p style="color: red;">Failed to load leaderboard. Please try again later.</p>';
-            }
-        }
-
-
-        async function updateInconsistentStats() {
-            try {
-                const userResp = await fetch(`${API_URL}/api/inconsistent/userstats`);
-                const annotatorResp = await fetch(`${API_URL}/api/inconsistent/stats/annotators`);
-                const userStats = await userResp.json();
-                const annotatorStats = await annotatorResp.json();
-
-                // --- Sortierung HAS (Reviewer) DESC nach total ---
-                const has_sorted = Object.fromEntries(
-                    Object.entries(userStats.has).sort((a, b) => b[1].total - a[1].total)
-                );
-
-                // --- Sortierung WAS (Annotators) ASC nach errorRate ---
-                const was_sorted = Object.fromEntries(
-                    Object.entries(annotatorStats.was).sort((a, b) => a[1].errorRate - b[1].errorRate)
-                );
-
-                renderUserGroup("reviewUserHas", has_sorted, false, true);
-                renderUserGroup("reviewUserWas", was_sorted, true, true);
-
-            } catch (err) {
-                console.error("Failed to load inconsistent review stats:", err);
-            }
-        }
-
-
-        function renderUserGroup(targetId, groupData, showErrorRate = false, showRank = false) {
-            const container = document.getElementById(targetId);
-            container.innerHTML = "";
-
-            let rank = 1;
-
-            Object.entries(groupData).forEach(([user, stats]) => {
-                const row = document.createElement("div");
-                row.className = "review-row";
-
-                let html = "";
-
-                if (showRank) {
-                    html += `<span>#${rank}</span>`;
-                }
-
-                html += `
-                    <span>${user}</span>
-                    <span>${stats.total}</span>
-                    <span>${stats.accepted}</span>
-                    <span>${stats.corrected}</span>
-                `;
-
-                if (showErrorRate) {
-                    const rate = (stats.errorRate * 100).toFixed(1) + "%";
-                    html += `<span>${rate}</span>`;
-                }
-
-                row.innerHTML = html;
-                container.appendChild(row);
-
-                rank++;
-            });
-        }
-
-        async function updateTotalReviewed() {
-            try {
-                // Alle Modelle holen, die bereits Reviews haben
-                const modelResp = await fetch(`${API_URL}/api/inconsistent/modelstats`);
-                const models = await modelResp.json();
-
-                const container = document.getElementById("reviewProgressList");
-                container.innerHTML = "";
-
-                for (const model of models) {
-                    const progressResp = await fetch(
-                        `${API_URL}/api/inconsistent/progress/${model.modelName}`
-                    );
-                    const data = await progressResp.json();
-
-                    const percent = (data.progress * 100).toFixed(1);
-
-                    container.innerHTML += `
-                        <div style="margin-bottom:12px;">
-                            <div style="font-weight:600; color:#2c3e50;">
-                                ${data.model}
-                            </div>
-                            <div style="font-size:16px; color:#333;">
-                                Reviewed:
-                                <strong>${data.reviewed}</strong> /
-                                <strong>${data.total}</strong>
-                                <span style="color:#555;">
-                                    (${data.left} left)
-                                </span>
-                                <span style="margin-left:8px; color:#667eea;">
-                                    ${percent}%
-                                </span>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                if (models.length === 0) {
-                    container.innerHTML = "<em>No models found</em>";
-                }
-
-            } catch (err) {
-                console.error("Failed to load review progress:", err);
-                document.getElementById("reviewProgressList").innerHTML =
-                    "<span style='color:red'>Failed to load review progress</span>";
-            }
-        }
-
-        async function updateAnnotatorProgress() {
-            try {
-                // Alle Modelle laden
-                const modelResp = await fetch(`${API_URL}/api/inconsistent/modelstats`);
-                const models = await modelResp.json();
-
-                const container = document.getElementById("reviewerProgressList");
-                container.innerHTML = "";
-
-                for (const model of models) {
-                    const resp = await fetch(
-                        `${API_URL}/api/inconsistent/progress/${model.modelName}/annotators`
-                    );
-                    const reviewers = await resp.json();
-
-                    container.innerHTML += `
-                        <div style="margin-bottom:20px;">
-                            <h3 style="color:#667eea;">${model.modelName}</h3>
-                        </div>
-                    `;
-
-                    for (const r of reviewers) {
-                        const pct = (r.progress * 100).toFixed(1);
-
-                        container.innerHTML += `
-                            <div class="leaderboard-item">
-                                <div class="user-info">
-                                    <div class="username">${r.annotator}</div>
-                                    <div class="classes">
-                                        Reviewed: ${r.reviewed} / ${r.total}
-                                        (${r.left} left) – ${pct}%
-                                    </div>
-                                </div>
-                                <div class="score">${pct}%</div>
-                            </div>
-                        `;
-                    }
-                }
-
-            } catch (err) {
-                console.error("Failed to load reviewer progress:", err);
-                document.getElementById("reviewerProgressList").innerHTML =
-                    "<span style='color:red'>Failed to load reviewer progress</span>";
-            }
-        }
-
-
-
-        async function updateModelClassStats() {
-            try {
-                const modelResp = await fetch(`${API_URL}/api/inconsistent/modelstats`);
-                const modelStats = await modelResp.json();
-
-                const container = document.getElementById("modelClassList");
-                container.innerHTML = "";
-
-                for (const model of modelStats) {
-
-                    // Normalize model name, so it works as an HTML ID
-                    const safeId = model.modelName.replace(/[^a-zA-Z0-9_-]/g, "_");
-
-                    const classResp = await fetch(`${API_URL}/api/inconsistent/modelstats/${model.modelName}/classes`);
-                    const classStats = await classResp.json();
-
-                    // ---> SORTIERUNG nach kleinstem errorRate nach oben
-                    classStats.sort((a, b) => a.errorRate - b.errorRate);
-
-                    const modelBox = document.createElement("div");
-                    modelBox.className = "leaderboard";
-                    modelBox.style.marginTop = "20px";
-
-                    modelBox.innerHTML = `
-                        <h3 style="color:#667eea; margin-bottom:15px;">Model: ${model.modelName}</h3>
-                        <div id="model_${safeId}"></div>
-                    `;
-
-                    container.appendChild(modelBox);
-
-                    const inner = modelBox.querySelector(`#model_${safeId}`);
-
-                    classStats.forEach((stat, index) => {
-                        const errorPct = (stat.errorRate * 100).toFixed(1);
-
-                        inner.innerHTML += `
-                            <div class="leaderboard-item">
-                                <div class="rank">#${index + 1}</div>
-                                <div class="user-info">
-                                    <div class="username">${stat.class}</div>
-                                    <div class="classes">
-                                        <span class="class-badge">Correct: ${stat.correct}</span>
-                                        <span class="class-badge">Incorrect: ${stat.incorrect}</span>
-                                        <span class="class-badge">Error Rate: ${errorPct}%</span>
-                                    </div>
-                                </div>
-                                <div class="score">${errorPct}%</div>
-                            </div>
-                        `;
-                    });
-                }
-
-            } catch (err) {
-                console.error("Failed to load model class stats:", err);
-            }
-        }
-
-
-
-
-
-
-
-        // Initial load
-        updateLeaderboard();
-        updateInconsistentStats();
-        updateModelClassStats();
-        updateTotalReviewed();
-        updateAnnotatorProgress();
-
-        // Auto-refresh
-        setInterval(() => {
-            updateLeaderboard();
-            updateInconsistentStats();
-            updateModelClassStats();
-            updateTotalReviewed();
-            updateAnnotatorProgress();
-        }, REFRESH_INTERVAL);
-
-        
-    </script>
+    <script src="/static/js/annotations.js"></script>
+    <script src="/static/js/reviews.js"></script>
+    <script src="/static/js/app.js"></script>
 </body>
 </html>
