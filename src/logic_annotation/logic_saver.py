@@ -6,6 +6,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 from src.utils import report_annotation, report_inconsistent_review
 import os
+from tkinter import messagebox
 
 def _shorten_path(path_or_url: str) -> str:
     """
@@ -84,6 +85,7 @@ class CommonSaver(BaseSaver):
             self._on_change()
 
     def save_box(self, pair, box, context, state="annotated"):
+        print("DEBUG: SAVE BOXES FROM COMMONSAVER")
         self.annotations["items"].setdefault(str(pair.pair_id), {}).setdefault("boxes", []).append(box)
         self._flush()
 
@@ -141,6 +143,8 @@ class AnnotationSaver:
             "image2_size": pair.image2.img_size,
         }
 
+        assert not (state in ("added", "annotated") and not entry["boxes"]), \
+            f"BUG: pair_state={state} requires boxes but got none for pair {pid}"
 
         print("\n=== DEBUG SAVE_PAIR ===")
         print("PAIR:", pid)
@@ -363,20 +367,26 @@ class InconsistentSaver(ReviewSaver):
 
 
 
-    def save_pair(self, pair, state, decision, ctx):
+    def save_pair(self, state_before, pair, state, decision, ctx, expected_boxes=None):
         print("inconsistent saver is saving")
         key = self._key(pair)
 
+
+
         boxes = []
         local_boxes = pair.image1.boxes
-        expected_boxes = pair.source_item.get("boxes_expected")
-
-        if local_boxes and self.annotations["pair_state"] == "annotated":
+        
+        if state == "annotated":
             boxes = local_boxes
-            print("gotten local boxes: ", boxes)
-        elif expected_boxes and pair.source_item.get("expected") == "annotated":
+        elif state == "added" and expected_boxes:
             boxes = expected_boxes
-            print("gotten expected boxes: ", boxes)
+        else:
+            boxes = []
+
+        # elif expected_boxes and pair.source_item.get("expected") == "added":
+        #     boxes = [dict(b) for b in expected_boxes]
+
+        #     print("gotten expected boxes: ", boxes)
 
         previous_state = pair.source_item.get("expected")
         previous_boxes = pair.source_item.get("boxes_expected")
@@ -388,6 +398,27 @@ class InconsistentSaver(ReviewSaver):
 
         datetimeOriginalAnnotation = pair.source_item.get("datetimeOriginal")
 
+        if state is None:
+            msg = (
+                "Invalid state detected\n"
+                "This pair was NOT saved.\n"
+            )
+
+            messagebox.showerror("Save failed", msg)
+
+            print(
+                f"[ERROR] pair_state is None\n"
+                f"[ERROR] state_before: {state_before}\n"
+                # f"[ERROR] pair_id: {key}\n"
+                # f"[ERROR] user: {ctx.get('user') if ctx else None}\n"
+                # f"[ERROR] decision: {decision}"
+                # f"[ERROR] im1_path: pair.source_item['im1_url']\n"
+                # f"[ERROR] im2_path: pair.source_item['im2_url']\n"
+                # f"[ERROR] previous pair_state: {previous_state}\n"
+                # f"[ERROR] predicted pair_state: {predicted_state}\n"
+            )
+
+            return 
 
         self.annotations["items"][key] = {
             "im1_path": pair.source_item["im1_url"],
@@ -433,6 +464,23 @@ class InconsistentSaver(ReviewSaver):
         self._update_completed()
         self._flush()
 
+    def save_box(self, pair, box, context, state="annotated"):
+        pid = str(pair.pair_id)
+        items = self.annotations.setdefault("items", {})
+        entry = items.setdefault(pid, {})
+        boxes = entry.setdefault("boxes", [])
+
+        # UPDATE wenn box_id existiert
+        for i, b in enumerate(boxes):
+            if b.get("box_id") == box.get("box_id"):
+                boxes[i] = box
+                self._flush()
+                return
+
+        # sonst CREATE
+        boxes.append(box)
+        self._flush()
+
 
     def reset_pair(self, pair, context):
 
@@ -446,7 +494,10 @@ class InconsistentSaver(ReviewSaver):
         print("True")
         key = self._key(pair)
         if self.annotations["items"][key]["pair_state"]:
-            self.annotations["items"][key]["pair_state"] = None # pair.source_item.get("expected")
+            self.annotations["items"][key]["pair_state"] = None
+            self.annotations["items"][key]["boxes"] = []
+
+
         print("state after reset: ", self.annotations["items"][key]["pair_state"])
         
         # self.annotations[pid]["boxes"] = []

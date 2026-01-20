@@ -18,6 +18,7 @@ STYLE_ANNOTATE = "Annotate.TButton"
 STYLE_DELETE   = "Delete.TButton"
 STYLE_RESET    = "Reset.TButton"
 STYLE_SKIP     = "Skip.TButton"
+STYLE_EDGECASE = "EdgeCase.TButton"
 
 STYLE_SESSION  = "Session.TLabel"
 STYLE_STATUS   = "Status.TLabel"
@@ -48,6 +49,7 @@ def init_ttk_styles(root):
     s.configure(STYLE_DELETE,   background="#FF7580", foreground="white", **base)
     s.configure(STYLE_RESET,    background="#FF3B3B", foreground="white", **base)
     s.configure(STYLE_SKIP,     background="#c50000", foreground="white", **base)
+    s.configure(STYLE_EDGECASE,     background="#c50000", foreground="white", **base)
 
     # Hover/active pastel tones
     for style, color in [
@@ -58,6 +60,7 @@ def init_ttk_styles(root):
         (STYLE_DELETE,  "#f1948a"),
         (STYLE_RESET,   "#f08080"),
         (STYLE_SKIP,    "#e57373"),
+        (STYLE_EDGECASE,    "#e57373"),
     ]:
         s.map(style,
               background=[("active", color)],

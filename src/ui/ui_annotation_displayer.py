@@ -22,6 +22,7 @@ class AnnotationDisplayer:
         if not state:
             state = expected
             print("expected state: ", state)
+
         # clear old drawings
         for canvas in (canvas_left, canvas_right):
             canvas.delete("all")
@@ -43,18 +44,18 @@ class AnnotationDisplayer:
                         self._draw_boxes(canvas_left, [b], highlight=False, predicted=True)                        
                         self._draw_boxes(canvas_right, [b], highlight=True, predicted=True)
 
-        if state not in ("chaos", "nothing") and boxes_expected:
+        if state not in ("chaos", "nothing", "annotated") and boxes_expected:
             for canvas in (canvas_left, canvas_right):
                 for b in boxes_expected:
                     if b["annotation_type"] == "item_removed":
-                        self._draw_boxes(canvas_left, [b], highlight=True)
-                        self._draw_boxes(canvas_right, [b], highlight=False)
+                        self._draw_boxes(canvas_left, [b], highlight=True, tag="expected_box")
+                        self._draw_boxes(canvas_right, [b], highlight=False, tag="expected_box")
                     elif b["annotation_type"] == "item_added":
-                        self._draw_boxes(canvas_left, [b], highlight=False)                        
-                        self._draw_boxes(canvas_right, [b], highlight=True)
+                        self._draw_boxes(canvas_left, [b], highlight=False, tag="expected_box")                        
+                        self._draw_boxes(canvas_right, [b], highlight=True, tag="expected_box")
 
 
-        if state in ("chaos", "nothing", "no_annotation"):
+        if state in ("chaos", "nothing", "no_annotation", "edge_case"):
             self._draw_outline(canvas_left, state)
             self._draw_outline(canvas_right, state)
         elif state == "annotated":
@@ -99,11 +100,11 @@ class AnnotationDisplayer:
 
 
     def _draw_outline(self, canvas, state):
-        color = {"chaos": "yellow", "nothing": "blue", "no_annotation": "purple"}[state]
+        color = {"chaos": "yellow", "nothing": "blue", "no_annotation": "purple", "edge_case": "red"}[state]
         w, h = canvas.winfo_width(), canvas.winfo_height()
         canvas.create_rectangle(0, 0, w, h, outline=color, width=5, tags="outline")
 
-    def _draw_boxes(self, canvas, boxes, highlight=None, predicted=False):
+    def _draw_boxes(self, canvas, boxes, highlight=None, predicted=False, tag="box"):
         if not hasattr(canvas, "img_size"):
             return  # image not loaded/scaled yet
 
@@ -126,7 +127,7 @@ class AnnotationDisplayer:
                     int(b["y1"] * scale_y),
                     int(b["x2"] * scale_x),
                     int(b["y2"] * scale_y),
-                    outline=outline, width=2, tags="box"
+                    outline=outline, width=2, tags=tag
                 )
         else:
 
@@ -141,5 +142,5 @@ class AnnotationDisplayer:
                 int(b["y1"] * scale_y),
                 int(b["x2"] * scale_x),
                 int(b["y2"] * scale_y),
-                outline="gray", width=5, dash=dash_style, tags="box"
+                outline="gray", width=5, dash=dash_style, tags=tag
             )

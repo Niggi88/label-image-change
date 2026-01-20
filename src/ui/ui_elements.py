@@ -8,6 +8,7 @@ from src.ui.ui_annotation import BoxHandler, Flickerer, Crosshair
 from src.ui.ui_annotation_displayer import AnnotationDisplayer
 from src.config import DATASET_DIR
 from tkinter import messagebox
+from pprint import pprint
 
 
 dataset_path = DATASET_DIR
@@ -25,8 +26,6 @@ class UIElements(tk.Frame):
 
         # Make this frame expand
         self.grid(row=0, column=0, sticky="nsew")
-        self.rowconfigure(0, weight=1)   # top frame (images) expands
-        self.rowconfigure(1, weight=0)   # bottom frame (controls) fixed
         self.columnconfigure(0, weight=1)
 
         if data_handler is not None:
@@ -61,16 +60,17 @@ class UIElements(tk.Frame):
         root.bind("<space>", self.toggle_flicker)
         root.bind("<Configure>", self._on_resize)
 
-        # --- Main layout: a 3x3 grid to center everything ---
-        self.rowconfigure(0, weight=1)   # top spacer
-        self.rowconfigure(1, weight=0)   # content row
-        self.rowconfigure(2, weight=1)   # bottom spacer
-        self.columnconfigure(0, weight=1)  # left spacer
-        self.columnconfigure(1, weight=0)  # content col
-        self.columnconfigure(2, weight=1)  # right spacer
+        # === Klares 3-Zeilen-Layout ===
+        self.rowconfigure(0, weight=0)   # top bar (fix)
+        self.rowconfigure(1, weight=1)   # canvas (flex)
+        self.rowconfigure(2, weight=0)   # bottom bar (fix)
+        self.columnconfigure(0, weight=1)
 
         self.top_bar = tk.Frame(self)
-        self.top_bar.grid(row=0, column=0, columnspan=3, sticky="ew")
+        self.top_bar.grid(row=0, column=0, sticky="ew")
+        self.top_bar.configure(height=70)
+        self.top_bar.grid_propagate(False)
+
 
         self.session_frame = SessionFrame(self.top_bar)
         self.session_frame.pack(side="left", padx=10, pady=10)
@@ -82,37 +82,57 @@ class UIElements(tk.Frame):
             self.skip_button.pack(side="right", padx=10, pady=10)
 
 
+        elif getattr(self.data_handler, "mode", None) == "review":
+            self.edge_case_button = ttk.Button(self.top_bar, text="Edge Case (e)", style=STYLE_EDGECASE, command=lambda: self.mark_state("edge_case"))
+            self.edge_case_button.pack(side="right", padx=20, pady=20)
+
         # --- Content frame (centered) ---
         self.content_frame = tk.Frame(self)
-        self.content_frame.grid(row=1, column=1)
+        self.content_frame.grid(row=1, column=0, sticky="nsew")
 
+        self.content_frame.rowconfigure(0, weight=1)
+        self.content_frame.columnconfigure(0, weight=1)
 
         # Canvases (images)
         self.canvas_frame = CanvasFrame(self.content_frame, parent_ui=self)
-        self.canvas_frame.grid(row=0, column=0, sticky="n")
+        self.canvas_frame.grid(row=0, column=0, sticky="nsew")
+
+
+        # Navigation bar
+        self.nav_bar = tk.Frame(self)
+        self.nav_bar.grid(row=2, column=0)
+        self.nav_bar.configure(height=110)
+        self.nav_bar.grid_propagate(False)
+
+        self.nav_inner = tk.Frame(self.nav_bar)
+        self.nav_inner.pack(expand=True)
+
+
 
         # Annotation buttons
-        self.ann_frame = AnnotationFrame(self.content_frame,
+        self.ann_frame = AnnotationFrame(self.nav_inner,
                                         on_mark=self.mark_state,
                                         on_correct=self.mark_state,
                                         on_delete=self.delete_box,
                                         on_reset=self.reset_pair)
         
-        self.ann_frame.grid(row=1, column=0, columnspan=2, pady=(30, 5))  
+        self.ann_frame.grid(row=0, column=0, pady=(10, 5))
 
-        # Navigation bar
-        self.nav_bar = tk.Frame(self.content_frame)
-        self.nav_bar.grid(row=2, column=0, columnspan=2, pady=(10, 20))
+        self.nav_center = tk.Frame(self.nav_inner)
+        self.nav_center.grid(row=1, column=0)
 
-        self.prev_btn = ttk.Button(self.nav_bar, text="Prev (s)", style=STYLE_NAV, command=self.prev_pair)
+
+        self.prev_btn = ttk.Button(self.nav_center, text="Prev (s)", style=STYLE_NAV, command=self.prev_pair)
         self.prev_btn.pack(side="left", padx=30, pady=15)
+        # self.prev_btn.grid(row=1, column=0, sticky="e", padx=30, pady=15)
 
-        self.status = StatusFrame(self.nav_bar)
+        self.status = StatusFrame(self.nav_center)
         self.status.pack(side="left", padx=10)
+        # self.status.grid(row=1, column=1, padx=10)
 
-        self.next_btn = ttk.Button(self.nav_bar, text="Next (f)", style=STYLE_NAV, command=self.next_pair)
+        self.next_btn = ttk.Button(self.nav_center, text="Next (f)", style=STYLE_NAV, command=self.next_pair)
         self.next_btn.pack(side="left", padx=30, pady=15)
-
+        # self.next_btn.grid(row=1, column=2, sticky="w", padx=30, pady=15)
 
         # --- Keyboard Shortcuts ---
         root.bind("a", lambda e: self.mark_state("annotated"))   # A = Annotate
@@ -124,7 +144,7 @@ class UIElements(tk.Frame):
         root.bind("x", lambda e: self.reset_pair())              # X = Reset pair
         root.bind("f", lambda e: self.next_pair())               # F = Next pair
         root.bind("s", lambda e: self.prev_pair())               # S = Previous pair
-
+        root.bind("e", lambda e: self.mark_state("edge_case"))   # E = edge case
 
         self.refresh()
 
@@ -149,6 +169,9 @@ class UIElements(tk.Frame):
         ann_all = self.data_handler.saver.annotations
         ann_lookup = ann_all.get("items", ann_all)
         data = ann_lookup.get(pid, {})
+
+        print("current data:")
+        pprint(data)
         state = data.get("pair_state")
 
 
@@ -164,11 +187,17 @@ class UIElements(tk.Frame):
             boxes_predicted = []
 
         expected = pair.source_item.get("expected")
-        root = self.winfo_toplevel()
-        root.update_idletasks()
-        root_w, root_h = root.winfo_width(), root.winfo_height()
-        if root_w <= 1 or root_h <= 1:
-            root_w, root_h = 1200, 800
+
+        canvas = self.canvas_frame
+
+        canvas.update_idletasks()
+
+        available_w = canvas.winfo_width()
+        available_h = canvas.winfo_height()
+
+        # Fallback beim ersten Render
+        if available_w <= 1 or available_h <= 1:
+            return
 
 
         self.displayer.display_pair(
@@ -179,8 +208,8 @@ class UIElements(tk.Frame):
             expected,
             boxes_expected,
             boxes_predicted,
-            max_w=root_w,
-            max_h=root_h
+            max_w=available_w,
+            max_h=available_h
         )
         if not getattr(self.handler, "_moving", False):
             self.handler.selected_box_index = None
@@ -235,27 +264,50 @@ class UIElements(tk.Frame):
     def next_pair(self):
         old_info = self.data_handler.context_info()
         old_pair = self.data_handler.current_pair() 
+        
+        state_before = self.data_handler.saver.annotations
+
+        
         # Detect if we are currently at the last pair *before* moving on
         mode = self.data_handler.mode
 
         pid = str(old_pair.pair_id)
         ann_all = self.data_handler.saver.annotations
         entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
-        print("#### entry: ", entry)
 
-        if not entry or "pair_state" not in entry:
+        if entry:
+            pair_state = entry.get("pair_state")
+            boxes = entry.get("boxes") or entry.get("annotations")
+
+            if pair_state == "annotated" and not boxes:
+                messagebox.showwarning(
+                    "box missing",
+                    "draw box before skipping to next pair"
+                )
+                return
+
+        print("#### entry: ", entry)
+        
+        if not entry or "pair_state" not in entry or not pair_state:
             if mode == "review":
                 decision = "accepted"
                 state = old_pair.source_item.get("expected")
+
+                boxes = []
+
+                if old_pair.source_item.get("expected") in ("added", "annotated"):
+                    boxes = [dict(b) for b in old_pair.source_item.get("boxes_expected", [])]
+                    
+
                 print("##### state after skipping: ", state)
                 self.data_handler.saver.save_pair(
+                    state_before,
                     old_pair,
                     state,
                     decision,
-                    self.data_handler.context_info()
+                    self.data_handler.context_info(),
+                    expected_boxes=boxes
                 )
-                if state == "annotation":
-                    expected_boxes = old_pair.source_item.get("expected_boxes")
 
 
         if mode == "annotation":
@@ -333,21 +385,38 @@ class UIElements(tk.Frame):
     # Annotation callbacks (wire to logic_saver later)
     def mark_state(self, state):
         pair = self.data_handler.current_pair()
+        state_before = self.data_handler.saver.annotations
         total_pairs = len(self.data_handler.pairs)
 
-        if state == "accepted" or state == pair.source_item["expected"]:
-            state = pair.source_item["expected"]
-            decision = "accepted"
+        if state != "edge_case":
+            # if state == "accepted" or state == pair.source_item["expected"] or (state == "annotated" == pair.source_item["expected"] == "added"):
+            if state == "accepted" or state == pair.source_item["expected"] or (state == "annotated" == pair.source_item["expected"] == "added"):
+                state = pair.source_item["expected"]
+                decision = "accepted"
+            else:
+                decision = "corrected"
+
+            print("decision", decision)
+            
+            # self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
+            boxes = []
+            if state in ("added", "annotated"):
+                boxes = [dict(b) for b in pair.source_item.get("boxes_expected", [])]
+            self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info(), expected_boxes=boxes)
+            if state in ("annotated", "added") and not boxes:
+                for canvas in (self.canvas_frame.canvas_left, self.canvas_frame.canvas_right):
+                    canvas.delete("expected_box")
+                    self.refresh()
+                # enable box drawing only when "Annotate" pressed
+                self.canvas_frame.attach_boxes(self.handler, pair)
+                
+            else: self.next_pair()
+
+            print(f"Marked: {state}")
         else:
-            decision = "corrected"
-
-        self.data_handler.saver.save_pair(pair, state, decision, self.data_handler.context_info())
-        if state == "annotated":
-            # enable box drawing only when "Annotate" pressed
-            self.canvas_frame.attach_boxes(self.handler, pair)
-        else: self.next_pair()
-
-        print(f"Marked: {state}")
+            self.data_handler.saver.save_pair(state_before, pair, "edge_case", "edge_case", self.data_handler.context_info())
+            print("Marked as edge case")
+            self.next_pair()
 
     def delete_box(self):
         """Delete the currently selected box safely."""
@@ -361,9 +430,11 @@ class UIElements(tk.Frame):
     def reset_pair(self):
         pair = self.data_handler.current_pair()
         ctx = self.data_handler.context_info()
+        for canvas in (self.canvas_frame.canvas_left, self.canvas_frame.canvas_right):
+            canvas.delete("box")
+            print("Reset boxes") 
         self.data_handler.saver.reset_pair(pair, ctx)
         self.refresh()
-        print("Reset boxes")
 
 
     def skip_session(self):
@@ -412,9 +483,11 @@ class CanvasFrame(tk.Frame):
         self.canvas_left.grid(row=0, column=0)
         self.canvas_right.grid(row=0, column=1)
 
-        self.crosshair_left = Crosshair(self.canvas_left)
-        self.crosshair_right = Crosshair(self.canvas_right)
+        self.crosshair_left = Crosshair(self.canvas_left, self.canvas_right)
+        self.crosshair_right = Crosshair(self.canvas_right, self.canvas_left)
 
+        self.crosshair_left.slave = self.crosshair_right
+        self.crosshair_right= self.crosshair_left
 
     def _scale_image(self, pil_img, max_w, max_h):
         w, h = pil_img.size
