@@ -310,6 +310,63 @@ class ReviewDatabaseManager:
 
 
 
+    def get_user_stats_by_model(self, model_name: str):
+        if not self._initialized:
+            self.initialize()
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT reviewer,
+                    SUM(CASE WHEN decision='accepted' THEN 1 ELSE 0 END) AS accepted,
+                    SUM(CASE WHEN decision='corrected' THEN 1 ELSE 0 END) AS corrected
+                FROM reviews
+                WHERE model_name = ?
+                GROUP BY reviewer
+            """, (model_name,))
+
+            stats = {}
+            for reviewer, accepted, corrected in cursor.fetchall():
+                accepted = accepted or 0
+                corrected = corrected or 0
+                stats[reviewer] = {
+                    "accepted": accepted,
+                    "corrected": corrected,
+                    "total": accepted + corrected
+                }
+
+            return stats
+
+
+    def get_annotator_stats_by_model(self, model_name: str):
+        if not self._initialized:
+            self.initialize()
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT annotated_by,
+                    SUM(CASE WHEN decision='accepted' THEN 1 ELSE 0 END) AS accepted,
+                    SUM(CASE WHEN decision='corrected' THEN 1 ELSE 0 END) AS corrected
+                FROM reviews
+                WHERE model_name = ?
+                GROUP BY annotated_by
+            """, (model_name,))
+
+            stats = {}
+            for annotator, accepted, corrected in cursor.fetchall():
+                accepted = accepted or 0
+                corrected = corrected or 0
+                total = accepted + corrected
+
+                stats[annotator] = {
+                    "accepted": accepted,
+                    "corrected": corrected,
+                    "total": total,
+                    "errorRate": (corrected / total) if total > 0 else 0.0
+                }
+
+            return stats
+
+
 # global singleton
 _review_manager = ReviewDatabaseManager()
 
@@ -341,3 +398,9 @@ def get_reviewed_pair_ids_by_annotator_and_model(model_name, annotator):
     return _review_manager.get_reviewed_pair_ids_by_annotator_and_model(
         model_name, annotator
     )
+
+def get_user_review_stats_by_model(model_name: str):
+    return _review_manager.get_user_stats_by_model(model_name)
+
+def get_annotator_review_stats_by_model(model_name: str):
+    return _review_manager.get_annotator_stats_by_model(model_name)
