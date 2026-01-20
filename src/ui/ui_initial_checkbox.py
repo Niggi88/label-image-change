@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 import tkinter.simpledialog as sd
+import requests
 
 class Checkbox:
     def __init__(self, default_user):
@@ -13,7 +14,18 @@ class Checkbox:
             "sarah",
         ]
 
-        self.model_list = ["main_real_data_large_xl-images_v1_20251215_133019", "real_data_v9_medium_santionly_20251127_181108"]
+        self.model_list = []
+
+
+    def get_models_from_server(self):
+        resp = requests.get("http://172.30.20.31:8081/api/inconsistent/models")
+        resp.raise_for_status()
+
+        data = resp.json()
+        self.model_list = [item["modelName"] for item in data]
+
+        if not self.model_list:
+            raise RuntimeError("No available models returned from server")
 
 
     def _build_annotator_checkboxes(self, parent, default_user):
@@ -54,6 +66,7 @@ class Checkbox:
     def _build_model_dropdown(self, parent):
         tk.Label(parent, text="Choose model:", font=("Arial", 12)).pack(pady=(20, 5))
 
+        self.get_models_from_server()
         model_var = tk.StringVar(value=self.model_list[0])
         longest = max(len(item) for item in self.model_list)
 
