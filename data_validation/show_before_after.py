@@ -3,14 +3,14 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from io import BytesIO
 import json
-
-
+from datetime import datetime
+from pathlib import Path
 
 BASE_URL = "http://172.30.20.31:8081"
 API_URL = "http://172.30.20.31:8081/review/changed/yesterday" # random
 
 API_URL_RANDOM = "http://172.30.20.31:8081/review/changed/random"
-LIMIT = 50
+LIMIT = 2
 
 COLOR_PREV = "gray"
 COLOR_REVIEWED = "red"
@@ -63,12 +63,43 @@ def draw_boxes(ax, boxes, color):
         ax.add_patch(rect)
 
 
+def format_pair_key(key: str) -> str:
+    # store__session__img1__img2
+    store, session, img1, img2 = key.split("__")
+
+    def img_index(img):
+        # "18-xxxx_top_0" → "18"
+        return img.split("-", 1)[0]
+
+    i1 = img_index(img1)
+    i2 = img_index(img2)
+
+    return (
+        f"{store}\n"
+        f"{session} / {i1}-{i2}"
+    )
+
+
+
 def show_pair(pair):
+
+    timestamp = pair['reviewed']['timestamp']
+    timestamp = datetime.fromisoformat(timestamp)
+    
+    file_path = Path(pair['file_path'])
+    file_path = file_path.parts[2:6]
+    file_path = Path(*file_path)
+
     im1 = load_image(pair["im1_url"])
     im2 = load_image(pair["im2_url"])
 
     fig, axes = plt.subplots(1,2,figsize=(20,15))
-    fig.suptitle(f"{pair['key']} from {pair['reviewed']}" , fontsize=12)
+    fig.suptitle(
+        f"{format_pair_key(pair['key'])}\n"
+        f"path: {file_path}\n"
+        f"from {timestamp.strftime('%Y-%m-%d %H:%M')}",
+        fontsize=15
+    )
 
     axes[0].imshow(im1)
     axes[1].imshow(im2)
@@ -88,16 +119,18 @@ def show_pair(pair):
 
         plt.figtext(
             0.5, 0.02,
-            f"previously: {prev_state} | reviewed {rev_state}"
+            f"annotated by: {pair['previously']['annotator']} as {prev_state}\n"
+            f"reviewed by: {pair['previously']['reviewer']} as {rev_state}",
+            fontsize=16
         )
 
-    # elif pair["original"]:
-    #     draw_boxes(axes[0], pair["original"]["boxes"], COLOR_ORIGINAL)
-    #     draw_boxes(axes[1], pair["original"]["boxes"], COLOR_ORIGINAL)
-    #     plt.figtext(
-    #         0.5, 0.02,
-    #         f"original: {pair['original']['pair_state']}"
-    #     )
+    elif pair["original"]:
+        draw_boxes(axes[0], pair["original"]["boxes"], COLOR_ORIGINAL)
+        draw_boxes(axes[1], pair["original"]["boxes"], COLOR_ORIGINAL)
+        plt.figtext(
+            0.5, 0.02,
+            f"original: {pair['original']['pair_state']}"
+        )
     plt.tight_layout()
     plt.show()
 
@@ -143,8 +176,8 @@ def show_issues():
         show_pair(pair)
 
 
-def show_issues_change_data():
-    resp = requests.get("http://172.30.20.31:8081/validate/change_data/known_issues")
+def show_issues_change_data(limit):
+    resp = requests.get("http://172.30.20.31:8081/validate/change_data/known_issues",params={"limit": limit})
     resp.raise_for_status()
 
     data = resp.json()
@@ -170,6 +203,24 @@ def show_random_change_data(limit):
     data = resp.json()
     items = data.get("items", [])
 
+    print(items)
+
+    reviewed = items.get("reviewed")
+    
+    for pair in items:
+        show_pair(pair)
+
+
+def show_recent_change_data(limit, recently_until, annotator, reviewer, sorted):
+    resp = requests.get("http://172.30.20.31:8081/change_data/recent", params={"limit": limit, "recently_until": recently_until, "annotator": annotator, "reviewer": reviewer, "sorted": sorted})
+    resp.raise_for_status()
+
+    data = resp.json()
+    items = data.get("items", [])
+
+    print(items)
+
+
     for pair in items:
         show_pair(pair)
 
@@ -177,5 +228,6 @@ if __name__ == "__main__":
     # main()
     # show_issues()
     # show_random(LIMIT)
-    # show_issues_change_data()
-    show_random_change_data(LIMIT)
+    # show_issues_change_data(limit=LIMIT)
+    # show_random_change_data(LIMIT)
+    show_recent_change_data(limit=LIMIT, recently_until=5, annotator=None, reviewer="niklas", sorted=True)
