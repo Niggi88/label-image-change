@@ -400,15 +400,16 @@ class UIElements(tk.Frame):
             
             # self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
             boxes = []
-            if state in ("added", "annotated"):
+            if state in ("added", "annotated") and pair.source_item.get("boxes_expected"):
                 boxes = [dict(b) for b in pair.source_item.get("boxes_expected", [])]
-            self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info(), expected_boxes=boxes)
-            if state in ("annotated", "added") and not boxes:
+                self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info(), expected_boxes=boxes)
+            if state in ("annotated", "added"):
                 for canvas in (self.canvas_frame.canvas_left, self.canvas_frame.canvas_right):
                     canvas.delete("expected_box")
                     self.refresh()
                 # enable box drawing only when "Annotate" pressed
                 self.canvas_frame.attach_boxes(self.handler, pair)
+                print(f"Marked state after annotation: {state}")
                 
             else: self.next_pair()
 
