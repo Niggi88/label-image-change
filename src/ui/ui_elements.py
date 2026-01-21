@@ -409,6 +409,8 @@ class UIElements(tk.Frame):
                     self.refresh()
                 # enable box drawing only when "Annotate" pressed
                 self.canvas_frame.attach_boxes(self.handler, pair)
+                self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
+
                 print(f"Marked state after annotation: {state}")
                 
             else: self.next_pair()
