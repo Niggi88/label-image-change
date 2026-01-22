@@ -10,7 +10,7 @@ from src.config import DATASET_DIR
 from tkinter import messagebox
 from pprint import pprint
 
-
+from src.logic_annotation.verify_data import DataVerifier
 dataset_path = DATASET_DIR
 saving_path = "/home/sarah/Documents/change_detection/label-image-change"
 
@@ -275,6 +275,11 @@ class UIElements(tk.Frame):
         ann_all = self.data_handler.saver.annotations
         entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
 
+        print("---- default entry: ")
+        pprint(entry)
+        verifier = DataVerifier()
+        verifier.verify_result_record(entry)
+        
         if entry:
             pair_state = entry.get("pair_state")
             boxes = entry.get("boxes") or entry.get("annotations")
@@ -369,7 +374,6 @@ class UIElements(tk.Frame):
                     "no_annotation",
                     self.data_handler.context_info(),
                 )
-
 
         self.refresh()
             

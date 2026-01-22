@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Literal, Dict, Any
 from tkinter import messagebox
-
+from pprint import pprint
 
 PairState = Literal[
     "nothing", "chaos", "no_annotation", "added", "annotated", "edge_case"
@@ -66,6 +66,7 @@ class DataVerifier:
     @staticmethod
     def check_boxes_vs_state(pair_state: PairState, boxes: List[Box]) -> List[Box]:
         if pair_state in STATES_REQUIRE_BOXES and not boxes:
+            print("boxes provided: ", boxes)
             messagebox.showerror(
                 "Invalid Data",
                 f"pair_state={pair_state} requires boxes, but none were provided."
@@ -84,13 +85,13 @@ class DataVerifier:
     @staticmethod
     def check_boxes_annotation_type(boxes: List[Box]) -> None:
         for box in boxes:
-            if box.annotation_type not in ANNOTATION_TYPES:
+            if box["annotation_type"] not in ANNOTATION_TYPES:
                 messagebox.showerror(
                     "Invalid Data",
-                    f"Invalid annotation_type: {box.annotation_type}. Must be one of {ANNOTATION_TYPES}."
+                    f"Invalid annotation_type: {box['annotation_type']}. Must be one of {ANNOTATION_TYPES}."
                 )
                 raise ValueError(
-                    f"Invalid annotation_type: {box.annotation_type}"
+                    f"Invalid annotation_type: {box['annotation_type']}"
                 )
             
     @staticmethod
@@ -121,8 +122,10 @@ class DataVerifier:
     def verify_result_record(cls, data: Dict[str, Any]) -> ResultRecord:
         ps = cls.check_valid_pair_state(data["pair_state"])
         boxes = data.get("boxes", [])
-        # cls.check_boxes_vs_state(ps, boxes)
-        # cls.check_boxes_annotation_type(boxes)
+        pprint(data)
+        print("boxes: ", boxes)
+        cls.check_boxes_vs_state(ps, boxes)
+        cls.check_boxes_annotation_type(boxes)
 
         im1 = data["im1_path"]
         im2 = cls.images_must_differ(im1, data["im2_path"])
