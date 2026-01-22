@@ -279,7 +279,7 @@ class UIElements(tk.Frame):
         pprint(entry)
         verifier = DataVerifier()
         verifier.verify_result_record(entry)
-        
+
         if entry:
             pair_state = entry.get("pair_state")
             boxes = entry.get("boxes") or entry.get("annotations")
@@ -417,8 +417,9 @@ class UIElements(tk.Frame):
 
                 print(f"Marked state after annotation: {state}")
                 
-            else: self.next_pair()
-
+            else:
+                self.data_handler.saver.save_pair(state_before, pair, state, decision, self.data_handler.context_info())
+                self.next_pair()
             print(f"Marked: {state}")
         else:
             self.data_handler.saver.save_pair(state_before, pair, "edge_case", "edge_case", self.data_handler.context_info())
