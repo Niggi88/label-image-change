@@ -277,8 +277,6 @@ class UIElements(tk.Frame):
 
         print("---- default entry: ")
         pprint(entry)
-        verifier = DataVerifier()
-        verifier.verify_result_record(entry)
 
         if entry:
             pair_state = entry.get("pair_state")
@@ -313,7 +311,10 @@ class UIElements(tk.Frame):
                     self.data_handler.context_info(),
                     expected_boxes=boxes
                 )
-
+                
+        entry = ann_all.get("items", {}).get(pid) if "items" in ann_all else ann_all.get(pid)
+        verifier = DataVerifier()
+        verifier.verify_result_record(entry)
 
         if mode == "annotation":
             # klassisches Session-Verhalten
