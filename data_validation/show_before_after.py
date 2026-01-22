@@ -10,7 +10,7 @@ BASE_URL = "http://172.30.20.31:8081"
 API_URL = "http://172.30.20.31:8081/review/changed/yesterday" # random
 
 API_URL_RANDOM = "http://172.30.20.31:8081/review/changed/random"
-LIMIT = 2
+LIMIT = 20
 
 COLOR_PREV = "gray"
 COLOR_REVIEWED = "red"
@@ -211,8 +211,8 @@ def show_random_change_data(limit):
         show_pair(pair)
 
 
-def show_recent_change_data(limit, recently_until, annotator, reviewer, sorted):
-    resp = requests.get("http://172.30.20.31:8081/change_data/recent", params={"limit": limit, "recently_until": recently_until, "annotator": annotator, "reviewer": reviewer, "sorted": sorted})
+def show_recent_change_data(limit, recently_until, annotator, reviewer, sorted, data_path):
+    resp = requests.get("http://172.30.20.31:8081/change_data/recent", params={"limit": limit, "recently_until": recently_until, "annotator": annotator, "reviewer": reviewer, "data_path": data_path, "sorted": sorted})
     resp.raise_for_status()
 
     data = resp.json()
@@ -225,9 +225,10 @@ def show_recent_change_data(limit, recently_until, annotator, reviewer, sorted):
         show_pair(pair)
 
 if __name__ == "__main__":
-    # main()
+    main()
     # show_issues()
     # show_random(LIMIT)
     # show_issues_change_data(limit=LIMIT)
     # show_random_change_data(LIMIT)
-    show_recent_change_data(limit=LIMIT, recently_until=5, annotator=None, reviewer="niklas", sorted=True)
+    # inconsistent_path = Path("/opt/datasets/change_detection/change_data/review_batches/inconsistent_results")
+    # show_recent_change_data(limit=LIMIT, recently_until=2, annotator=None, reviewer=None, data_path=inconsistent_path, sorted=True)
