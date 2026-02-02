@@ -7,6 +7,8 @@ from itertools import chain
 from loguru import logger
 from data_handling import data_config as config
 
+logger.add("/tmp/json-to-yolo.log", level="INFO")
+
 class YoloPaths:
     def __init__(self, split_dir):
         self._split_dir = split_dir
@@ -92,6 +94,8 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
             label_lines = ["1"]
             STATS["no_idea"] += 1
         elif pair_state in ["annotated", "added"]:
+            if pair_state == "added":
+                logger.warning(f"added still used in: {pair_guid}")
             if len(boxes) == 0:
                 fail_paths.append([store, session, img1_str, img2_str])
                 continue
