@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from itertools import chain
 from loguru import logger
 from data_handling import data_config as config
+from tqdm import tqdm
 
 logger.add("/tmp/json-to-yolo.log", level="INFO")
 
@@ -45,7 +46,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
     with open(annotation_file) as f:
         annotations = json.load(f)
 
-    print(f"Loaded {len(annotations)} pairs.")
+    # print(f"Loaded {len(annotations)} pairs.")
 
     if override_root is None:
         root_path = Path(annotations["_meta"]["root"])
@@ -117,7 +118,6 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
                 atypes.add(atype)
                 class_id = "2" if atype == "item_added" else "3"
                 if class_id == "3": 
-                    
                     STATS["removed"] += 1
                 elif class_id == "2":
                     STATS["annotated"] += 1
@@ -146,14 +146,14 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
         with open(label_path, "w") as lf:
             lf.write("\n".join(label_lines))
 
-            print(f"✅ Saved Pair {index_string}:")
-            print(f"   Image1: {im1_target}")
-            print(f"   Image2: {im2_target}")
-            print(f"   Labels: {label_path}")
+            # print(f"✅ Saved Pair {index_string}:")
+            # print(f"   Image1: {im1_target}")
+            # print(f"   Image2: {im2_target}")
+            # print(f"   Labels: {label_path}")
         
 
-    print("\n🎉 Export finished successfully!")
-    print(f"\n{fails} fails though :-(")
+    # print("\n🎉 Export finished successfully!")
+    # print(f"\n{fails} fails though :-(")
 
     return index
 
@@ -173,14 +173,14 @@ if __name__ == "__main__":
     for _ in all_annotators:
         
         test_annotator = train_annotators.pop()
+
+        # test set
+        ds_name = f"{test_set_base_name}_{test_annotator}"
+        dataset_configs.append([ds_name, [test_annotator]])
         
         # train set
         ds_name = f"{train_set_base_name}_{test_annotator}"
         dataset_configs.append([ds_name, train_annotators])
-
-        # test set
-        ds_name = f"{test_set_base_name}_{test_annotator}"
-        dataset_configs.append([ds_name, test_annotator])
 
         train_annotators = [test_annotator] + train_annotators
 
@@ -214,16 +214,19 @@ if __name__ == "__main__":
                 p.mkdir(parents=True, exist_ok=True)
 
         in_dataset_file_names = [(config.raw_data / dataset_name).glob("*.json") for dataset_name in config.src_data_names]
-        
+        print("config.raw_data", config.raw_data)
+        print("config.src_data_names", config.src_data_names)
+
         annotation_files = list(chain(
             *in_dataset_file_names
         ))
         
-        
+        print("annotation_files:", len(annotation_files))
+        assert len(annotation_files) != 0, f"Expected more than {len(annotation_files)} annotation files"
         index = 0
-        for f in annotation_files:
+        for f in tqdm(annotation_files):
             index = export_session(f, index, yolo_splitted_paths, override_root=config.override_root)
-        print(len(annotation_files))
+        # print(len(annotation_files))
         from yolo_config import generate_dataset_config
     
         class_names = [
