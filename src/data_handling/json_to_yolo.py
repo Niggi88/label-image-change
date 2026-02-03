@@ -2,6 +2,8 @@ import sys
 import json
 import shutil
 from pathlib import Path
+
+from numpy.random.tests import data
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from itertools import chain
 from loguru import logger
@@ -157,54 +159,87 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
 
 
 if __name__ == "__main__":
-    fails = 0
-    fail_paths = []
-    STATS = {
-        "nothing"   : 0,
-        "no_idea"   : 0,
-        "annotated"     : 0,
-        "removed"   : 0,
-        "added_and_removed": 0,
-        "atypes": []
-    }
-
-    # === CONFIG ===
-    yolo_splitted_paths = YoloPathsSplit(config.out_datasets_dir)
-
-
-    # Create output folders
-    for yolo_paths in [yolo_splitted_paths.val, yolo_splitted_paths.train]:
-        for p in [yolo_paths.images1, yolo_paths.images2, yolo_paths.labels]:
-            p.mkdir(parents=True, exist_ok=True)
-
-    in_dataset_file_names = [(config.raw_data / dataset_name).glob("*.json") for dataset_name in config.src_data_names]
     
-    annotation_files = list(chain(
-        *in_dataset_file_names
-    ))
-    
-    
-    index = 0
-    for f in annotation_files:
-        # index = export_session(f, index, yolo_splitted_paths)
-        index = export_session(f, index, yolo_splitted_paths, override_root=config.override_root)
-    print(len(annotation_files))
-    from yolo_config import generate_dataset_config
- 
-    class_names = [
-        "nothing",          # 0
-        "no_idea",            # 1
-        "annotated",        # 2
-    ]
-    
-    generate_dataset_config(
-        class_names=class_names,
-        train_path=str(yolo_splitted_paths.train.images1),
-        val_path=str(yolo_splitted_paths.val.images1),
-        output_file=yolo_splitted_paths.yaml
-    )
+    all_annotators = ["santiago", "sarah", "almas", "niklas"]
 
-    for fp in fail_paths:
-        print(fp)
+    train_set_base_name = "images_v3_0"
+    test_set_base_name = "testset_images_v3_0"
 
-    print(STATS)
+    # _out_dataset_name = "testset_xl-images_v3_0"
+    # src_data_names = ["santiago", "sarah", "almas"]
+    # src_data_names = ["niklas"]
+    dataset_configs = []
+    train_annotators = all_annotators.copy()
+    for _ in all_annotators:
+        
+        test_annotator = train_annotators.pop()
+        
+        # train set
+        ds_name = f"{train_set_base_name}_{test_annotator}"
+        dataset_configs.append([ds_name, train_annotators])
+
+        # test set
+        ds_name = f"{test_set_base_name}_{test_annotator}"
+        dataset_configs.append([ds_name, test_annotator])
+
+        train_annotators = [test_annotator] + train_annotators
+
+    for dsc in dataset_configs:
+
+        config._out_dataset_name, config.src_data_names = dsc
+        config.out_datasets_dir = config._base_data_dir / "real_data" / config._out_dataset_name
+        
+        print(config._out_dataset_name)
+        print(config.src_data_names)
+        fails = 0
+        fail_paths = []
+        STATS = {
+            "nothing"   : 0,
+            "no_idea"   : 0,
+            "annotated"     : 0,
+            "removed"   : 0,
+            "added_and_removed": 0,
+            "atypes": []
+        }
+
+        # === CONFIG ===
+        yolo_splitted_paths = YoloPathsSplit(config.out_datasets_dir)
+
+        # from pprint import pprint
+        # print(config.out_datasets_dir)
+        # exit()
+        # Create output folders
+        for yolo_paths in [yolo_splitted_paths.val, yolo_splitted_paths.train]:
+            for p in [yolo_paths.images1, yolo_paths.images2, yolo_paths.labels]:
+                p.mkdir(parents=True, exist_ok=True)
+
+        in_dataset_file_names = [(config.raw_data / dataset_name).glob("*.json") for dataset_name in config.src_data_names]
+        
+        annotation_files = list(chain(
+            *in_dataset_file_names
+        ))
+        
+        
+        index = 0
+        for f in annotation_files:
+            index = export_session(f, index, yolo_splitted_paths, override_root=config.override_root)
+        print(len(annotation_files))
+        from yolo_config import generate_dataset_config
+    
+        class_names = [
+            "nothing",          # 0
+            "no_idea",            # 1
+            "annotated",        # 2
+        ]
+        
+        generate_dataset_config(
+            class_names=class_names,
+            train_path=str(yolo_splitted_paths.train.images1),
+            val_path=str(yolo_splitted_paths.val.images1),
+            output_file=yolo_splitted_paths.yaml
+        )
+
+        for fp in fail_paths:
+            print(fp)
+
+        print(STATS)
