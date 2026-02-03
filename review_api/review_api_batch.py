@@ -50,14 +50,15 @@ def list_available_models():
         return models
 
     # iterate over extractor jsons: <name>.json
-    for batch_file in REVIEW_BATCH_DIR.glob("*.json"):
-        base_name = batch_file.stem          # "<name>"
-        model_file = MODELS_DIR / f"{base_name}.pth"
+    for batch_folder in REVIEW_BATCH_DIR.iterdir(): #?
+        for batch_file in batch_folder.glob("*.json"):
+            base_name = batch_file.stem          # "<name>"
+            model_file = MODELS_DIR / f"{base_name}.pth"
 
-        if model_file.exists() and model_file.is_file():
-            models.append({
-                "modelName": base_name,
-            })
+            if model_file.exists() and model_file.is_file():
+                models.append({
+                    "modelName": base_name,
+                })
 
     models.sort(key=lambda x: x["modelName"])
     return models
@@ -261,7 +262,7 @@ def _assigned_keys() -> set:
 def _sorted_inconsistent_unassigned(selected_users, selected_model) -> List[Dict[str, Any]]:
     assigned = _assigned_keys()
     items: List[Dict[str, Any]] = []
-    for rec in _records_from_inconsistent(INCONSISTENT_PATH / f"{selected_model}.json"):
+    for rec in _records_from_inconsistent(INCONSISTENT_PATH / f"batches_{selected_model}" / f"{selected_model}.json"):
         raw1 = rec.get("im1_path") or f"{rec['store_session_path']}/{rec['im1_name']}"
         raw2 = rec.get("im2_path") or f"{rec['store_session_path']}/{rec['im2_name']}"
         if not raw1 or not raw2:
@@ -385,11 +386,22 @@ def get_or_create_inconsistent_batch(user: str, size: int = 5, selected_users: l
 
 
 def _results_path(batch_id: str) -> Path:
+    batch = _load_batch(batch_id)
+
+    model_name = batch.get("model_name")
+
     base = Path("/opt/datasets/change_detection/change_data/review_batches")
-    if batch_id.startswith("unsure"):
-        return base / "unsure_results" / f"{batch_id}.json"
-    else:
-        return base / "inconsistent_results" / f"{batch_id}.json"
+
+    if not model_name:
+        raise ValueError(f"Batch {batch_id} has no model_name")
+
+
+    return (
+            base
+            / f"batches_{model_name}"
+            / f"results_{model_name}"
+            / f"review_batch_{batch_id}.json"
+        )
 
 
 
