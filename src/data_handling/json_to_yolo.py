@@ -2,6 +2,8 @@ import sys
 import json
 import shutil
 from pathlib import Path
+import cv2
+import numpy as np
 
 from numpy.random.tests import data
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -160,6 +162,32 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
     return index
 
 
+
+def generate_sample(yolo_splitted_paths: YoloPathsSplit, number: int):
+    sample_path: Path = yolo_splitted_paths.train.images1.parent.parent / "sample"
+    sample_path.mkdir(exist_ok=True)
+    print(sample_path)
+
+    image_names_gen = yolo_splitted_paths.train.images1.glob("*")
+    for i, image_dir in enumerate(image_names_gen):
+        assert isinstance(image_dir, Path)
+        # print(image_dir)
+        image_name = image_dir.name
+        image2_dir = yolo_splitted_paths.train.images2 / image_name
+        label_dir = yolo_splitted_paths.train.labels / image_name.replace(".jpeg", ".txt")
+        out_dir = sample_path / image_name
+        image1 = cv2.imread(image_dir)
+        image2 = cv2.imread(image2_dir)
+        
+        image = np.concatenate([image1, image2], axis=1)
+        cv2.imwrite(out_dir, image)
+
+        print(image_name)
+        if i > number:
+            break
+    print(sample_path)
+
+
 if __name__ == "__main__":
     
     all_annotators = ["santiago", "niklas", "sarah", "almas"]
@@ -208,6 +236,8 @@ if __name__ == "__main__":
         # === CONFIG ===
         yolo_splitted_paths = YoloPathsSplit(config.out_datasets_dir)
 
+        generate_sample(yolo_splitted_paths, number=20)
+        exit()
         # from pprint import pprint
         # print(config.out_datasets_dir)
         # exit()
