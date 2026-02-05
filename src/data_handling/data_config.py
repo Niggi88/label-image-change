@@ -20,3 +20,5 @@ IMAGE_SIZE = 832
 raw_data = _base_data_dir / "change_data"
 override_root = raw_data / "images"
 out_datasets_dir = None # _base_data_dir / "real_data" / _out_dataset_name
+
+NO_REMOVED = False

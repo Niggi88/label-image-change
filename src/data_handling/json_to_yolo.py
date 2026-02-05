@@ -127,7 +127,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
             if len(atypes) > 1: 
                 STATS["added_and_removed"] += 1
                 label_lines = ["1"]
-            if "item_removed" in atypes:
+            if config.NO_REMOVED and "item_removed" in atypes:
                 continue
         elif pair_state in ["no_annotation", "edge_case", "item_added"]:
             continue
@@ -160,10 +160,10 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
 
 if __name__ == "__main__":
     
-    all_annotators = ["santiago", "almas", "niklas", "sarah"]
+    all_annotators = ["santiago", "niklas", "sarah", "almas"]
 
-    train_set_base_name = "images_v3_0"
-    test_set_base_name = "testset_images_v3_0"
+    train_set_base_name = "images_v3_0_rem"
+    test_set_base_name = "testset_images_v3_0_rem"
 
     # _out_dataset_name = "testset_xl-images_v3_0"
     # src_data_names = ["santiago", "sarah", "almas"]
