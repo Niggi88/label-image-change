@@ -12,6 +12,13 @@ elif hostname == "niggis-brain":
     _base_data_dir = Path("/media/fast/dataset/snapshot_change_detection")
 
 
+CLASS_NAMES = [
+    "nothing",
+    "no_idea",
+    "added",
+]
+
+
 _out_dataset_name = None # "large_xl-images_v3_0"
 # _out_dataset_name = "testset_xl-images_v3_0"
 src_data_names = None # ["santiago", "sarah", "almas"]

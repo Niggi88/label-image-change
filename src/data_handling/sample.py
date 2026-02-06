@@ -3,6 +3,7 @@ import numpy as np
 from pathlib import Path
 
 from yolo_utils.yolo_paths_split import YoloPathsSplit
+from data_config import CLASS_NAMES
 
 
 def rescale_box(box, orig_w, orig_h):
@@ -54,9 +55,11 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability):
     img2 = cv2.copyMakeBorder(img2, border_size, border_size, border_size, border_size,
                                cv2.BORDER_CONSTANT, value=(200, 200, 200))
     
+    orig_h, orig_w, _ = img1.shape
+
     # Draw bounding box with enhanced styling
     if class_name == "added" and box is not None:
-        boxes = [xywh2xyxy(rescale_box(box)) for box in [box]]
+        boxes = [xywh2xyxy(rescale_box(box, orig_w, orig_h)) for box in [box]]
         x1, y1, x2, y2 = boxes[0]
         
         # Semi-transparent overlay
@@ -134,10 +137,27 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability):
 
 
 
+def read_label(label_dir):
+    with open(label_dir, "r") as f:
+        file = f.readlines()
+    annotations = []
+    for line in file:
+        class_id = int(line[0])
+        box = []
+        if class_id == 2:
+            xywh = line.split()[1:]
+            x, y, w, h = [float(value) for value in xywh]
+            box = [x, y, w, h]
+        annotations.append([CLASS_NAMES[class_id], box])
+    return annotations
+
+
 def generate_sample(yolo_splitted_paths: YoloPathsSplit, number: int):
     sample_path: Path = yolo_splitted_paths.train.images1.parent.parent / "sample"
     sample_path.mkdir(exist_ok=True)
     print(sample_path)
+    for class_name in CLASS_NAMES:
+        (sample_path / class_name).mkdir(exist_ok=True)
 
     image_names_gen = yolo_splitted_paths.train.images1.glob("*")
     for i, img1_path in enumerate(image_names_gen):
@@ -146,12 +166,10 @@ def generate_sample(yolo_splitted_paths: YoloPathsSplit, number: int):
         image_name = img1_path.name
         img2_path = yolo_splitted_paths.train.images2 / image_name
         label_dir = yolo_splitted_paths.train.labels / image_name.replace(".jpeg", ".txt")
-        out_dir = sample_path / image_name
-        # image1 = cv2.imread(image_dir)
-        # image2 = cv2.imread(image2_dir)
-        # image = visualize_prediction(img1_path, img2_path, "class_name", box, probability)
-        image = visualize_prediction(img1_path, img2_path, "class_name", [], 0.9)
-        # image = np.concatenate([image1, image2], axis=1)
+        class_name, box = read_label(label_dir)[0]
+        
+        out_dir = sample_path / class_name / image_name
+        image = visualize_prediction(img1_path, img2_path, class_name, box, 0.9)
         cv2.imwrite(out_dir, image)
 
         print(image_name)
