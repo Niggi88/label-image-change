@@ -92,7 +92,6 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
                 atypes.add(atype)
                 class_id = "2" if atype == "item_added" else "3"
                 if class_id == "3": 
-                    print("removed")
                     STATS["removed"] += 1
                 elif class_id == "2":
                     STATS["annotated"] += 1
@@ -103,7 +102,6 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
                 STATS["added_and_removed"] += 1
                 label_lines = ["1"]
             if config.NO_REMOVED and "item_removed" in atypes:
-                print("now")
                 continue
         elif pair_state in ["no_annotation", "edge_case", "item_added"]:
             continue
@@ -184,7 +182,7 @@ if __name__ == "__main__":
         # === CONFIG ===
         yolo_splitted_paths = YoloPathsSplit(config.out_datasets_dir)
 
-        generate_sample(yolo_splitted_paths, number=20)
+        generate_sample(yolo_splitted_paths, number=200)
         exit()
         # from pprint import pprint
         # print(config.out_datasets_dir)

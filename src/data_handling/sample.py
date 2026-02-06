@@ -1,10 +1,22 @@
 import cv2
 import numpy as np
 from pathlib import Path
+from loguru import logger
 
 from yolo_utils.yolo_paths_split import YoloPathsSplit
 from data_config import CLASS_NAMES
 
+
+CLASS_COLORS = {
+    "nothing": (100, 96, 94),
+    "no_idea": (250, 165, 96),
+    "added": (129, 185, 16),
+    "removed": (231, 76, 60),
+}
+
+
+def get_class_color(class_name):
+    return CLASS_COLORS.get(class_name, (0, 122, 255))
 
 def rescale_box(box, orig_w, orig_h):
     x, y, w, h = box
@@ -16,7 +28,8 @@ def xywh2xyxy(box):
     x1, x2, y1, y2 = int(x - w / 2), int(x + w/2), int(y - h/2), int(y + h/2)
     return x1, y1, x2, y2
     
-def visualize_prediction(img1_path, img2_path, class_name, box, probability):
+
+def visualize_prediction(img1_path, img2_path, class_name, boxes, probability):
     """
     Visualize change detection prediction with professional styling for presentations.
     
@@ -42,7 +55,7 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability):
     orig_h, orig_w, _ = img1.shape
     
     # Professional color scheme
-    COLOR_PRIMARY = (256, 0, 0) # config.classes.color.get(class_name, (0, 122, 255))
+    COLOR_PRIMARY = COLOR_PRIMARY = get_class_color(class_name) # config.classes.color.get(class_name, (0, 122, 255))
     COLOR_BG = (245, 245, 245)
     COLOR_TEXT = (40, 40, 40)
     COLOR_WHITE = (255, 255, 255) 
@@ -58,26 +71,27 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability):
     orig_h, orig_w, _ = img1.shape
 
     # Draw bounding box with enhanced styling
-    if class_name == "added" and box is not None:
-        boxes = [xywh2xyxy(rescale_box(box, orig_w, orig_h)) for box in [box]]
-        x1, y1, x2, y2 = boxes[0]
+    if class_name == "added" and boxes is not None:
         
-        # Semi-transparent overlay
-        overlay = img2.copy()
-        cv2.rectangle(overlay, (x1, y1), (x2, y2), COLOR_PRIMARY, -1)
-        cv2.addWeighted(overlay, 0.15, img2, 0.85, 0, img2)
-        
-        # Main border
-        cv2.rectangle(img2, (x1, y1), (x2, y2), COLOR_PRIMARY, 4)
-        
-        # Corner accents
-        corner_len = min(30, (x2 - x1) // 4, (y2 - y1) // 4)
-        for cx, cy, dx, dy in [(x1, y1, 1, 1), (x2, y1, -1, 1), (x1, y2, 1, -1), (x2, y2, -1, -1)]:
-            cv2.line(img2, (cx, cy), (cx + dx * corner_len, cy), COLOR_WHITE, 3)
-            cv2.line(img2, (cx, cy), (cx, cy + dy * corner_len), COLOR_WHITE, 3)
-        
-        # Reference box on first image (subtle)
-        cv2.rectangle(img1, (x1, y1), (x2, y2), (180, 180, 180), 2, cv2.LINE_AA)
+        boxes = [xywh2xyxy(rescale_box(box, orig_w, orig_h)) for box in boxes]
+        for x1, y1, x2, y2 in boxes:
+            
+            # Semi-transparent overlay
+            overlay = img2.copy()
+            cv2.rectangle(overlay, (x1, y1), (x2, y2), COLOR_PRIMARY, -1)
+            cv2.addWeighted(overlay, 0.15, img2, 0.85, 0, img2)
+            
+            # Main border
+            cv2.rectangle(img2, (x1, y1), (x2, y2), COLOR_PRIMARY, 4)
+            
+            # Corner accents
+            corner_len = min(30, (x2 - x1) // 4, (y2 - y1) // 4)
+            for cx, cy, dx, dy in [(x1, y1, 1, 1), (x2, y1, -1, 1), (x1, y2, 1, -1), (x2, y2, -1, -1)]:
+                cv2.line(img2, (cx, cy), (cx + dx * corner_len, cy), COLOR_WHITE, 3)
+                cv2.line(img2, (cx, cy), (cx, cy + dy * corner_len), COLOR_WHITE, 3)
+            
+            # Reference box on first image (subtle)
+            cv2.rectangle(img1, (x1, y1), (x2, y2), (180, 180, 180), 2, cv2.LINE_AA)
     
     # Professional label badge
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -85,14 +99,15 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability):
     thickness = max(2, int(2.5 * FONT_SCALE))
     
     class_text = class_name.upper()
-    prob_text = f"{int(probability * 100)}%"
+    prob_text = probability
     
     (class_w, class_h), _ = cv2.getTextSize(class_text, font, font_scale * 0.9, thickness)
     (prob_w, prob_h), baseline = cv2.getTextSize(prob_text, font, font_scale * 1.3, thickness + 1)
     
     padding_h, padding_v = int(20 * FONT_SCALE), int(15 * FONT_SCALE)
-    badge_w = max(class_w, prob_w) + 2 * padding_h
-    badge_h = class_h + prob_h + 3 * padding_v + baseline
+    # badge_w = max(class_w, prob_w) + 2 * padding_h
+    badge_w = class_w + 2 * padding_h
+    badge_h = class_h + 3 * padding_v + baseline
     margin = int(20 * FONT_SCALE)
     
     # Gradient background
@@ -108,7 +123,7 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability):
     prob_y = class_y + padding_v + prob_h
     text_x = margin + padding_h
     
-    for text, y, scale, thick in [(class_text, class_y, 0.9, thickness), (prob_text, prob_y, 1.3, thickness + 1)]:
+    for text, y, scale, thick in [(class_text, class_y, 0.9, thickness)]:
         cv2.putText(img2, text, (text_x + 2, y + 2), font, font_scale * scale, (0, 0, 0), thick, cv2.LINE_AA)
         cv2.putText(img2, text, (text_x, y), font, font_scale * scale, COLOR_WHITE, thick, cv2.LINE_AA)
     
@@ -129,17 +144,17 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability):
     result = np.hstack([img1, separator, img2])
 
     # separator = np.ones((img1.shape[0], 8, 3), dtype=np.uint8) * 220
-    rig_h, orig_w = cv2.imread(str(img1_path)).shape[:2]
+    _, orig_w = cv2.imread(str(img1_path)).shape[:2]
     expected_size = (orig_w * 2, orig_h)  # (width, height) für cv2.resize
     result = cv2.resize(result, expected_size)
     
     return result
 
 
-
 def read_label(label_dir):
     with open(label_dir, "r") as f:
         file = f.readlines()
+
     annotations = []
     for line in file:
         class_id = int(line[0])
@@ -148,31 +163,31 @@ def read_label(label_dir):
             xywh = line.split()[1:]
             x, y, w, h = [float(value) for value in xywh]
             box = [x, y, w, h]
-        annotations.append([CLASS_NAMES[class_id], box])
+        class_name = CLASS_NAMES[class_id]
+        annotations.append([class_name, box])
     return annotations
 
 
 def generate_sample(yolo_splitted_paths: YoloPathsSplit, number: int):
     sample_path: Path = yolo_splitted_paths.train.images1.parent.parent / "sample"
     sample_path.mkdir(exist_ok=True)
-    print(sample_path)
+    logger.info(f"generating sample ({number}) at: {sample_path}")
     for class_name in CLASS_NAMES:
         (sample_path / class_name).mkdir(exist_ok=True)
 
     image_names_gen = yolo_splitted_paths.train.images1.glob("*")
     for i, img1_path in enumerate(image_names_gen):
         assert isinstance(img1_path, Path)
-        # print(image_dir)
         image_name = img1_path.name
         img2_path = yolo_splitted_paths.train.images2 / image_name
         label_dir = yolo_splitted_paths.train.labels / image_name.replace(".jpeg", ".txt")
-        class_name, box = read_label(label_dir)[0]
+        annotations = read_label(label_dir)
+        class_name, box = annotations[0]
+        boxes = [annotation[1] for annotation in annotations]
         
         out_dir = sample_path / class_name / image_name
-        image = visualize_prediction(img1_path, img2_path, class_name, box, 0.9)
+        image = visualize_prediction(img1_path, img2_path, class_name, boxes, "label")
         cv2.imwrite(out_dir, image)
 
-        print(image_name)
         if i > number:
             break
-    print(sample_path)
