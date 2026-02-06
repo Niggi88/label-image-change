@@ -1,7 +1,21 @@
 import cv2
+import numpy as np
+from pathlib import Path
+
+from yolo_utils.yolo_paths_split import YoloPathsSplit
 
 
-def visualize_prediction(img1_path, img2_path, class_name, box, probability, dataset: CartChangeDataset):
+def rescale_box(box, orig_w, orig_h):
+    x, y, w, h = box
+    return int(x*orig_w), int(y*orig_h), int(w*orig_w), int(h*orig_h)
+
+
+def xywh2xyxy(box):
+    x, y, w, h = box
+    x1, x2, y1, y2 = int(x - w / 2), int(x + w/2), int(y - h/2), int(y + h/2)
+    return x1, y1, x2, y2
+    
+def visualize_prediction(img1_path, img2_path, class_name, box, probability):
     """
     Visualize change detection prediction with professional styling for presentations.
     
@@ -27,11 +41,12 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability, dat
     orig_h, orig_w, _ = img1.shape
     
     # Professional color scheme
-    COLOR_PRIMARY = config.classes.color.get(class_name, (0, 122, 255))
+    COLOR_PRIMARY = (256, 0, 0) # config.classes.color.get(class_name, (0, 122, 255))
     COLOR_BG = (245, 245, 245)
     COLOR_TEXT = (40, 40, 40)
     COLOR_WHITE = (255, 255, 255) 
-    
+    FONT_SCALE = 1.2
+
     # Add subtle border/shadow effect
     border_size = 3
     img1 = cv2.copyMakeBorder(img1, border_size, border_size, border_size, border_size,
@@ -41,14 +56,8 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability, dat
     
     # Draw bounding box with enhanced styling
     if class_name == "added" and box is not None:
-        boxes = dataset.letterbox_transform.unrescale_boxes(orig_h, orig_w, [box])
-        x_center, y_center, box_w, box_h = boxes[0]
-        
-        # Calculate box coordinates (offset by border)
-        x1 = int((x_center - box_w / 2) * orig_w) + border_size
-        y1 = int((y_center - box_h / 2) * orig_h) + border_size
-        x2 = int((x_center + box_w / 2) * orig_w) + border_size
-        y2 = int((y_center + box_h / 2) * orig_h) + border_size
+        boxes = [xywh2xyxy(rescale_box(box)) for box in [box]]
+        x1, y1, x2, y2 = boxes[0]
         
         # Semi-transparent overlay
         overlay = img2.copy()
@@ -69,8 +78,8 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability, dat
     
     # Professional label badge
     font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = config.font_scale * 1.2
-    thickness = max(2, int(2.5 * config.font_scale))
+    font_scale = FONT_SCALE * 1.2
+    thickness = max(2, int(2.5 * FONT_SCALE))
     
     class_text = class_name.upper()
     prob_text = f"{int(probability * 100)}%"
@@ -78,10 +87,10 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability, dat
     (class_w, class_h), _ = cv2.getTextSize(class_text, font, font_scale * 0.9, thickness)
     (prob_w, prob_h), baseline = cv2.getTextSize(prob_text, font, font_scale * 1.3, thickness + 1)
     
-    padding_h, padding_v = int(20 * config.font_scale), int(15 * config.font_scale)
+    padding_h, padding_v = int(20 * FONT_SCALE), int(15 * FONT_SCALE)
     badge_w = max(class_w, prob_w) + 2 * padding_h
     badge_h = class_h + prob_h + 3 * padding_v + baseline
-    margin = int(20 * config.font_scale)
+    margin = int(20 * FONT_SCALE)
     
     # Gradient background
     for i in range(badge_h):
@@ -101,8 +110,8 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability, dat
         cv2.putText(img2, text, (text_x, y), font, font_scale * scale, COLOR_WHITE, thick, cv2.LINE_AA)
     
     # Bottom labels
-    label_scale = config.font_scale * 0.7
-    label_thick = max(1, int(1.5 * config.font_scale))
+    label_scale = FONT_SCALE * 0.7
+    label_thick = max(1, int(1.5 * FONT_SCALE))
     (lw, lh), lb = cv2.getTextSize("BEFORE", font, label_scale, label_thick)
     label_y = img1.shape[0] - margin
     
@@ -122,3 +131,30 @@ def visualize_prediction(img1_path, img2_path, class_name, box, probability, dat
     result = cv2.resize(result, expected_size)
     
     return result
+
+
+
+def generate_sample(yolo_splitted_paths: YoloPathsSplit, number: int):
+    sample_path: Path = yolo_splitted_paths.train.images1.parent.parent / "sample"
+    sample_path.mkdir(exist_ok=True)
+    print(sample_path)
+
+    image_names_gen = yolo_splitted_paths.train.images1.glob("*")
+    for i, img1_path in enumerate(image_names_gen):
+        assert isinstance(img1_path, Path)
+        # print(image_dir)
+        image_name = img1_path.name
+        img2_path = yolo_splitted_paths.train.images2 / image_name
+        label_dir = yolo_splitted_paths.train.labels / image_name.replace(".jpeg", ".txt")
+        out_dir = sample_path / image_name
+        # image1 = cv2.imread(image_dir)
+        # image2 = cv2.imread(image2_dir)
+        # image = visualize_prediction(img1_path, img2_path, "class_name", box, probability)
+        image = visualize_prediction(img1_path, img2_path, "class_name", [], 0.9)
+        # image = np.concatenate([image1, image2], axis=1)
+        cv2.imwrite(out_dir, image)
+
+        print(image_name)
+        if i > number:
+            break
+    print(sample_path)

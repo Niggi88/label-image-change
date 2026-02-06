@@ -2,45 +2,17 @@ import sys
 import json
 import shutil
 from pathlib import Path
-import cv2
-import numpy as np
 
-from numpy.random.tests import data
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from itertools import chain
 from loguru import logger
 from data_handling import data_config as config
 from tqdm import tqdm
+from yolo_utils.yolo_paths_split import YoloPathsSplit
+from sample import generate_sample
 
 logger.add("/tmp/json-to-yolo.log", level="INFO")
 
-class YoloPaths:
-    def __init__(self, split_dir):
-        self._split_dir = split_dir
-        
-    @property
-    def images1(self):
-        return self._split_dir / "images1" # links
-    
-    @property
-    def images2(self):
-        return self._split_dir / "images2" # rechts
-    
-    @property
-    def labels(self):
-        return self._split_dir / "labels"
-    
-    
-class YoloPathsSplit:
-    def __init__(self, split_dir):
-        self._split_dir = split_dir
-        self.val = YoloPaths(split_dir / "val")
-        self.train = YoloPaths(split_dir / "train")
-    
-    @property
-    def yaml(self):
-        return self._split_dir / "dataset.yaml"
-    
 
 def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, override_root=None):
     # Load your annotations
@@ -162,30 +134,6 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
     return index
 
 
-
-def generate_sample(yolo_splitted_paths: YoloPathsSplit, number: int):
-    sample_path: Path = yolo_splitted_paths.train.images1.parent.parent / "sample"
-    sample_path.mkdir(exist_ok=True)
-    print(sample_path)
-
-    image_names_gen = yolo_splitted_paths.train.images1.glob("*")
-    for i, image_dir in enumerate(image_names_gen):
-        assert isinstance(image_dir, Path)
-        # print(image_dir)
-        image_name = image_dir.name
-        image2_dir = yolo_splitted_paths.train.images2 / image_name
-        label_dir = yolo_splitted_paths.train.labels / image_name.replace(".jpeg", ".txt")
-        out_dir = sample_path / image_name
-        image1 = cv2.imread(image_dir)
-        image2 = cv2.imread(image2_dir)
-        
-        image = np.concatenate([image1, image2], axis=1)
-        cv2.imwrite(out_dir, image)
-
-        print(image_name)
-        if i > number:
-            break
-    print(sample_path)
 
 
 if __name__ == "__main__":
