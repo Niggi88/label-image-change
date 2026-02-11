@@ -104,6 +104,12 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
             if config.NO_REMOVED and "item_removed" in atypes:
                 continue
         elif pair_state in ["no_annotation", "edge_case", "item_added"]:
+            if pair_state == "edge_case":
+                STATS["edge_case"] += 1
+            if pair_state == "no_annotation":
+                STATS["no_annotation"] += 1
+            if pair_state == "item_added":
+                STATS["illegal_item_added_as_pair_state"]
             continue
         else:
             raise Exception(f"unknown pair_state: {pair_state}")
@@ -176,6 +182,9 @@ if __name__ == "__main__":
             "annotated"     : 0,
             "removed"   : 0,
             "added_and_removed": 0,
+            "edge_case": 0,
+            "no_annotation": 0,
+            "illegal_item_added_as_pair_state": 0,
             "atypes": []
         }
 
