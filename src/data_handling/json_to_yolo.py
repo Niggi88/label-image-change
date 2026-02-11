@@ -182,8 +182,6 @@ if __name__ == "__main__":
         # === CONFIG ===
         yolo_splitted_paths = YoloPathsSplit(config.out_datasets_dir)
 
-        generate_sample(yolo_splitted_paths, number=200)
-        exit()
         # from pprint import pprint
         # print(config.out_datasets_dir)
         # exit()
@@ -225,3 +223,6 @@ if __name__ == "__main__":
             print(fp)
 
         print(STATS)
+
+        logger.info("generating sample ...")
+        generate_sample(yolo_splitted_paths, number=200)
