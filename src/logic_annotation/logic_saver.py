@@ -432,7 +432,7 @@ class InconsistentSaver(ReviewSaver):
                 "reviewer": reviewer,
                 "timestampOriginalAnnotation": pair.source_item.get("timestampOriginalAnnotation")
             },
-            "model_predicition": {
+            "model_prediction": {
                 "pair_state": predicted_state,
                 "boxes": predicted_boxes,
                 "selected_model": self.model
