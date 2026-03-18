@@ -60,6 +60,15 @@ else:
         SEGMENTATION_PATH = "/home/sarah/Documents/change_detection/local_paths/segmented_boxes"
         DATASET_DIR = f"/home/sarah/Documents/data/{DATASET_NAME}"
 
+    elif HOSTNAME == "sarah-Dell-16-Premium-DA16250":
+        USERNAME = "sarah"
+        DATASET_NAME = "small_set"
+        # DATASET_DIR = f"/home/sarah/Documents/background_segmentation/{DATASET_NAME}"
+        LOCAL_LOG_DIR = "/home/sarah/projects/status/snapshot_change_detection/label_tool/local_log_dir"
+        SEGMENTATION_PATH = "/home/sarah/Documents/change_detection/local_paths/segmented_boxes"
+        DATASET_DIR = f"/home/sarah/projects/dataset/snapshot_change_detection/samples{DATASET_NAME}"
+
+
     elif HOSTNAME == "NB-ENDRES":
         USERNAME = "sarah_windoof"
         DATASET_NAME = "example_sessions"
