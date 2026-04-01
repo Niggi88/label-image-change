@@ -20,8 +20,6 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
     with open(annotation_file) as f:
         annotations = json.load(f)
 
-    # print(f"Loaded {len(annotations)} pairs.")
-
     if override_root is None:
         root_path = Path(annotations["_meta"]["root"])
     else:
@@ -30,6 +28,7 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
     global fails
     global fail_paths
     for i, (pair_id, pair_data) in enumerate(annotations.items()):
+        has_removed = False
         index += 1
         if pair_id == "_meta":
             continue  # skip metadata
@@ -98,6 +97,8 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
                 else:
                     raise Exception(f"unknown atype: {atype}: {class_id}")
                 label_lines.append(f"{class_id} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
+                if atype == "item_removed":
+                    has_removed = True
             if len(atypes) > 1: 
                 STATS["added_and_removed"] += 1
                 label_lines = ["1"]
@@ -125,15 +126,6 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
         label_path = yolo_paths.labels / f"{index_string}.txt"
         with open(label_path, "w") as lf:
             lf.write("\n".join(label_lines))
-
-            # print(f"✅ Saved Pair {index_string}:")
-            # print(f"   Image1: {im1_target}")
-            # print(f"   Image2: {im2_target}")
-            # print(f"   Labels: {label_path}")
-        
-
-    # print("\n🎉 Export finished successfully!")
-    # print(f"\n{fails} fails though :-(")
 
     return index
 
@@ -215,14 +207,14 @@ if __name__ == "__main__":
         # print(len(annotation_files))
         from yolo_config import generate_dataset_config
     
-        class_names = [
-            "nothing",          # 0
-            "no_idea",            # 1
-            "annotated",        # 2
-        ]
+        # class_names = [
+        #     "nothing",          # 0
+        #     "no_idea",            # 1
+        #     "annotated",        # 2
+        # ]
         
         generate_dataset_config(
-            class_names=class_names,
+            class_names=config.CLASS_NAMES,
             train_path=str(yolo_splitted_paths.train.images1),
             val_path=str(yolo_splitted_paths.val.images1),
             output_file=yolo_splitted_paths.yaml

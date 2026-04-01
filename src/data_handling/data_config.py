@@ -19,13 +19,15 @@ CLASS_NAMES = [
 ]
 
 
-_out_dataset_name = None # "large_xl-images_v3_0"
+_out_dataset_name = None # "large-images_v4_0"
 # _out_dataset_name = "testset_xl-images_v3_0"
 src_data_names = None # ["santiago", "sarah", "almas"]
 # src_data_names = ["niklas"]
-IMAGE_SIZE = 832
+IMAGE_SIZE = 416
 raw_data = _base_data_dir / "change_data"
 override_root = raw_data / "images"
 out_datasets_dir = None # _base_data_dir / "real_data" / _out_dataset_name
 
-NO_REMOVED = True
+NO_REMOVED = False
+if not NO_REMOVED:
+    CLASS_NAMES.append("removed")

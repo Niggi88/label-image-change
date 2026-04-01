@@ -7,6 +7,8 @@ from yolo_utils.yolo_paths_split import YoloPathsSplit
 from data_config import CLASS_NAMES
 
 
+
+
 CLASS_COLORS = {
     "nothing": (100, 96, 94),
     "no_idea": (250, 165, 96),
@@ -71,7 +73,7 @@ def visualize_prediction(img1_path, img2_path, class_name, boxes, probability):
     orig_h, orig_w, _ = img1.shape
 
     # Draw bounding box with enhanced styling
-    if class_name == "added" and boxes is not None:
+    if class_name in ["added", "removed"] and boxes is not None:
         
         boxes = [xywh2xyxy(rescale_box(box, orig_w, orig_h)) for box in boxes]
         for x1, y1, x2, y2 in boxes:
@@ -159,7 +161,7 @@ def read_label(label_dir):
     for line in file:
         class_id = int(line[0])
         box = []
-        if class_id == 2:
+        if class_id in (2, 3):
             xywh = line.split()[1:]
             x, y, w, h = [float(value) for value in xywh]
             box = [x, y, w, h]
@@ -191,3 +193,13 @@ def generate_sample(yolo_splitted_paths: YoloPathsSplit, number: int):
 
         if i > number:
             break
+
+if __name__ == '__main__':
+
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from data_handling import data_config as config
+
+    yolo_splitted_paths = YoloPathsSplit(config.out_datasets_dir)
+
+    generate_sample(yolo_splitted_paths, number=200)
