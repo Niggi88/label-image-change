@@ -134,10 +134,10 @@ def export_session(annotation_file, index, yolo_splitted_paths: YoloPathsSplit, 
 
 if __name__ == "__main__":
     
-    all_annotators = ["sarah", "santiago", "niklas", "almas"]
+    all_annotators = ["sarah", "santiago", "almas", "niklas"]
 
-    train_set_base_name = "images_v4_0"
-    test_set_base_name = "testset_images_v4_0"
+    train_set_base_name = "images_v5_0"
+    test_set_base_name = "testset_images_v5_0"
 
     # _out_dataset_name = "testset_xl-images_v3_0"
     # src_data_names = ["santiago", "sarah", "almas"]
